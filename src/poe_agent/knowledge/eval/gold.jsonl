@@ -1,0 +1,10 @@
+{"id": "1", "question": "How does poison damage scale?", "expected_pages": ["Poison", "Damage over time"], "gold_answer": "Poison is a damage over time ailment; its damage scales with modifiers to poison damage, damage over time, and ailment effect."}
+{"id": "2", "question": "What is ignite?", "expected_pages": ["Ignite"], "gold_answer": "Ignite is a fire damage over time ailment applied on critical strikes with fire damage."}
+{"id": "3", "question": "How does armour reduce physical damage?", "expected_pages": ["Armour"], "gold_answer": "Armour reduces physical hit damage taken according to the armour mitigation formula on physical hits."}
+{"id": "4", "question": "What are auras?", "expected_pages": ["Aura"], "gold_answer": "Auras are reservation skills that affect you and nearby allies or enemies depending on the aura."}
+{"id": "5", "question": "How do resistances work?", "expected_pages": ["Resistance"], "gold_answer": "Resistances reduce damage taken of the matching element, capped unless modified by effects."}
+{"id": "6", "question": "What is bleed?", "expected_pages": ["Bleed"], "gold_answer": "Bleed is a physical damage over time ailment that deals physical damage while moving or standing based on rules on the Bleed page."}
+{"id": "7", "question": "What are minions?", "expected_pages": ["Minion"], "gold_answer": "Minions are allied entities created by skills; their stats scale with minion modifiers on gear and passives."}
+{"id": "8", "question": "How do flasks work?", "expected_pages": ["Flask"], "gold_answer": "Flasks are consumable items that grant temporary effects when used, with charges gained from kills and other sources."}
+{"id": "9", "question": "What is evasion?", "expected_pages": ["Evasion"], "gold_answer": "Evasion provides a chance to avoid attacks based on evasion rating versus attacker accuracy."}
+{"id": "10", "question": "What are unique items?", "expected_pages": ["Unique item"], "gold_answer": "Unique items have fixed names, art, and special modifier combinations not found on normal rare items."}

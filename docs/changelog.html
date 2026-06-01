@@ -1,0 +1,62 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>PoE Wiki Agent — Changelog</title>
+  <style>
+
+    body { font-family: system-ui, sans-serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; }
+    h1, h2, h3 { color: #1a1a2e; }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { border: 1px solid #ccc; padding: 0.5rem 0.75rem; text-align: left; vertical-align: top; }
+    th { background: #f0f0f8; }
+    code { background: #f4f4f4; padding: 0.1em 0.3em; border-radius: 3px; }
+    pre { background: #f8f8fc; padding: 1rem; overflow-x: auto; }
+    nav { margin-bottom: 1.5rem; padding: 0.75rem; background: #f0f4ff; border-radius: 6px; }
+    nav a { margin-right: 1rem; }
+    a { color: #2563eb; }
+    article { border-left: 4px solid #2563eb; padding-left: 1rem; margin-bottom: 2rem; }
+    time { color: #666; font-size: 0.9rem; display: block; margin-bottom: 0.25rem; }
+    article h3 { margin-top: 0.25rem; }
+    article ul { margin: 0.5rem 0 0 1.1rem; padding: 0; }
+    article li { margin: 0.35rem 0; }
+    .changelog-label { font-weight: 600; color: #333; }
+    pre.mermaid { background: transparent; border: none; padding: 0.5rem 0; overflow-x: auto; text-align: center; }
+    .mermaid { margin: 1.5rem 0; }
+
+  </style>
+
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, theme: 'neutral' });
+  </script>
+</head>
+<body>
+  <nav>
+    <a href="/docs/">Docs hub</a>
+    <a href="/docs/architecture.html">Architecture</a>
+    <a href="/docs/changelog.html">Changelog</a>
+    <a href="/">App UI</a>
+  </nav>
+<h1>Changelog</h1><p>Newest first. Source: <code>docs/CHANGELOG.md</code>. Use <code>Label — description</code> bullets when adding entries.</p>
+<article><time datetime="2026-05-29">2026-05-29</time><h3>Live poewiki retrieval</h3><ul><li><span class="changelog-label">Retrieval</span> — `RETRIEVAL_MODE=local|live|hybrid` (default **live**): search and fetch poewiki at Ask time with disk cache and cross-encoder rerank.</li><li><span class="changelog-label">Retriever</span> — `wiki_client.py` shared MediaWiki helpers; `live.py` for query-time fetch; ingest refactored to reuse the client.</li><li><span class="changelog-label">API</span> — Health and query trace expose `retrieval_mode` / `retrieval_source`; sidebar shows live-mode latency hint.</li><li><span class="changelog-label">Docs</span> — Architecture and interactive pipeline updated for live retrieval.</li></ul></article>
+<article><time datetime="2026-05-30">2026-05-30</time><h3>Anthropic Sonnet 4.6</h3><ul><li><span class="changelog-label">Config</span> — `ANTHROPIC_MODEL` set to `claude-sonnet-4-6` (replaces deprecated `claude-sonnet-4-20250514`).</li></ul></article>
+<article><time datetime="2026-05-30">2026-05-30</time><h3>Judge provider alignment</h3><ul><li><span class="changelog-label">Config</span> — Selecting Claude or GPT-4 in the UI auto-sets judges to the same cloud provider (no Ollama required for scoring).</li><li><span class="changelog-label">Config</span> — Updated `ANTHROPIC_MODEL` default; fix deprecated model id in `.env`.</li></ul></article>
+<article><time datetime="2026-05-30">2026-05-30</time><h3>Cloud provider error handling</h3><ul><li><span class="changelog-label">API</span> — `/query` maps LLM/network errors to 502 with readable `detail` (not generic 500).</li><li><span class="changelog-label">API</span> — Health and provider settings expose `judge_provider`, `judge_reachable`, and hints when Ollama judges are down.</li><li><span class="changelog-label">Eval</span> — Inline judge failures return the answer with skipped scores instead of failing the whole request.</li><li><span class="changelog-label">Config</span> — Default `ANTHROPIC_MODEL` updated; `.env.example` documents `JUDGE_PROVIDER` for cloud-only setups.</li></ul></article>
+<article><time datetime="2026-05-30">2026-05-30</time><h3>Docs and architecture refresh</h3><ul><li><span class="changelog-label">Docs</span> — Interactive pipeline diagram in `architecture.html` (hover details, faded alternative paths).</li><li><span class="changelog-label">Docs</span> — Slimmer `ARCHITECTURE.md`: one LR Mermaid flow, removed code map and per-component I/O tables.</li><li><span class="changelog-label">Changelog</span> — Bullet entries use `Label — description`; HTML renders proper lists (no raw `**Config:**`).</li><li><span class="changelog-label">Collapsible</span> — Scaling and quality metrics sections collapsed by default in browser docs.</li><li><span class="changelog-label">Docs UX</span> — Collapsible sections render Markdown tables; pipeline uses wing layout and fixed detail strip.</li><li><span class="changelog-label">Docs UX</span> — Quality metrics split into retrieval (Evaluate) vs generation (inline Ask); enriched learning copy.</li><li><span class="changelog-label">Eval</span> — Removed inline verbosity and hallucination risk; UI shows faithfulness, relevance, prompt adherence only.</li><li><span class="changelog-label">Eval</span> — Inline LLM context precision and context recall on every Ask (shown with generation scores).</li><li><span class="changelog-label">Web UI</span> — Voice control is mic icon only (no Record label).</li><li><span class="changelog-label">Docs UX</span> — Pipeline alternatives in hover dropdown; seven steps fit page width without horizontal scroll.</li></ul></article>
+<article><time datetime="2026-05-29">2026-05-29</time><h3>React UI replaces Streamlit</h3><ul><li><span class="changelog-label">Web UI</span> — React + Vite SPA at `http://127.0.0.1:8000/` (single FastAPI process).</li><li><span class="changelog-label">Removed</span> — Streamlit, port 8501, `streamlit_app.py`.</li><li><span class="changelog-label">Voice</span> — Browser `MediaRecorder` and `POST /transcribe`.</li><li><span class="changelog-label">Launcher</span> — `start.bat` builds `web/dist` if needed, then uvicorn only.</li><li><span class="changelog-label">Docker</span> — Multi-stage image includes compiled web UI.</li></ul></article>
+<article><time datetime="2026-05-29">2026-05-29</time><h3>Voice UX (Streamlit era)</h3><ul><li><span class="changelog-label">Voice</span> — Record / Stop beside Ask; auto-transcribe into question field.</li><li><span class="changelog-label">Enter</span> — Submits question without Ctrl+Enter.</li></ul></article>
+<article><time datetime="2026-05-29">2026-05-29</time><h3>Voice transcription (STT)</h3><ul><li><span class="changelog-label">Speech</span> — `harness/speech/transcribe.py` with local faster-whisper or OpenAI Whisper API.</li><li><span class="changelog-label">API</span> — `POST /transcribe` multipart WAV upload.</li><li><span class="changelog-label">Config</span> — `TRANSCRIBE_PROVIDER`, `TRANSCRIBE_MODEL` in `.env.example`.</li><li><span class="changelog-label">Install</span> — `pip install -e &quot;.[speech]&quot;` for offline STT.</li></ul></article>
+<article><time datetime="2026-05-29">2026-05-29</time><h3>UI polish, metrics guide, diagram fixes</h3><ul><li><span class="changelog-label">Form</span> — Enter / Ctrl+Enter submits question (Streamlit).</li><li><span class="changelog-label">UI</span> — Compact quality and timing tables.</li><li><span class="changelog-label">Docs</span> — Metrics reference, scaling guide, Mermaid fix in `sync_docs.py`.</li></ul></article>
+<article><time datetime="2026-05-29">2026-05-29</time><h3>Multi-provider LLM, trace, inline quality scores</h3><ul><li><span class="changelog-label">Providers</span> — Claude and GPT-4 alongside stub and Ollama; UI validation for API keys.</li><li><span class="changelog-label">Trace</span> — `trace` and `llm_calls` on every `/query`.</li><li><span class="changelog-label">Inline eval</span> — Faithfulness, relevance, verbosity, adherence (`JUDGE_PROVIDER` default ollama).</li><li><span class="changelog-label">Config</span> — `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `INLINE_EVAL`, `JUDGE_PROVIDER` in `.env.example`.</li></ul></article>
+<article><time datetime="2026-05-29">2026-05-29</time><h3>Docs, launcher, and UX</h3><ul><li><span class="changelog-label">Launcher</span> — `start.bat` / `start.ps1` one-click API (later: React UI on same port).</li><li><span class="changelog-label">UI</span> — Runtime provider toggle without editing `.env`.</li><li><span class="changelog-label">Docs</span> — Served at `http://127.0.0.1:8000/docs/`; sync via `scripts/sync_docs.py`.</li></ul></article>
+<article><time datetime="2026-05-28">2026-05-28</time><h3>Phase 6 — Production hygiene</h3><p>Bedrock adapters, optional S3 sync, Dockerfile, docker-compose, GitHub Actions CI. README covers deploy and `POE_PROVIDER_MODE`.</p></article>
+<article><time datetime="2026-05-28">2026-05-28</time><h3>Phase 5 — Evaluator</h3><p>`POST /evaluate` with retrieval P/R, LLM judges, extraction overlap. Gold set in `knowledge/eval/gold.jsonl`.</p></article>
+<article><time datetime="2026-05-28">2026-05-28</time><h3>Phase 4 — LangGraph orchestrator</h3><p>Planner → executor → generator; compare questions trigger multiple `wiki_search` calls.</p></article>
+<article><time datetime="2026-05-28">2026-05-28</time><h3>Phase 3 — Hybrid retrieval + rerank</h3><p>BM25 + dense vectors with RRF; cross-encoder reranking; PoE1 metadata filter.</p></article>
+<article><time datetime="2026-05-28">2026-05-28</time><h3>Phase 2 — Wiki RAG pipeline</h3><p>Curated ingest (`poe-ingest`), ChromaDB, linear RAG. Stub excerpts or Ollama answers.</p></article>
+<article><time datetime="2026-05-28">2026-05-28</time><h3>Phase 1 — Local UI + API</h3><p>First web UI (Streamlit) and FastAPI `/health`, `/query`, structured run logs.</p></article>
+<article><time datetime="2026-05-28">2026-05-28</time><h3>Phase 0 — Skeleton</h3><p>Package layout, `pyproject.toml`, architecture and changelog pages, `.env.example`.</p></article>
+</body>
+</html>

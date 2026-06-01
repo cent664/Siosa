@@ -1,0 +1,84 @@
+# ROLE: planner — produces a JSON plan of subtasks for the executor.
+
+from __future__ import annotations
+
+import json
+import re
+
+from poe_agent.harness.config import get_settings
+from poe_agent.harness.providers import get_llm_provider
+
+PLANNER_SYSTEM = """You plan wiki lookups for Path of Exile 1 mechanic questions.
+Return ONLY valid JSON: {"subtasks": [{"action": "retrieve", "query": "..."}, ...]}
+Rules:
+- First retrieve subtask MUST use the EXACT user question verbatim (copy it unchanged)
+- Add 0-3 MORE retrieve subtasks with SHORT wiki search strings (1-4 words: mechanic or page name)
+- Do NOT use generic suffixes ("Path of Exile mechanics", "PoE wiki", "game mechanics")
+- Example compare: ignite vs poison -> exact question, then "ignite", then "poison"
+- End with optional {"action": "synthesize", "query": "..."} (executor ignores synthesize action)"""
+
+
+def _ensure_verbatim_first(question: str, subtasks: list[dict]) -> list[dict]:
+    """Prepend exact user question if planner omitted it."""
+    retrieve_tasks = [t for t in subtasks if t.get("action", "retrieve") != "synthesize"]
+    others = [t for t in subtasks if t.get("action") == "synthesize"]
+    q_norm = question.strip().casefold()
+    has_verbatim = any(
+        t.get("action", "retrieve") != "synthesize"
+        and str(t.get("query", "")).strip().casefold() == q_norm
+        for t in retrieve_tasks
+    )
+    if not has_verbatim:
+        retrieve_tasks.insert(0, {"action": "retrieve", "query": question})
+    max_r = get_settings().planner_max_retrieve_subtasks
+    retrieve_tasks = retrieve_tasks[:max_r]
+    return retrieve_tasks + others
+
+
+def plan_subtasks(question: str) -> list[dict]:
+    """Rule-based fallback if LLM unavailable; else LLM JSON plan."""
+    from poe_agent.harness.config import get_effective_provider_mode
+
+    settings_mode = get_effective_provider_mode()
+
+    if settings_mode == "stub":
+        return _heuristic_plan(question)
+
+    llm = get_llm_provider()
+    raw, _ = llm.generate(
+        PLANNER_SYSTEM,
+        f"Question: {question}\nReturn JSON plan only.",
+    )
+    try:
+        match = re.search(r"\{.*\}", raw, re.DOTALL)
+        if match:
+            data = json.loads(match.group())
+            subtasks = data.get("subtasks", [])
+            if subtasks:
+                return _ensure_verbatim_first(question, subtasks)
+    except json.JSONDecodeError:
+        pass
+    return _heuristic_plan(question)
+
+
+def _heuristic_plan(question: str) -> list[dict]:
+    q = question.lower()
+    subtasks: list[dict] = [{"action": "retrieve", "query": question}]
+
+    if " vs " in q or " versus " in q or "compare" in q:
+        parts = re.split(r"\s+vs\.?\s+|\s+versus\s+|compare\s+", q, maxsplit=1)
+        if len(parts) == 2:
+            subtasks = [
+                {"action": "retrieve", "query": question},
+                {"action": "retrieve", "query": parts[0].strip()},
+                {"action": "retrieve", "query": parts[1].strip()},
+            ]
+    elif "poison" in q and "ignite" in q:
+        subtasks = [
+            {"action": "retrieve", "query": question},
+            {"action": "retrieve", "query": "poison"},
+            {"action": "retrieve", "query": "ignite"},
+        ]
+
+    subtasks.append({"action": "synthesize", "query": question})
+    return _ensure_verbatim_first(question, subtasks)

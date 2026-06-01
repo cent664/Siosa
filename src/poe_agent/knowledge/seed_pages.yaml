@@ -1,0 +1,39 @@
+# Curated Path of Exile 1 wiki pages (poewiki.net)
+game: poe1
+pages:
+  - title: Poison
+    path: Poison
+  - title: Ignite
+    path: Ignite
+  - title: Bleed
+    path: Bleed
+  - title: Damage over time
+    path: Damage_over_time
+  - title: Ailment
+    path: Ailment
+  - title: Resistance
+    path: Resistance
+  - title: Armour
+    path: Armour
+  - title: Evasion
+    path: Evasion
+  - title: Energy shield
+    path: Energy_shield
+  - title: Critical strike
+    path: Critical_strike
+  - title: Minion
+    path: Minion
+  - title: Aura
+    path: Aura
+  - title: Curse
+    path: Curse
+  - title: Flask
+    path: Flask
+  - title: Item rarity
+    path: Item_rarity
+  - title: Influenced item
+    path: Influenced_item
+  - title: Modifier
+    path: Modifier
+  - title: Unique item
+    path: Unique_item

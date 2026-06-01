@@ -1,0 +1,256 @@
+.pipeline-interactive {
+  margin: 2rem 0 2.5rem;
+  padding: 1.25rem 0;
+  border-top: 1px solid #e2e4ec;
+  border-bottom: 1px solid #e2e4ec;
+  max-width: 100%;
+}
+
+.pipeline-interactive h2 {
+  font-size: 1.2rem;
+  margin-bottom: 0.35rem;
+}
+
+.pipeline-interactive .pipeline-hint {
+  color: #555;
+  font-size: 0.9rem;
+  margin-bottom: 1rem;
+  max-width: 52rem;
+}
+
+.pipeline-track {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 0.4rem;
+  width: 100%;
+  overflow-x: visible;
+  padding: 0.5rem 0 0.25rem;
+  align-items: flex-start;
+}
+
+.pipeline-stage-wrap {
+  position: relative;
+  flex: 1 1 0;
+  min-width: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+}
+
+.pipeline-stage--core {
+  border: 2px solid #2d4a9a;
+  border-radius: 8px;
+  background: #f0f4ff;
+  padding: 0.5rem 0.4rem;
+  cursor: default;
+  transition: box-shadow 0.15s ease, border-color 0.15s ease;
+  width: 100%;
+}
+
+.pipeline-stage-wrap:hover .pipeline-stage--core,
+.pipeline-stage-wrap:focus-within .pipeline-stage--core,
+.pipeline-stage--core:hover,
+.pipeline-stage--core:focus,
+.pipeline-stage--core.pipeline-active,
+.pipeline-stage--core.pipeline-pinned {
+  box-shadow: 0 3px 12px rgba(45, 74, 154, 0.2);
+  border-color: #1e3a8a;
+  outline: none;
+}
+
+.pipeline-stage--core.pipeline-pinned {
+  box-shadow: 0 0 0 2px #93b4ff;
+}
+
+.pipeline-stage-id {
+  font-size: 0.65rem;
+  font-weight: 700;
+  color: #2d4a9a;
+  letter-spacing: 0.02em;
+}
+
+.pipeline-stage-title {
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin: 0.1rem 0;
+  color: #1a1a2e;
+  line-height: 1.2;
+}
+
+.pipeline-stage-chosen {
+  font-size: 0.68rem;
+  color: #333;
+  font-weight: 600;
+  line-height: 1.25;
+}
+
+.pipeline-stage-summary {
+  font-size: 0.62rem;
+  color: #555;
+  margin-top: 0.25rem;
+  line-height: 1.3;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+}
+
+.pipeline-alts-dropdown {
+  position: absolute;
+  left: 0;
+  right: 0;
+  top: calc(100% + 4px);
+  z-index: 30;
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+  padding: 0.35rem;
+  background: #fff;
+  border: 1px solid #c8cce0;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.1);
+  opacity: 0;
+  visibility: hidden;
+  pointer-events: none;
+  transition: opacity 0.12s ease, visibility 0.12s ease;
+}
+
+.pipeline-stage-wrap:hover .pipeline-alts-dropdown,
+.pipeline-stage-wrap:focus-within .pipeline-alts-dropdown {
+  opacity: 1;
+  visibility: visible;
+  pointer-events: auto;
+}
+
+.pipeline-alt {
+  font-size: 0.68rem;
+  line-height: 1.25;
+  padding: 0.3rem 0.4rem;
+  border-radius: 4px;
+  border: 1px dashed #bbb;
+  background: #fafafa;
+  color: #555;
+  cursor: default;
+  text-align: left;
+}
+
+.pipeline-alt--opaque {
+  opacity: 0.55;
+}
+
+.pipeline-alt:hover,
+.pipeline-alt:focus,
+.pipeline-alt.pipeline-active {
+  opacity: 1;
+  border-color: #6b7fa8;
+  background: #eef2fa;
+  outline: none;
+}
+
+.pipeline-detail-strip {
+  margin-top: 0.75rem;
+  min-height: 140px;
+  border: 1px solid #d0d4e0;
+  border-radius: 10px;
+  background: #fafbfe;
+  padding: 0.85rem 1rem;
+}
+
+.pipeline-detail-strip-title {
+  font-size: 0.82rem;
+  font-weight: 700;
+  color: #2d4a9a;
+  margin-bottom: 0.45rem;
+}
+
+.pipeline-detail-strip-body {
+  font-size: 0.88rem;
+  line-height: 1.5;
+  color: #333;
+  max-height: 200px;
+  overflow-y: auto;
+}
+
+.pipeline-detail-strip-body p {
+  margin: 0.4rem 0;
+}
+
+.pipeline-detail-strip-body a {
+  color: #2563eb;
+}
+
+@media (max-width: 900px) {
+  .pipeline-stage-title {
+    font-size: 0.72rem;
+  }
+
+  .pipeline-stage-chosen,
+  .pipeline-stage-summary {
+    font-size: 0.6rem;
+  }
+}
+
+details.arch-collapse {
+  margin: 1.25rem 0;
+  border: 1px solid #e2e4ec;
+  border-radius: 8px;
+  padding: 0.5rem 0.85rem;
+  background: #fafbfc;
+}
+
+details.arch-collapse summary {
+  cursor: pointer;
+  font-weight: 600;
+  color: #1a1a2e;
+  list-style-position: outside;
+}
+
+details.arch-collapse[open] summary {
+  margin-bottom: 0.5rem;
+}
+
+details.arch-collapse .arch-collapse-body {
+  padding-top: 0.25rem;
+}
+
+details.arch-collapse .arch-collapse-body h3 {
+  font-size: 1rem;
+  margin: 1rem 0 0.5rem;
+  color: #1a1a2e;
+}
+
+details.arch-collapse .arch-collapse-body h3:first-child {
+  margin-top: 0.35rem;
+}
+
+details.arch-collapse .arch-collapse-body table {
+  border-collapse: collapse;
+  width: 100%;
+  margin: 0.75rem 0;
+  font-size: 0.92rem;
+}
+
+details.arch-collapse .arch-collapse-body th,
+details.arch-collapse .arch-collapse-body td {
+  border: 1px solid #ccc;
+  padding: 0.5rem 0.65rem;
+  text-align: left;
+  vertical-align: top;
+}
+
+details.arch-collapse .arch-collapse-body th {
+  background: #f0f0f8;
+}
+
+details.arch-collapse .arch-collapse-body ul {
+  margin: 0.5rem 0 0.75rem 1.25rem;
+  padding: 0;
+}
+
+details.arch-collapse .arch-collapse-body li {
+  margin: 0.35rem 0;
+}
+
+details.arch-collapse .arch-collapse-body p {
+  margin: 0.5rem 0;
+}

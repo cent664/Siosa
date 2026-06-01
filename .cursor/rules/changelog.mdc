@@ -1,0 +1,12 @@
+---
+description: Require changelog and doc sync when completing project changes
+alwaysApply: true
+---
+
+When you finish a task that changes behavior, UX, architecture, or dependencies for the PoE Wiki Agent project:
+
+1. Add a dated entry to `docs/CHANGELOG.md` (newest first) using bullets like `- Label — description`, or run `python scripts/add_changelog_entry.py "Title" "Description"`.
+2. Run `python scripts/sync_docs.py` to regenerate `README.md`, `docs/architecture.html`, and `docs/changelog.html`.
+3. If architecture changed, update `docs/ARCHITECTURE.md` (not README or HTML directly).
+
+Do not edit the plan files in `.cursor/plans/`.

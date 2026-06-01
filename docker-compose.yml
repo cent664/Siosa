@@ -1,0 +1,20 @@
+services:
+
+  api:
+
+    build: .
+
+    ports:
+
+      - "8000:8000"
+
+    environment:
+
+      - POE_PROVIDER_MODE=stub
+
+      - POE_API_BASE_URL=http://api:8000
+
+    volumes:
+
+      - ./data:/app/data
+
