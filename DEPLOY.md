@@ -11,7 +11,7 @@ Public URL for QR codes; your laptop can stay off during the event.
 5. Open the service → **Settings**:
    - **Resources:** set **4 GB RAM** and **~2 vCPU** before the first deploy (default RAM often OOMs during startup; healthcheck will fail).
    - **Networking:** click **Generate domain** → you get `https://something.up.railway.app`.
-6. **Variables** tab — paste the [production variables](#required-variables) below (secrets from your local `.env`, never commit them).
+6. **Variables** tab — paste the [production variables](#required-variables) below, or copy from [`railway.variables.example`](railway.variables.example) (secrets from your local `.env`, never commit them).
 7. Wait for **Deploy** to finish (first build ~5–15 min).
 8. Open `https://YOUR-DOMAIN.up.railway.app/health` — should return `"status":"ok"`. Railway probes `/health/live` during deploy (see [`railway.toml`](railway.toml)).
 9. Open the root URL, run one **Ask**, then create your **QR code** pointing to `https://YOUR-DOMAIN.up.railway.app/`.

@@ -126,10 +126,16 @@ def default_judge_for_answer_mode(answer_mode: str) -> str:
 
 def list_available_provider_modes() -> list[dict[str, str]]:
     """Modes the UI may offer, with availability hints."""
+    from poe_agent.harness.provider_health import ollama_reachable
+
     s = get_settings()
     modes = [
         {"id": "stub", "label": "Stub (excerpts)", "available": "true"},
-        {"id": "ollama", "label": "Ollama (local)", "available": "true"},
+        {
+            "id": "ollama",
+            "label": "Ollama (local)",
+            "available": "true" if ollama_reachable(s) else "false",
+        },
     ]
     modes.append({
         "id": "claude",
