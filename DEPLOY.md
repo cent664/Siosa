@@ -80,6 +80,7 @@ After changing RAM or variables, or pushing code to `main`:
    - `https://YOUR-DOMAIN.up.railway.app/health/live` → `{"status":"ok"}`
    - `/health` → `"status":"ok"`, `judge_provider` is `claude` (not `ollama`)
    - Root URL → one **Ask** returns a real answer (not stub text)
+   - Or run: `.\scripts\verify_railway_deploy.ps1 -BaseUrl "https://YOUR-DOMAIN.up.railway.app"`
 
 ## Pushing updates (2 Jun – 7 Jun)
 
