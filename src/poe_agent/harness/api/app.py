@@ -9,11 +9,9 @@ from fastapi import FastAPI, File, HTTPException, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.staticfiles import StaticFiles
 
-from poe_agent.evaluator.service import run_evaluation
 from poe_agent.harness.api.settings_routes import router as settings_router
 from poe_agent.harness.config import get_effective_provider_mode
 from poe_agent.harness.api.errors import map_query_exception
-from poe_agent.harness.api.query_service import handle_query
 from poe_agent.harness.provider_health import (
     judge_provider_hint,
     judge_provider_reachable,
@@ -65,6 +63,12 @@ def _live_retrieval_hint(settings) -> str:
     return ""
 
 
+@app.get("/health/live")
+def health_live() -> dict[str, str]:
+    """Lightweight liveness probe for Railway (no Chroma/Ollama/judge checks)."""
+    return {"status": "ok"}
+
+
 @app.get("/health", response_model=HealthResponse)
 def health() -> HealthResponse:
     settings = get_settings()
@@ -83,6 +87,8 @@ def health() -> HealthResponse:
 
 @app.post("/query", response_model=QueryResponse)
 def query(body: QueryRequest) -> QueryResponse:
+    from poe_agent.harness.api.query_service import handle_query
+
     try:
         return handle_query(body.question)
     except Exception as exc:
@@ -91,6 +97,8 @@ def query(body: QueryRequest) -> QueryResponse:
 
 @app.post("/evaluate", response_model=EvaluateResponse)
 def evaluate(body: EvaluateRequest) -> EvaluateResponse:
+    from poe_agent.evaluator.service import run_evaluation
+
     return run_evaluation(body)
 
 

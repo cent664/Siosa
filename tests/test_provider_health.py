@@ -4,6 +4,13 @@ from poe_agent.harness.api.app import app
 from poe_agent.harness.config import get_settings
 
 
+def test_health_live_is_minimal():
+    client = TestClient(app)
+    resp = client.get("/health/live")
+    assert resp.status_code == 200
+    assert resp.json() == {"status": "ok"}
+
+
 def test_health_includes_judge_fields():
     client = TestClient(app)
     resp = client.get("/health")
