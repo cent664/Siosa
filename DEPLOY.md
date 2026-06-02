@@ -103,6 +103,7 @@ Delete the Railway service after the conference if you want to stop hosting char
 | Issue | Fix |
 |-------|-----|
 | Deploy fails: healthcheck / network process | Set **4 GB RAM** (default often OOMs). Check deploy logs for `OOMKilled` or exit **137**. Do not set a custom `PORT` variable. |
+| Deploy log: `python-multipart` / Form data requires | Fixed in `pyproject.toml` — rebuild after pulling latest `main`. |
 | Build fails on memory | Increase build resources in Railway or retry |
 | Service crashes on Ask | Raise RAM to 4 GB |
 | 502 / timeout on first Ask | Normal once — model load + wiki fetch; try again |
