@@ -1,3 +1,7 @@
+## 2026-06-02 — Railway deployment
+
+- Deploy — `railway.toml`, `DEPLOY.md`, Dockerfile PORT + pre-baked rerank model for Railway hosting.
+
 ## 2026-05-29 — Trace debug UI
 
 - Web UI — Agent reasoning trace shows retrieval summary, structured plan/tool/chunk tables, and per-call fused searches + pages fetched.
