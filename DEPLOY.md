@@ -89,7 +89,73 @@ After changing RAM or variables, or pushing code to `main`:
 3. Railway rebuilds automatically (watch **Deployments**).
 4. After deploy, run one test Ask on the public URL (warms the app).
 
-QR code URL **does not change** if you keep the same Railway domain.
+QR code URL **does not change** if you keep the same Railway `*.up.railway.app` hostname. If you add a [custom domain](#custom-domain), point the QR at the new `https://...` URL instead.
+
+## Local vs production
+
+| | **Local** (your PC) | **Production** (Railway) |
+|--|---------------------|---------------------------|
+| Config | [`.env`](.env.example) | Railway **Variables** ([`railway.variables.example`](railway.variables.example)) |
+| Run API | `poe-api` or `docker compose` | Auto-deploy on `git push origin main` |
+| Run UI | `cd web && npm run dev` | Served from same container as API |
+| Ollama | Optional (`ollama serve`) | Not supported |
+| Judges | `INLINE_EVAL=true` for experiments | `INLINE_EVAL=false` at the booth |
+| UI / retrieval / scoring | Edit code under `web/` and `src/` | Same code; push to `main` to ship |
+
+Production-only tweaks (no code): set Variables as in [Required variables](#required-variables). Code changes (background, UX, retrieval, hiding Ollama in the dropdown) require a git push.
+
+## Custom domain
+
+Railway does not sell domains. Register elsewhere, then attach the hostname in Railway. **No app code changes** are required.
+
+### 1. Register a domain
+
+Buy a name at any registrar, for example:
+
+- [Cloudflare Registrar](https://www.cloudflare.com/products/registrar/)
+- [Namecheap](https://www.namecheap.com), [Porkbun](https://porkbun.com)
+
+A **subdomain** (e.g. `app.yourdomain.com`) is the simplest DNS setup for a demo.
+
+### 2. Add the domain in Railway
+
+1. [railway.app](https://railway.app) → your project → service (e.g. Siosa).
+2. **Settings** → **Networking** → **Custom Domain** → **Add custom domain**.
+3. Enter the full hostname (e.g. `app.yourdomain.com`).
+4. Copy the **CNAME target** Railway shows (often something like `xxxx.up.railway.app`).
+
+Your existing `https://siosa-production.up.railway.app` URL keeps working; both hostnames can point at the same service.
+
+### 3. DNS at your registrar
+
+Create a record in the DNS panel for that domain:
+
+| Type | Host / Name | Value / Target |
+|------|-------------|----------------|
+| CNAME | `app` (for `app.yourdomain.com`) | Paste Railway’s CNAME target exactly |
+
+For the **apex** (`yourdomain.com` with no subdomain), use Railway’s on-screen instructions (ALIAS/ANAME or CNAME flattening); subdomain CNAME is easier.
+
+Save and wait for DNS to propagate (minutes to a few hours).
+
+### 4. SSL
+
+Railway provisions HTTPS automatically when DNS resolves. In Networking, the custom domain should show **Active**.
+
+### 5. Verify and update QR
+
+```powershell
+curl https://app.yourdomain.com/health/live
+.\scripts\verify_railway_deploy.ps1 -BaseUrl "https://app.yourdomain.com"
+```
+
+Reprint or regenerate your QR code with the new `https://` URL.
+
+| Custom domain issue | Fix |
+|---------------------|-----|
+| Certificate pending | Wait for DNS; confirm CNAME matches Railway exactly |
+| 502 on custom URL only | Check Networking target port; do not set a custom `PORT` variable |
+| Old Railway URL still works | Expected — both hostnames can serve the same deploy |
 
 ## Billing (rough)
 
@@ -115,5 +181,6 @@ Delete the Railway service after the conference if you want to stop hosting char
 
 - Create your Railway account or enter card details — **you** must do that in the browser.
 - Paste API keys into Railway — copy from your local `.env` into **Variables**.
+- Register a domain or edit DNS — use [Custom domain](#custom-domain) above at your registrar.
 
 After you have a public URL, share it if you want help verifying health and a test query.

@@ -1,4 +1,7 @@
-# Usage: .\scripts\verify_railway_deploy.ps1 -BaseUrl "https://YOUR-DOMAIN.up.railway.app"
+# Usage:
+#   .\scripts\verify_railway_deploy.ps1 -BaseUrl "https://siosa-production.up.railway.app"
+#   .\scripts\verify_railway_deploy.ps1 -BaseUrl "https://app.yourdomain.com"
+# See DEPLOY.md "Custom domain" for DNS setup. Exit 0 = healthy; 2 = missing API keys.
 param(
     [Parameter(Mandatory = $true)]
     [string]$BaseUrl
