@@ -3,7 +3,6 @@
 from __future__ import annotations
 
 from poe_agent.retriever.gate import retrieval_needs_refine
-from poe_agent.retriever.models import RetrievedChunk
 
 
 def test_gate_disabled_by_default(monkeypatch):

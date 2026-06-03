@@ -70,7 +70,6 @@ def test_retrieve_live_for_query_end_to_end(monkeypatch):
 
     get_settings.cache_clear()
 
-    html = "<p>Poison deals chaos damage over time.</p>"
     search_hits = [("Poison", "Poison")]
 
     with (

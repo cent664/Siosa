@@ -24,6 +24,7 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4o"
     judge_provider: str = "ollama"  # provider used for inline quality judges
     inline_eval: bool = True
+    enable_ollama: bool = True  # POE_ENABLE_OLLAMA — false on production (Railway)
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     retrieval_top_k: int = 8
     hybrid_rrf_k: int = 60
@@ -131,12 +132,13 @@ def list_available_provider_modes() -> list[dict[str, str]]:
     s = get_settings()
     modes = [
         {"id": "stub", "label": "Stub (excerpts)", "available": "true"},
-        {
+    ]
+    if s.enable_ollama:
+        modes.append({
             "id": "ollama",
             "label": "Ollama (local)",
             "available": "true" if ollama_reachable(s) else "false",
-        },
-    ]
+        })
     modes.append({
         "id": "claude",
         "label": "Claude (Anthropic API)",

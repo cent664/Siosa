@@ -99,6 +99,8 @@ export interface HealthResponse {
   chroma_ready: boolean;
   retrieval_mode?: string;
   live_retrieval_hint?: string;
+  inline_eval?: boolean;
+  enable_ollama?: boolean;
   judge_provider?: string;
   judge_reachable?: boolean;
   judge_hint?: string;

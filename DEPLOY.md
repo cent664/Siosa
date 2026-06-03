@@ -1,6 +1,6 @@
 # Deploy to Railway (conference demo)
 
-Public URL for QR codes; your laptop can stay off during the event.
+Public URL for QR codes; your laptop can stay off during the event. Live site: **https://www.poesiosa.net/**
 
 ## What you do in Railway (one time, ~15 min)
 
@@ -22,7 +22,9 @@ Copy into Railway **Variables** (replace secrets with your real keys).
 
 **Judges are not a Railway product** — `JUDGE_PROVIDER` chooses which **your** LLM API runs optional quality scores on each Ask (only when `INLINE_EVAL=true`). For the booth, use `INLINE_EVAL=false` and still set `JUDGE_PROVIDER=claude` so `/health` is not misleading.
 
-**Do not use Ollama on Railway:** delete or override any `JUDGE_PROVIDER=ollama`, `POE_PROVIDER_MODE=ollama`, or `OLLAMA_*` variables (local dev defaults from `.env.example`).
+**Do not use Ollama on Railway:** set `POE_ENABLE_OLLAMA=false`, delete or override any `JUDGE_PROVIDER=ollama`, `POE_PROVIDER_MODE=ollama`, or `OLLAMA_*` variables (local dev defaults from `.env.example`).
+
+**Booth UI:** When `INLINE_EVAL=false`, the web UI shows **Answer + Sources only** (no quality scores, trace, or timing). `/health` returns `"inline_eval": false` and `"enable_ollama": false`.
 
 **Do not set** a custom `PORT` — Railway injects it; the container uses it via [`scripts/start_api.sh`](scripts/start_api.sh).
 
@@ -38,6 +40,7 @@ OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4o
 JUDGE_PROVIDER=claude
 INLINE_EVAL=false
+POE_ENABLE_OLLAMA=false
 RETRIEVAL_MODE=live
 POE_DATA_DIR=/app/data
 ```
@@ -51,6 +54,7 @@ ANTHROPIC_API_KEY=sk-ant-...
 ANTHROPIC_MODEL=claude-sonnet-4-6
 RETRIEVAL_MODE=live
 INLINE_EVAL=false
+POE_ENABLE_OLLAMA=false
 POE_DATA_DIR=/app/data
 ```
 
@@ -73,14 +77,14 @@ Do **not** set `OLLAMA_*` on Railway (no Ollama on the server).
 
 After changing RAM or variables, or pushing code to `main`:
 
-1. **Variables** — Use a block above; remove `ollama` / `OLLAMA_*` / custom `PORT`.
+1. **Variables** — Use a block above; set `POE_ENABLE_OLLAMA=false`; remove `ollama` / `OLLAMA_*` / custom `PORT`.
 2. **Resources** — **4 GB RAM** and **~2 vCPU** is enough after a successful deploy (8 GB is safe but costs more).
 3. **Push** — `git push origin main` triggers a rebuild (includes `/health/live` in [`railway.toml`](railway.toml)).
 4. **Verify** — Deploy logs show `Uvicorn running on http://0.0.0.0:...`; then:
-   - `https://YOUR-DOMAIN.up.railway.app/health/live` → `{"status":"ok"}`
-   - `/health` → `"status":"ok"`, `judge_provider` is `claude` (not `ollama`)
-   - Root URL → one **Ask** returns a real answer (not stub text)
-   - Or run: `.\scripts\verify_railway_deploy.ps1 -BaseUrl "https://YOUR-DOMAIN.up.railway.app"`
+   - `https://www.poesiosa.net/health/live` → `{"status":"ok"}`
+   - `/health` → `"status":"ok"`, `"inline_eval": false`, `"enable_ollama": false`, Claude/GPT available if keys set
+   - Root URL → one **Ask** with Claude returns a real answer (not stub text)
+   - Or run: `.\scripts\verify_railway_deploy.ps1 -BaseUrl "https://www.poesiosa.net"`
 
 ## Pushing updates (2 Jun – 7 Jun)
 
@@ -98,9 +102,9 @@ QR code URL **does not change** if you keep the same Railway `*.up.railway.app` 
 | Config | [`.env`](.env.example) | Railway **Variables** ([`railway.variables.example`](railway.variables.example)) |
 | Run API | `poe-api` or `docker compose` | Auto-deploy on `git push origin main` |
 | Run UI | `cd web && npm run dev` | Served from same container as API |
-| Ollama | Optional (`ollama serve`) | Not supported |
+| Ollama | `POE_ENABLE_OLLAMA=true` (optional `ollama serve`) | `POE_ENABLE_OLLAMA=false` — hidden from dropdown |
 | Judges | `INLINE_EVAL=true` for experiments | `INLINE_EVAL=false` at the booth |
-| UI / retrieval / scoring | Edit code under `web/` and `src/` | Same code; push to `main` to ship |
+| UI | Full: scores, trace, timing, Ollama | Booth: Answer + Sources only |
 
 Production-only tweaks (no code): set Variables as in [Required variables](#required-variables). Code changes (background, UX, retrieval, hiding Ollama in the dropdown) require a git push.
 
@@ -174,8 +178,10 @@ Delete the Railway service after the conference if you want to stop hosting char
 | Service crashes on Ask | Raise RAM to 4 GB |
 | 502 / timeout on first Ask | Normal once — model load + wiki fetch; try again |
 | Works locally, fails on Railway | Check `ANTHROPIC_API_KEY` in Variables, not only in local `.env` |
-| Health OK but stub answers | Set `POE_PROVIDER_MODE=claude` and API key in Variables |
+| Health OK but stub answers | Set `POE_PROVIDER_MODE=claude` and `ANTHROPIC_API_KEY` in Variables |
+| Claude/GPT greyed out in UI | Add `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` to Railway Variables |
 | `/health` shows `judge_provider: ollama` | Set `JUDGE_PROVIDER=claude` (or `gpt4`); remove `ollama` from Variables |
+| Ollama still in provider dropdown | Set `POE_ENABLE_OLLAMA=false` in Railway Variables |
 
 ## What the agent cannot do for you
 

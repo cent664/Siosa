@@ -68,6 +68,8 @@ class HealthResponse(BaseModel):
     chunk_count: int = 0
     retrieval_mode: str = "local"
     live_retrieval_hint: str = ""
+    inline_eval: bool = True
+    enable_ollama: bool = True
     judge_provider: str = "ollama"
     judge_reachable: bool = True
     judge_hint: str = ""

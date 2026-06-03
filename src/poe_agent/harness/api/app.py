@@ -79,6 +79,8 @@ def health() -> HealthResponse:
         chunk_count=get_chunk_count(),
         retrieval_mode=settings.retrieval_mode.lower(),
         live_retrieval_hint=_live_retrieval_hint(settings),
+        inline_eval=settings.inline_eval,
+        enable_ollama=settings.enable_ollama,
         judge_provider=get_effective_judge_provider(),
         judge_reachable=judge_provider_reachable(settings),
         judge_hint=judge_provider_hint(settings),

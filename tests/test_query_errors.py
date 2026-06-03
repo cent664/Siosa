@@ -1,5 +1,4 @@
 import httpx
-import pytest
 from fastapi import HTTPException
 
 from poe_agent.harness.api.errors import map_query_exception

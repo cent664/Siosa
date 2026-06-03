@@ -157,7 +157,7 @@ flowchart LR
 | Mode | Generation | API key | Set via |
 |------|------------|---------|---------|
 | **stub** | Wiki excerpt only | None | UI or `.env` |
-| **ollama** | Local `llama3.2` | None (local) | UI or `.env` |
+| **ollama** | Local `llama3.2` | None (local) | UI or `.env` (local only; set `POE_ENABLE_OLLAMA=false` on production) |
 | **claude** | Anthropic API | `ANTHROPIC_API_KEY` | UI or `.env` |
 | **gpt4** | OpenAI API | `OPENAI_API_KEY` | UI or `.env` |
 | **bedrock** | AWS Bedrock | AWS credentials | `.env` only |
@@ -176,12 +176,24 @@ Supporting env vars: `LIVE_WIKI_MAX_PAGES`, `LIVE_WIKI_SEARCH_LIMIT`, `LIVE_WIKI
 
 **Optional refinement (Phase 2):** `RETRIEVAL_REFINE_ENABLED=true` runs a heuristic gate after retrieval; on weak results, a short LLM generates 1–2 new search strings and fetches once more (`RETRIEVAL_MAX_REFINE_ROUNDS=1`).
 
+### Local vs production
+
+| | **Local dev** | **Production** ([poesiosa.net](https://www.poesiosa.net/)) |
+|--|---------------|--------------------------------------------------------------|
+| Config | [`.env`](.env.example) | Railway **Variables** ([`railway.variables.example`](../railway.variables.example)) |
+| Inline judges | `INLINE_EVAL=true` (default) | `INLINE_EVAL=false` — no judge LLM calls |
+| UI | Full: quality scores, trace, timing, Ollama option | Booth: Answer + Sources only |
+| Ollama | `POE_ENABLE_OLLAMA=true` (default) | `POE_ENABLE_OLLAMA=false` |
+| Cloud LLMs | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` in `.env` | Same keys in Railway Variables |
+
+Production uses the same codebase; env vars control booth vs dev behavior. Push to `main` redeploys on Railway.
+
 ---
 
 <details class="arch-collapse">
 <summary>Quality metrics reference</summary>
 
-Evaluation is split into **retrieval** (did we fetch the right wiki pages?) and **generation** (is the answer good given what we fetched?). Scores are **display-only** — they do not change the answer or trigger retries.
+Evaluation is split into **retrieval** (did we fetch the right wiki pages?) and **generation** (is the answer good given what we fetched?). Scores are **display-only** today — they do not change the answer or trigger retries. On production (`INLINE_EVAL=false`), judges are skipped entirely for speed; re-enable when building agentic revise loops that use scores as control signals.
 
 ### Retrieval metrics (after every Ask)
 
@@ -213,7 +225,8 @@ Three separate **LLM-as-judge** calls (1–5, higher is better), run after the a
 | Setting | Meaning |
 |---------|---------|
 | `JUDGE_PROVIDER` | Which backend runs judges: **ollama** (default in `.env`), **claude**, **gpt4**, or **bedrock**. Selecting Claude or GPT-4 in the UI **auto-matches** judges to the same provider for that session |
-| `INLINE_EVAL=false` | Skip all inline judges on `/query` (retrieval + generation) |
+| `INLINE_EVAL=false` | Skip all inline judges on `/query` (retrieval + generation); production booth default |
+| `POE_ENABLE_OLLAMA=false` | Hide Ollama from provider UI (production default) |
 
 Inline Ask runs **five** judge calls when enabled: context precision, context recall, faithfulness, relevance, prompt adherence.
 

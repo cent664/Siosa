@@ -81,7 +81,7 @@
       "title": "Generate",
       "chosen": "UI provider",
       "summary": "LLM or stub writes from retrieved chunks only.",
-      "detail": "<p><strong>What we do:</strong> The selected provider (stub, Ollama, Claude, or GPT-4) generates an answer using <strong>only</strong> the retrieved excerpts — not the whole corpus.</p><p><strong>Stub:</strong> Returns a wiki excerpt with no LLM call.</p><p><strong>LLM modes:</strong> Short grounded answer with citations; system prompt enforces PoE 1 and excerpt-only rules.</p>",
+      "detail": "<p><strong>What we do:</strong> The selected provider (stub, Claude, or GPT-4; Ollama locally when <code>POE_ENABLE_OLLAMA=true</code>) generates an answer using <strong>only</strong> the retrieved excerpts — not the whole corpus.</p><p><strong>Stub:</strong> Returns a wiki excerpt with no LLM call.</p><p><strong>LLM modes:</strong> Short grounded answer with citations; system prompt enforces PoE 1 and excerpt-only rules.</p>",
       "alternatives": [
         {
           "label": "Stub",
@@ -100,7 +100,7 @@
       "title": "Judge",
       "chosen": "Generation judges",
       "summary": "Retrieval metrics on Evaluate; 3 inline scores on Ask.",
-      "detail": "<p><strong>Retrieval (Ask):</strong> LLM judges for <em>context precision</em> and <em>context recall</em> on retrieved excerpts (0–100% in UI).</p><p><strong>Generation (Ask):</strong> faithfulness, relevance, prompt adherence — three more judges.</p><p><strong>Evaluate:</strong> exact page-title precision/recall when <code>expected_pages</code> are supplied.</p><p><strong>Judge model:</strong> <code>JUDGE_PROVIDER</code> (default Ollama), separate from the answer provider.</p>",
+      "detail": "<p><strong>Retrieval (Ask):</strong> LLM judges for <em>context precision</em> and <em>context recall</em> on retrieved excerpts (0–100% in UI).</p><p><strong>Generation (Ask):</strong> faithfulness, relevance, prompt adherence — three more judges.</p><p><strong>Evaluate:</strong> exact page-title precision/recall when <code>expected_pages</code> are supplied.</p><p><strong>Production:</strong> <code>INLINE_EVAL=false</code> skips all judges for speed; booth UI hides scores.</p><p><strong>Judge model:</strong> <code>JUDGE_PROVIDER</code> (Ollama locally, Claude/GPT-4 on production).</p>",
       "alternatives": [
         {
           "label": "Skip inline judges",

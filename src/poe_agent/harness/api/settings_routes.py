@@ -61,6 +61,11 @@ def set_provider(body: ProviderSettingsRequest) -> ProviderSettingsResponse:
     mode = body.mode.lower()
     settings = get_settings()
 
+    if mode == "ollama" and not settings.enable_ollama:
+        raise HTTPException(
+            status_code=400,
+            detail="Ollama is not available on this deployment.",
+        )
     if mode == "ollama" and not ollama_reachable(settings):
         raise HTTPException(
             status_code=503,

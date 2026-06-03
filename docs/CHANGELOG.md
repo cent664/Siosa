@@ -1,3 +1,12 @@
+## 2026-06-02 — Production booth mode (poesiosa.net)
+
+- Deploy — Live at **https://www.poesiosa.net/** (custom domain on Railway).
+- Config — `INLINE_EVAL=false` on production skips inline judge LLM calls; booth UI hides scores, trace, and timing (Answer + Sources only).
+- Config — `POE_ENABLE_OLLAMA=false` on production hides Ollama from the provider dropdown; local dev keeps Ollama via `POE_ENABLE_OLLAMA=true`.
+- API — `/health` exposes `inline_eval` and `enable_ollama` for frontend booth vs dev UI.
+- CI — Fix Ruff lint errors (unused imports in src/tests).
+- Deploy — Railway variable checklist for Claude/GPT-4 API keys on production.
+
 ## 2026-06-02 — Railway deployment
 
 - Deploy — `railway.toml`, `DEPLOY.md`, Dockerfile PORT + pre-baked rerank model for Railway hosting.

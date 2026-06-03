@@ -73,6 +73,7 @@ export default function App() {
 
   const modes = providerInfo?.available_modes ?? [];
   const currentMode = providerInfo?.mode ?? health?.provider_mode ?? "stub";
+  const showDevUi = health?.inline_eval !== false;
 
   return (
     <div className="app-layout">
@@ -95,13 +96,13 @@ export default function App() {
                 {health.live_retrieval_hint}
               </p>
             )}
-            {health?.judge_provider && (
+            {showDevUi && health?.judge_provider && (
               <p>
                 Judges: <code>{health.judge_provider}</code>
                 {health.judge_reachable === false ? " (unreachable)" : ""}
               </p>
             )}
-            {health?.judge_hint && (
+            {showDevUi && health?.judge_hint && (
               <p className="status-err" style={{ fontSize: "0.85rem" }}>
                 {health.judge_hint}
               </p>
@@ -129,7 +130,7 @@ export default function App() {
         {providerInfo && (
           <p className="caption" style={{ marginTop: "0.5rem" }}>
             Active: <strong>{providerInfo.mode}</strong> ({providerInfo.source})
-            {providerInfo.judge_provider && (
+            {showDevUi && providerInfo.judge_provider && (
               <>
                 <br />
                 Judges: <strong>{providerInfo.judge_provider}</strong>
@@ -186,7 +187,11 @@ export default function App() {
         </form>
 
         {queryError && <div className="error-banner">{queryError}</div>}
-        {loading && <p className="spinner">Retrieving, generating, and scoring…</p>}
+        {loading && (
+          <p className="spinner">
+            {showDevUi ? "Retrieving, generating, and scoring…" : "Retrieving and generating…"}
+          </p>
+        )}
 
         {result && (
           <div className="answer-block">
@@ -196,8 +201,8 @@ export default function App() {
               Run ID: <code>{result.run_id}</code> · Mode: <code>{result.mode}</code>
             </p>
 
-            <QualityScores scores={result.quality_scores} />
-            <TimingRow timing={result.trace?.timing_ms} />
+            <QualityScores scores={showDevUi ? result.quality_scores : undefined} />
+            {showDevUi && <TimingRow timing={result.trace?.timing_ms} />}
 
             {result.citations && result.citations.length > 0 && (
               <div className="citations">
@@ -221,7 +226,7 @@ export default function App() {
               </div>
             )}
 
-            <TracePanels data={result} question={lastQuestion} />
+            {showDevUi && <TracePanels data={result} question={lastQuestion} />}
           </div>
         )}
       </main>
