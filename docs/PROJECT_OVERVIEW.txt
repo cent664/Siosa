@@ -1,0 +1,366 @@
+================================================================================
+POE WIKI AGENT (SIOSA) — PROJECT OVERVIEW AND TECHNICAL CHOICES
+================================================================================
+Repository: https://github.com/cent664/Siosa
+Public demo: https://www.poesiosa.net/
+Path of Exile 1 mechanics Q&A grounded in poewiki.net excerpts with citations.
+
+This document is for anyone continuing the project (including on a second machine).
+For machine-to-machine transfer steps, see Section 10 at the end.
+
+Last aligned with architecture docs: 2026-06-02
+
+
+================================================================================
+1. WHAT THE SYSTEM IS (ONE PARAGRAPH)
+================================================================================
+
+A retrieval-augmented generation (RAG) web app: the user asks a PoE 1 mechanics
+question; the backend searches and fetches relevant poewiki.net pages (by default
+at Ask time), reranks text chunks, then Claude or GPT-4 (or stub/Ollama locally)
+writes a short grounded answer with wiki citations. For non-stub cloud providers,
+LangGraph may plan multiple wiki lookups before synthesis. A public conference
+demo runs on Railway; local development uses the same codebase with fuller UI and
+optional quality judges.
+
+
+================================================================================
+2. PROJECT HISTORY (WHAT WE BUILT, IN ORDER)
+================================================================================
+
+- Phase 1: Curated 18-page wiki corpus, ingest pipeline, Chroma + BM25 hybrid index.
+- Phase 2: Ollama local LLM, stub mode, FastAPI harness.
+- Phase 3: Multi-provider (Claude, GPT-4), inline LLM-as-judge metrics, trace UI.
+- Phase 4: LangGraph orchestrator for multi-step retrieval (compare questions).
+- Phase 5: Gold eval set (10 questions), POST /evaluate endpoint.
+- Phase 6: Docker, GitHub Actions CI, optional AWS Bedrock adapters (not primary path).
+- Live retrieval: Default RETRIEVAL_MODE=live — fetch poewiki per question (not only Chroma).
+- Live retrieval quality: Multi-query fusion, title probe, title overlap filter.
+- React UI replaced Streamlit; single process serves API + static web/dist.
+- Voice: Browser mic -> POST /transcribe (faster-whisper local or OpenAI Whisper API).
+- Railway deploy: Dockerfile, custom domain poesiosa.net, booth mode (no inline judges on prod).
+- DEPLOYMENT_PROFILE=production: One env flag applies booth defaults on Railway.
+- Laptop sync: transfer/ bundle + export_transfer.ps1 (gitignored handoff folder).
+
+
+================================================================================
+3. DATA AND CORPUS
+================================================================================
+
+WHAT WE DID:
+- Curated allowlist of 18 PoE 1 mechanic pages in src/poe_agent/knowledge/seed_pages.yaml.
+- Offline ingest (poe-ingest): fetch pages -> clean HTML -> chunk -> chunks.jsonl + Chroma.
+- Live mode (default): MediaWiki search + fetch at Ask time; disk cache under data/live_cache/.
+- Shared wiki_client.py for ingest and live fetch (rate-polite delays).
+- Gold evaluation set: 10 labeled rows in knowledge/eval/gold.jsonl (expected_pages, optional gold_answer).
+
+WHAT WE DID NOT DO (AND WHY):
+- Full poewiki crawl (~16,000 articles): Too large for portfolio timeline; noise vs signal;
+  live search per question is enough for the demo. Scaling path documented in ARCHITECTURE.md.
+- Separate data warehouse or vector DB service: Chroma is embedded/local files; no Pinecone/Weaviate.
+- Real-time wiki change streaming: Cache TTL (LIVE_WIKI_CACHE_TTL_HOURS) is sufficient for demo.
+
+CHROMA DB — STILL IN REPO, NOT REQUIRED FOR DEFAULT PRODUCTION PATH:
+- Chroma stores dense embeddings for the 18-page LOCAL index only.
+- When RETRIEVAL_MODE=live (production default), Ask does NOT query Chroma.
+- /health may show chroma_ready=false on poesiosa.net — that is EXPECTED if poe-ingest
+  was never run on the server; live retrieval still works.
+- When RETRIEVAL_MODE=local or hybrid, Chroma + BM25 hybrid retrieval is used.
+- Reason to keep Chroma: offline dev, regression tests, hybrid fallback, future larger corpus.
+
+
+================================================================================
+4. CHUNKING AND INGEST
+================================================================================
+
+WHAT WE DID:
+- Fixed-size chunking in retriever/ingest.py: ~1800 characters, 200 overlap (tunable in code).
+- Chunk metadata: page title, wiki URL, chunk_id for citations and trace.
+- Ingest writes data/raw/, data/chunks/chunks.jsonl, populates Chroma under data/chroma/.
+
+WHAT WE DID NOT DO:
+- Section-aware or semantic chunking: Simpler fixed windows; noted as Phase 4 scaling idea.
+- Incremental wiki sync jobs: Manual re-run poe-ingest when seed_pages.yaml changes.
+
+LIVE MODE CHUNKING:
+- Pages fetched at Ask time are chunked in memory (not persisted to chunks.jsonl unless cached HTML).
+
+
+================================================================================
+5. RETRIEVAL
+================================================================================
+
+DEFAULT: RETRIEVAL_MODE=live
+
+WHAT WE DID:
+- Multi-query fusion on every live wiki_search:
+  * Verbatim user question
+  * Subtask query (from LangGraph planner when applicable)
+  * Keyword variants
+  * Optional direct title probe (LIVE_WIKI_TITLE_PROBE)
+- Union search hits, fetch up to LIVE_WIKI_MAX_PAGES (default 5) full pages.
+- Title overlap filter (LIVE_WIKI_TITLE_OVERLAP_FILTER) downranks tangential pages.
+- Cross-encoder rerank (sentence-transformers) vs user question; top RERANK_TOP_N (default 5) chunks to generator.
+- Optional RETRIEVAL_REFINE_ENABLED: heuristic gate + one LLM round of new search strings.
+
+LOCAL / HYBRID MODE (when RETRIEVAL_MODE=local or hybrid):
+- Dense: Chroma + sentence-transformers embeddings (all-MiniLM-L6-v2 default).
+- Sparse: BM25 via rank_bm25.
+- Fusion: Reciprocal Rank Fusion (HYBRID_RRF_K, default 60).
+- Then same cross-encoder rerank.
+
+LANGGRAPH (agentic retrieval, not full-agent product):
+- When provider is Claude/GPT-4 and retrieval available, pipeline trace may be "langgraph".
+- Planner emits 1-4 retrieve subtasks (PLANNER_MAX_RETRIEVE_SUBTASKS); each runs wiki_search with fusion inside.
+- Linear path: single retrieve_for_query for stub/linear or when graph not used.
+
+WHAT WE DID NOT DO:
+- RAGAS library: Custom LLM-as-judge prompts inspired by RAGAS metric names, not the RAGAS package.
+- Embedding search over entire live wiki: Only search API hits + capped page fetches.
+- Dedicated search engine (Elasticsearch): MediaWiki API + in-memory processing.
+
+
+================================================================================
+6. GENERATION (LLM)
+================================================================================
+
+PROVIDER MODES (UI + .env POE_PROVIDER_MODE):
+- stub: Top wiki excerpt only, no LLM call (debug retrieval).
+- ollama: Local llama3.2 via Ollama (local dev only; POE_ENABLE_OLLAMA=false on production).
+- claude: Anthropic API (default model claude-sonnet-4-6).
+- gpt4: OpenAI API (default gpt-4o).
+- bedrock: AWS Bedrock in .env only, not in UI dropdown.
+
+WHAT WE DID:
+- Grounded answers: system prompt enforces PoE 1, excerpts-only, citations.
+- Provider toggle at runtime via POST /settings/provider (stored in memory until restart).
+- Cloud provider errors mapped to HTTP 502 with readable detail.
+
+WHAT WE DID NOT DO — vLLM / self-hosted inference at scale:
+- vLLM not used. Reason: conference demo needs reliable cloud APIs (Claude/GPT-4), minimal
+  GPU ops burden on Railway; local Ollama is optional for dev only.
+- No fine-tuned domain model: General-purpose LLMs + retrieval grounding.
+
+WHAT WE DID NOT DO — MLOps platforms:
+- No MLflow, Weights & Biases, or experiment tracking UI.
+- Reason: Small gold set (10 items), inline judges for spot checks, trace debugging sufficient
+  for portfolio scope; production skips judges for latency/cost.
+
+EMBEDDINGS:
+- Local sentence-transformers (not OpenAI embeddings) except optional Bedrock path.
+- Rerank model pre-downloaded in Docker image for Railway cold start.
+
+
+================================================================================
+7. EVALUATION AND QUALITY
+================================================================================
+
+WHAT WE DID:
+- Inline eval (INLINE_EVAL=true, local dev): 5 LLM judge calls per Ask when enabled:
+  context precision, context recall, faithfulness, relevance, prompt adherence.
+- POST /evaluate: exact retrieval precision/recall vs expected_pages; generation judges; optional extraction vs gold_answer.
+- Trace on every /query: plan, tool_calls, retrieval_debug (fused queries, pages fetched), llm_calls, timing_ms.
+- React UI: QualityScores, TracePanels (hidden on production when inline_eval=false).
+
+WHAT WE DID NOT DO:
+- Agentic revise loop using low scores to re-retrieve or rewrite (planned future; scores display-only today).
+- Large formal user study or thumbs up/down UI.
+- Verbosity judge on inline /query (removed from UI; code may still reference elsewhere).
+
+PRODUCTION (poesiosa.net):
+- INLINE_EVAL=false: no judge LLM calls; faster/cheaper booth experience.
+- UI shows Answer + Sources only (booth mode driven by /health inline_eval flag).
+
+
+================================================================================
+8. UI, API, AND HARNESS
+================================================================================
+
+STACK:
+- Backend: FastAPI (poe_agent.harness.api), Python 3.11.
+- Frontend: React + Vite, built to web/dist, served as static files from same container.
+- Removed: Streamlit (was port 8501).
+
+KEY ENDPOINTS:
+- GET /health, GET /health/live (Railway liveness)
+- POST /query
+- POST /evaluate
+- POST /transcribe (multipart audio)
+- GET/POST /settings/provider
+- GET /docs/* (architecture.html, changelog.html from sync_docs.py)
+
+VOICE:
+- Browser MediaRecorder -> WAV -> transcribe (local faster-whisper or OpenAI).
+- Optional pip install -e ".[speech]".
+
+LAUNCHER:
+- start.bat / start.ps1: build web if needed, uvicorn on 8000 locally.
+- scripts/start_api.sh: Railway uses PORT env, host 0.0.0.0.
+
+
+================================================================================
+9. DEPLOYMENT AND INFRASTRUCTURE
+================================================================================
+
+WHAT WE DID:
+- GitHub: cent664/Siosa, branch main, push triggers Railway rebuild.
+- GitHub Actions CI: ruff, pytest, web npm build, docker build.
+- Docker: multi-stage (Node build UI, Python app, pre-bake rerank model).
+- Railway: Hobby tier, ~4 GB RAM recommended, railway.toml healthcheck /health/live.
+- Custom domain: https://www.poesiosa.net/
+- Env via Railway Variables (never commit .env).
+
+RECOMMENDED RAILWAY VARIABLES (see railway.variables.example):
+- DEPLOYMENT_PROFILE=production
+- POE_PROVIDER_MODE=claude
+- ANTHROPIC_API_KEY, OPENAI_API_KEY (optional GPT-4 toggle)
+- INLINE_EVAL=false, POE_ENABLE_OLLAMA=false
+- RETRIEVAL_MODE=live, POE_DATA_DIR=/app/data
+- Remove: OLLAMA_*, JUDGE_PROVIDER=ollama, POE_API_HOST/PORT (local-only), custom PORT
+
+WHAT WE DID NOT DO:
+- Kubernetes / Terraform: Railway PaaS is enough for demo.
+- Separate frontend CDN host: Same container serves API + SPA.
+- AWS as primary inference: Bedrock adapters exist but demo uses Anthropic/OpenAI APIs directly.
+
+COST (ROUGH):
+- Railway: ~$5/mo Hobby + RAM/CPU while running.
+- LLM APIs: per-Ask, separate from hosting.
+
+
+================================================================================
+10. EXPLICIT NON-GOALS (SUMMARY TABLE)
+================================================================================
+
+| Topic              | Not used / not done          | Why                                      |
+|--------------------|------------------------------|------------------------------------------|
+| vLLM               | No                           | Cloud APIs + optional local Ollama       |
+| MLOps (MLflow/W&B) | No                           | Gold set + traces enough for scope       |
+| RAGAS library      | No                           | Custom judges, similar metric names      |
+| Full wiki index    | No                           | 18-page seed + live search               |
+| Chroma on prod     | Often unused                 | live mode default; Chroma for local index|
+| User style prefs   | No                           | Fixed system prompt                      |
+| Formal user study  | No                           | Portfolio / conference demo              |
+| Agentic retry loop | No                           | Scores display-only for now              |
+
+
+================================================================================
+11. KEY FILES AND DIRECTORIES
+================================================================================
+
+src/poe_agent/
+  harness/          FastAPI, config, providers, query_service, UI settings
+  retriever/        ingest, live, hybrid, dense, sparse, rerank, gate, wiki_client
+  orchestrator/     LangGraph graph, planner
+  generator/        answer synthesis
+  evaluator/        inline judges, /evaluate service
+  executor/         tool execution for graph
+  knowledge/        seed_pages.yaml, eval/gold.jsonl
+
+web/                React SPA
+docs/               ARCHITECTURE.md, CHANGELOG.md, LAPTOP_SETUP.md (source of truth)
+scripts/            sync_docs.py, export_transfer.ps1, verify_railway_deploy.ps1
+transfer/           GITIGNORED handoff bundle (see Section 12)
+DEPLOY.md           Railway and production checklist
+.env.example        Local env template (secrets in .env only)
+
+
+================================================================================
+12. TRANSFERRING CODE AND CONTEXT: PC TO LAPTOP
+================================================================================
+
+GitHub carries code and committed docs. It does NOT carry: .env secrets, Cursor chat
+history, or the transfer/ folder.
+
+--- STEP A: On this PC (main machine) ---
+
+1. Ensure GitHub is up to date:
+   git pull
+   git push origin main   (if you have local commits to publish)
+
+2. Regenerate the handoff bundle:
+   .\scripts\export_transfer.ps1
+
+   This creates/refreshes transfer/ with:
+   - PROJECT_OVERVIEW.txt (this file)
+   - HANDOFF.md, README.md, manifest.json
+   - env/.env.local.backup (SECRETS — from your .env)
+   - cursor/agent-transcripts/ (past agent chats)
+   - cursor/plans/ (saved Cursor plans for this project)
+   - cursor/project-rules/ (copy of .cursor/rules/)
+   - cursor/user-rules.md (paste global Cursor user rules here if needed)
+   - railway/ (variable templates)
+   - skills/SKILLS_INDEX.md
+
+3. Optional: Open transfer/cursor/user-rules.md and paste your Cursor Settings ->
+   User rules text from this PC.
+
+4. Copy the entire transfer/ folder to removable media or cloud storage
+   (USB, OneDrive, etc.). Do NOT email or push transfer/ to GitHub.
+
+--- STEP B: On the laptop ---
+
+1. Install Git, Python 3.11+, Node.js if not present.
+
+2. Clone the repo:
+   git clone https://github.com/cent664/Siosa.git
+   cd Siosa
+
+3. Place the copied transfer/ folder inside the repo root (next to src/, docs/).
+
+4. Python environment:
+   python -m venv .venv
+   .venv\Scripts\activate
+   pip install -e ".[dev,speech]"
+
+5. Environment file:
+   copy transfer\env\.env.local.backup .env
+   (or copy .env.example .env and add keys manually)
+
+6. Web UI dependencies:
+   cd web
+   npm install
+   cd ..
+
+7. Run locally:
+   .\start.bat
+   Open http://127.0.0.1:8000/
+
+8. Cursor on laptop:
+   - Open the Siosa folder in Cursor.
+   - Start a NEW chat (history does not auto-import).
+   - First message example:
+     "Read transfer/PROJECT_OVERVIEW.txt and transfer/HANDOFF.md and
+      docs/ARCHITECTURE.md. Continue work on the PoE wiki agent."
+   - If you filled user-rules.md on the main PC, paste into Cursor Settings -> Rules.
+
+9. Production (poesiosa.net) is unchanged on Railway; edit Variables in Railway
+   dashboard, not only on laptop. See DEPLOY.md and transfer/railway/.
+
+--- STEP C: Keeping machines in sync later ---
+
+- Code/docs: git pull / git push on main.
+- Secrets: never git; re-copy .env or re-run export_transfer.ps1 and copy transfer/.
+- Cursor context: re-run export_transfer.ps1 before switching machines if chats matter.
+
+--- VERIFY PRODUCTION (optional) ---
+
+.\scripts\verify_railway_deploy.ps1 -BaseUrl "https://www.poesiosa.net"
+
+Expect inline_eval=false, enable_ollama=false after correct Railway Variables.
+
+
+================================================================================
+13. BOOTH PITCH (30 SECONDS)
+================================================================================
+
+This is wiki-grounded RAG for Path of Exile 1: we search poewiki live, rerank the best
+passages, and Claude or GPT-4 answers with citations. Harder questions can trigger
+multiple wiki lookups via LangGraph. The public demo is poesiosa.net on Railway; locally
+we show full traces and optional quality scores. We deliberately skipped vLLM, full-wiki
+ingest, and MLOps suites to ship a reliable conference demo.
+
+
+================================================================================
+END OF DOCUMENT
+================================================================================

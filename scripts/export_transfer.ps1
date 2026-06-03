@@ -120,6 +120,13 @@ if (Test-Path $envLocal) {
 
 # Railway reference
 Copy-Item (Join-Path $ProjectRoot "railway.variables.example") "$TransferRoot\railway\railway.variables.example" -Force
+
+# Project overview (committed source -> transfer bundle)
+$overviewSrc = Join-Path $ProjectRoot "docs\PROJECT_OVERVIEW.txt"
+if (Test-Path $overviewSrc) {
+    Copy-Item $overviewSrc "$TransferRoot\PROJECT_OVERVIEW.txt" -Force
+    Write-Host "  Copied docs/PROJECT_OVERVIEW.txt"
+}
 @(
     "# Production Railway Variables (no real keys in this file)",
     "",
@@ -186,14 +193,16 @@ Repo: https://github.com/cent664/Siosa
 | cursor/user-rules.md | Paste global Cursor user rules here |
 | railway/ | Production variable templates |
 | skills/SKILLS_INDEX.md | Installed Cursor skills on this PC |
+| PROJECT_OVERVIEW.txt | Full technical choices and transfer instructions |
 
 ## Laptop quick start
 
 1. git clone https://github.com/cent664/Siosa.git
 2. Copy this entire transfer/ folder into the cloned repo root.
-3. copy transfer\env\.env.local.backup .env (or use .env.example and add keys)
-4. Follow docs/LAPTOP_SETUP.md in the repo.
-5. New Cursor chat: Read transfer/HANDOFF.md and docs/ARCHITECTURE.md
+3. Read PROJECT_OVERVIEW.txt (technical overview + transfer steps)
+4. copy transfer\env\.env.local.backup .env (or use .env.example and add keys)
+5. Follow docs/LAPTOP_SETUP.md in the repo.
+6. New Cursor chat: Read transfer/PROJECT_OVERVIEW.txt and docs/ARCHITECTURE.md
 
 ## Recent changelog (excerpt)
 
@@ -211,7 +220,7 @@ $handoff | Set-Content "$TransferRoot\HANDOFF.md" -Encoding UTF8
     "",
     "Do **not** commit or upload to public GitHub (may contain API keys in env backup and chats).",
     "",
-    "Start on laptop: read HANDOFF.md."
+    "Start on laptop: read PROJECT_OVERVIEW.txt then HANDOFF.md."
 ) | Set-Content "$TransferRoot\README.md" -Encoding UTF8
 
 $manifest = @{

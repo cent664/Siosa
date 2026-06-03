@@ -42,7 +42,7 @@ On your **main PC**, regenerate the handoff folder:
 
 Copy the whole `transfer/` folder to the laptop (USB, OneDrive, etc.). It is **gitignored** — not on GitHub.
 
-On the laptop, place `transfer/` inside the cloned repo and read `transfer/HANDOFF.md`.
+On the laptop, place `transfer/` inside the cloned repo and read **`transfer/PROJECT_OVERVIEW.txt`** first (full technical overview and transfer steps), then `transfer/HANDOFF.md`.
 
 ## 4. Run locally
 
