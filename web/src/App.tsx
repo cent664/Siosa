@@ -96,6 +96,11 @@ export default function App() {
                 {health.live_retrieval_hint}
               </p>
             )}
+            {health?.deployment_hint && (
+              <p className="status-err" style={{ fontSize: "0.85rem" }}>
+                {health.deployment_hint}
+              </p>
+            )}
             {showDevUi && health?.judge_provider && (
               <p>
                 Judges: <code>{health.judge_provider}</code>

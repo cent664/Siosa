@@ -53,3 +53,40 @@ def test_set_provider_rejects_ollama_when_disabled():
             set_provider(ProviderSettingsRequest(mode="ollama"))
     assert exc_info.value.status_code == 400
     assert "not available" in exc_info.value.detail.lower()
+
+
+def test_deployment_profile_applies_booth_defaults():
+    settings = Settings(
+        deployment_profile="production",
+        anthropic_api_key="sk-ant-test",
+    )
+    assert settings.inline_eval is False
+    assert settings.enable_ollama is False
+    assert settings.judge_provider == "claude"
+    assert settings.poe_provider_mode == "claude"
+
+
+def test_deployment_profile_keeps_stub_without_api_key():
+    settings = Settings(
+        deployment_profile="production",
+        poe_provider_mode="stub",
+        anthropic_api_key="",
+    )
+    assert settings.inline_eval is False
+    assert settings.enable_ollama is False
+    assert settings.poe_provider_mode == "stub"
+
+
+def test_deployment_hint_when_booth_inactive():
+    from poe_agent.harness.config import deployment_hint
+
+    settings = Settings(inline_eval=True, enable_ollama=True)
+    hint = deployment_hint(settings)
+    assert "DEPLOYMENT_PROFILE=production" in hint
+
+
+def test_deployment_hint_empty_when_production_profile():
+    from poe_agent.harness.config import deployment_hint
+
+    settings = Settings(deployment_profile="production")
+    assert deployment_hint(settings) == ""

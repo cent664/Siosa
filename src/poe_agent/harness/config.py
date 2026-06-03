@@ -2,7 +2,9 @@
 
 from functools import lru_cache
 from pathlib import Path
+from typing import Self
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 _runtime_provider_mode: str | None = None
@@ -25,6 +27,7 @@ class Settings(BaseSettings):
     judge_provider: str = "ollama"  # provider used for inline quality judges
     inline_eval: bool = True
     enable_ollama: bool = True  # POE_ENABLE_OLLAMA — false on production (Railway)
+    deployment_profile: str = ""  # set DEPLOYMENT_PROFILE=production on Railway for booth defaults
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     retrieval_top_k: int = 8
     hybrid_rrf_k: int = 60
@@ -67,6 +70,18 @@ class Settings(BaseSettings):
     @property
     def eval_dir(self) -> Path:
         return self.poe_data_dir / "eval"
+
+    @model_validator(mode="after")
+    def apply_deployment_profile(self) -> Self:
+        if self.deployment_profile.lower().strip() != "production":
+            return self
+        if self.judge_provider.lower() == "ollama":
+            object.__setattr__(self, "judge_provider", "claude")
+        if self.poe_provider_mode.lower() in ("stub", "ollama") and self.anthropic_api_key:
+            object.__setattr__(self, "poe_provider_mode", "claude")
+        object.__setattr__(self, "inline_eval", False)
+        object.__setattr__(self, "enable_ollama", False)
+        return self
 
 
 @lru_cache
@@ -150,3 +165,17 @@ def list_available_provider_modes() -> list[dict[str, str]]:
         "available": "true" if s.openai_api_key else "false",
     })
     return modes
+
+
+def deployment_hint(settings: Settings | None = None) -> str:
+    """Actionable hint when production booth defaults are not active."""
+    s = settings or get_settings()
+    if s.deployment_profile.lower().strip() == "production":
+        return ""
+    if s.inline_eval or s.enable_ollama:
+        return (
+            "Booth mode not active. On Railway set DEPLOYMENT_PROFILE=production "
+            "(or INLINE_EVAL=false and POE_ENABLE_OLLAMA=false). "
+            "Add ANTHROPIC_API_KEY and POE_PROVIDER_MODE=claude for cloud answers."
+        )
+    return ""

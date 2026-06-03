@@ -1,6 +1,6 @@
 # Usage:
 #   .\scripts\verify_railway_deploy.ps1 -BaseUrl "https://siosa-production.up.railway.app"
-#   .\scripts\verify_railway_deploy.ps1 -BaseUrl "https://app.yourdomain.com"
+#   .\scripts\verify_railway_deploy.ps1 -BaseUrl "https://www.poesiosa.net"
 # See DEPLOY.md "Custom domain" for DNS setup. Exit 0 = healthy; 2 = missing API keys.
 param(
     [Parameter(Mandatory = $true)]
@@ -8,6 +8,7 @@ param(
 )
 
 $BaseUrl = $BaseUrl.TrimEnd("/")
+$exitCode = 0
 
 function Test-Endpoint($Path, $ExpectJson) {
     $url = "$BaseUrl$Path"
@@ -32,11 +33,26 @@ if (-not $live -or $live.status -ne "ok") { exit 1 }
 
 $health = Test-Endpoint "/health" $true
 if (-not $health -or $health.status -ne "ok") { exit 1 }
+
+if ($health.inline_eval -eq $true) {
+    Write-Host "WARN inline_eval is true - booth UI still shows scores/trace. Set DEPLOYMENT_PROFILE=production or INLINE_EVAL=false in Railway Variables."
+    $exitCode = 2
+}
+if ($health.enable_ollama -eq $true) {
+    Write-Host "WARN enable_ollama is true - Ollama still in provider dropdown. Set DEPLOYMENT_PROFILE=production or POE_ENABLE_OLLAMA=false in Railway Variables."
+    $exitCode = 2
+}
+if ($health.deployment_hint) {
+    Write-Host "WARN deployment_hint: $($health.deployment_hint)"
+    $exitCode = 2
+}
 if ($health.judge_provider -eq "ollama") {
-    Write-Host "WARN judge_provider is ollama - set JUDGE_PROVIDER=claude in Railway Variables"
+    Write-Host "WARN judge_provider is ollama - set JUDGE_PROVIDER=claude or DEPLOYMENT_PROFILE=production in Railway Variables"
+    $exitCode = 2
 }
 if ($health.provider_mode -eq "stub") {
-    Write-Host "WARN provider_mode is stub - set POE_PROVIDER_MODE=claude and API keys in Railway"
+    Write-Host "WARN provider_mode is stub - set POE_PROVIDER_MODE=claude and ANTHROPIC_API_KEY in Railway"
+    $exitCode = 2
 }
 
 $provider = Test-Endpoint "/settings/provider" $true
@@ -46,14 +62,19 @@ $gpt4Ok = ($provider.available_modes | Where-Object { $_.id -eq "gpt4" }).availa
 if (-not $claudeOk -and -not $gpt4Ok) {
     Write-Host "WARN Claude and GPT-4 unavailable - add ANTHROPIC_API_KEY and OPENAI_API_KEY in Railway Variables, then redeploy."
     Write-Host "      See railway.variables.example in the repo."
-    exit 2
+    $exitCode = 2
 }
 if ($provider.mode -eq "stub") {
     Write-Host "WARN Active provider is stub - set POE_PROVIDER_MODE=claude (or pick Claude in the UI after keys are set)."
-    exit 2
+    $exitCode = 2
 }
 
 $root = Test-Endpoint "/" $false
 if (-not $root) { exit 1 }
 
-Write-Host "Public deploy OK. Cloud providers enabled. Pick Claude or GPT-4 in Answer mode and run one Ask."
+if ($exitCode -eq 0) {
+    Write-Host "Public deploy OK. Booth mode active. Cloud providers enabled. Run one Ask."
+} else {
+    Write-Host "Deploy reachable but production Variables need attention. See DEPLOY.md and railway.variables.example."
+}
+exit $exitCode

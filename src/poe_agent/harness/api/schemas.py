@@ -70,6 +70,8 @@ class HealthResponse(BaseModel):
     live_retrieval_hint: str = ""
     inline_eval: bool = True
     enable_ollama: bool = True
+    deployment_profile: str = ""
+    deployment_hint: str = ""
     judge_provider: str = "ollama"
     judge_reachable: bool = True
     judge_hint: str = ""

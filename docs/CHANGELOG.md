@@ -1,3 +1,9 @@
+## 2026-06-02 — Production env profile
+
+- Config — `DEPLOYMENT_PROFILE=production` applies booth defaults on Railway (`INLINE_EVAL=false`, `POE_ENABLE_OLLAMA=false`, cloud judge/provider when keys set).
+- API — `/health` returns `deployment_hint` when booth mode is not active.
+- Deploy — Verify script checks `inline_eval`, `enable_ollama`, and deployment hints.
+
 ## 2026-06-02 — Production booth mode (poesiosa.net)
 
 - Deploy — Live at **https://www.poesiosa.net/** (custom domain on Railway).

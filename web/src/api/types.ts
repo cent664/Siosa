@@ -101,6 +101,8 @@ export interface HealthResponse {
   live_retrieval_hint?: string;
   inline_eval?: boolean;
   enable_ollama?: boolean;
+  deployment_profile?: string;
+  deployment_hint?: string;
   judge_provider?: string;
   judge_reachable?: boolean;
   judge_hint?: string;

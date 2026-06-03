@@ -20,7 +20,9 @@ Public URL for QR codes; your laptop can stay off during the event. Live site: *
 
 Copy into Railway **Variables** (replace secrets with your real keys).
 
-**Judges are not a Railway product** — `JUDGE_PROVIDER` chooses which **your** LLM API runs optional quality scores on each Ask (only when `INLINE_EVAL=true`). For the booth, use `INLINE_EVAL=false` and still set `JUDGE_PROVIDER=claude` so `/health` is not misleading.
+**Fastest fix for booth UI:** set `DEPLOYMENT_PROFILE=production` — this applies booth defaults (`INLINE_EVAL=false`, `POE_ENABLE_OLLAMA=false`, `JUDGE_PROVIDER=claude`) even if you forget the individual flags.
+
+**Judges are not a Railway product** — `JUDGE_PROVIDER` chooses which **your** LLM API runs optional quality scores on each Ask (only when `INLINE_EVAL=true`). For the booth, use `INLINE_EVAL=false` or `DEPLOYMENT_PROFILE=production`.
 
 **Do not use Ollama on Railway:** set `POE_ENABLE_OLLAMA=false`, delete or override any `JUDGE_PROVIDER=ollama`, `POE_PROVIDER_MODE=ollama`, or `OLLAMA_*` variables (local dev defaults from `.env.example`).
 
@@ -33,6 +35,7 @@ Copy into Railway **Variables** (replace secrets with your real keys).
 Both keys let attendees switch providers in the web UI. Initial startup default is Claude; switching to GPT-4 in the UI updates the runtime judge automatically.
 
 ```env
+DEPLOYMENT_PROFILE=production
 POE_PROVIDER_MODE=claude
 ANTHROPIC_API_KEY=sk-ant-...
 ANTHROPIC_MODEL=claude-sonnet-4-6
@@ -48,6 +51,7 @@ POE_DATA_DIR=/app/data
 ### Claude only
 
 ```env
+DEPLOYMENT_PROFILE=production
 POE_PROVIDER_MODE=claude
 JUDGE_PROVIDER=claude
 ANTHROPIC_API_KEY=sk-ant-...
@@ -82,7 +86,7 @@ After changing RAM or variables, or pushing code to `main`:
 3. **Push** — `git push origin main` triggers a rebuild (includes `/health/live` in [`railway.toml`](railway.toml)).
 4. **Verify** — Deploy logs show `Uvicorn running on http://0.0.0.0:...`; then:
    - `https://www.poesiosa.net/health/live` → `{"status":"ok"}`
-   - `/health` → `"status":"ok"`, `"inline_eval": false`, `"enable_ollama": false`, Claude/GPT available if keys set
+   - `/health` → `"status":"ok"`, `"inline_eval": false`, `"enable_ollama": false`, `"deployment_profile": "production"`
    - Root URL → one **Ask** with Claude returns a real answer (not stub text)
    - Or run: `.\scripts\verify_railway_deploy.ps1 -BaseUrl "https://www.poesiosa.net"`
 
@@ -181,7 +185,8 @@ Delete the Railway service after the conference if you want to stop hosting char
 | Health OK but stub answers | Set `POE_PROVIDER_MODE=claude` and `ANTHROPIC_API_KEY` in Variables |
 | Claude/GPT greyed out in UI | Add `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` to Railway Variables |
 | `/health` shows `judge_provider: ollama` | Set `JUDGE_PROVIDER=claude` (or `gpt4`); remove `ollama` from Variables |
-| Ollama still in provider dropdown | Set `POE_ENABLE_OLLAMA=false` in Railway Variables |
+| Homepage unchanged after git push | Code deployed; set `DEPLOYMENT_PROFILE=production` (or `INLINE_EVAL=false` + `POE_ENABLE_OLLAMA=false`) in Railway Variables |
+| `/health` shows `inline_eval: true` | Add `DEPLOYMENT_PROFILE=production` or `INLINE_EVAL=false` in Railway Variables and redeploy |
 
 ## What the agent cannot do for you
 
