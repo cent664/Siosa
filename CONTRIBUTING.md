@@ -1,5 +1,9 @@
 # Contributing
 
+## Laptop / second machine
+
+See [docs/LAPTOP_SETUP.md](docs/LAPTOP_SETUP.md). Regenerate the local handoff bundle with `.\scripts\export_transfer.ps1` (creates gitignored `transfer/`).
+
 ## Changelog (required)
 
 Any **user-visible** or **architectural** change must update the changelog:
