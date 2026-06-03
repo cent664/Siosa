@@ -1,3 +1,8 @@
+## 2026-06-02 — Architecture conference FAQ
+
+- Docs — `ARCHITECTURE.md`: booth pitch, live vs local hybrid, multi-query fusion vs LangGraph, routing table, chunk defaults, gold eval summary, deploy/cost snapshot, explicit non-goals; mermaid retrieve label fix.
+- Docs — `pipeline-config.json`: interactive stages 0.3–0.7 aligned (five inline judges, planner multi-search, production Answer+Sources UI, `chroma_ready` note).
+
 ## 2026-06-02 — Production env profile
 
 - Config — `DEPLOYMENT_PROFILE=production` applies booth defaults on Railway (`INLINE_EVAL=false`, `POE_ENABLE_OLLAMA=false`, cloud judge/provider when keys set).

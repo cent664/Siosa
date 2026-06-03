@@ -38,7 +38,7 @@
       "title": "Retrieve",
       "chosen": "Mode-aware retrieve",
       "summary": "Live poewiki (default) or local hybrid + rerank.",
-      "detail": "<p><strong>Modes (<code>RETRIEVAL_MODE</code>):</strong></p><ul><li><strong>live</strong> — multi-query fusion (verbatim user question + variants), title probe, union fetch, cross-encoder rerank vs user question.</li><li><strong>local</strong> — dense Chroma + BM25 RRF on the ingested index.</li><li><strong>hybrid</strong> — local first; live fusion when local scores are weak.</li></ul><p><strong>Quality:</strong> Title overlap filter; optional <code>RETRIEVAL_REFINE_ENABLED</code> for one gated retry. Trace: <code>retrieval_source</code>, <code>retrieval_refined</code>.</p>",
+      "detail": "<p><strong>Default (<code>live</code>):</strong> Multi-query fusion on every <code>wiki_search</code> — several poewiki search strings, fetch up to <code>LIVE_WIKI_MAX_PAGES</code> pages, chunk, cross-encoder rerank (~top 5). Not BM25 on the full wiki.</p><p><strong>Local hybrid:</strong> Dense Chroma + BM25 + RRF on the 18-page ingested index only (<code>local</code> or weak-hit fallback in <code>hybrid</code>).</p><p><strong>Note:</strong> <code>chroma_ready=false</code> on production is normal when live-only — no local ingest on the server.</p>",
       "alternatives": [
         {
           "label": "Dense only",
@@ -61,8 +61,8 @@
       "id": "0.4",
       "title": "Plan",
       "chosen": "LangGraph (optional)",
-      "summary": "Multi-step retrieval for compare questions.",
-      "detail": "<p><strong>LangGraph</strong> (not “line graph”) is an optional planner: for some compare-style questions it may issue <strong>1–3 retrieval subtasks</strong> before synthesis — e.g. separate searches for ignite vs poison.</p><p><strong>Default path:</strong> Linear RAG — one <code>retrieve_for_query</code> call with your full question.</p><p>Planner runs when retrieval is available (indexed corpus or <code>RETRIEVAL_MODE=live|hybrid</code>) and the provider is not stub; otherwise retrieval stays single-pass.</p>",
+      "summary": "Planner-driven multi-search when needed.",
+      "detail": "<p><strong>LangGraph</strong> runs for typical Claude/GPT-4 Ask paths: a planner emits <strong>1–4</strong> retrieve subtasks (verbatim question plus short wiki keywords). Compare questions are a common case, not the only one.</p><p>Each subtask still uses <strong>multi-query fusion</strong> inside <code>wiki_search</code>.</p><p><strong>Linear RAG</strong> (<code>linear_rag</code> trace) when provider is <code>stub</code> or <code>linear</code> — one retrieval pass, fusion still applies in live mode.</p>",
       "alternatives": [
         {
           "label": "Linear only",
@@ -98,9 +98,9 @@
     {
       "id": "0.6",
       "title": "Judge",
-      "chosen": "Generation judges",
-      "summary": "Retrieval metrics on Evaluate; 3 inline scores on Ask.",
-      "detail": "<p><strong>Retrieval (Ask):</strong> LLM judges for <em>context precision</em> and <em>context recall</em> on retrieved excerpts (0–100% in UI).</p><p><strong>Generation (Ask):</strong> faithfulness, relevance, prompt adherence — three more judges.</p><p><strong>Evaluate:</strong> exact page-title precision/recall when <code>expected_pages</code> are supplied.</p><p><strong>Production:</strong> <code>INLINE_EVAL=false</code> skips all judges for speed; booth UI hides scores.</p><p><strong>Judge model:</strong> <code>JUDGE_PROVIDER</code> (Ollama locally, Claude/GPT-4 on production).</p>",
+      "chosen": "Retrieval + generation judges",
+      "summary": "Five inline judges when enabled; gold set on /evaluate.",
+      "detail": "<p><strong>Inline Ask (<code>INLINE_EVAL=true</code>):</strong> Five LLM judge calls — context precision, context recall, faithfulness, relevance, prompt adherence (custom prompts; RAGAS-inspired names, not the RAGAS library).</p><p><strong>Gold set:</strong> 10 labeled questions in <code>gold.jsonl</code>; <code>POST /evaluate</code> gives exact page-title retrieval P/R plus optional extraction overlap.</p><p><strong>Production:</strong> <code>INLINE_EVAL=false</code> skips all judges for speed.</p>",
       "alternatives": [
         {
           "label": "Skip inline judges",
@@ -118,8 +118,8 @@
       "id": "0.7",
       "title": "Respond",
       "chosen": "Answer + trace",
-      "summary": "JSON with citations, timing, and scores.",
-      "detail": "<p><strong>What you get:</strong> Final answer, wiki citations, <code>quality_scores</code> (three generation metrics), and <code>trace</code> — plan steps, tool calls, chunk previews, per-phase timing, and LLM I/O for learning/debugging.</p><p>Scores never rewrite the answer; they are feedback for you and portfolio demos.</p>",
+      "summary": "Answer + citations; trace when dev UI.",
+      "detail": "<p><strong>Always:</strong> Grounded answer and wiki citations (title, URL, snippet).</p><p><strong>Local dev:</strong> <code>quality_scores</code> (five metrics when inline eval on), full <code>trace</code> — plan, tool calls, timing, LLM I/O.</p><p><strong>Production booth:</strong> Answer + Sources only — no scores, trace, or timing in the UI.</p>",
       "alternatives": []
     }
   ]
