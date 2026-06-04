@@ -33,19 +33,25 @@ body {
   flex-direction: column;
   min-height: 100vh;
   position: relative;
-  background: #0a0908 url(/library.png) center 62% / cover no-repeat fixed;
+  background-color: #0a0908;
+  background-image: url("/art assets/library.png");
+  background-repeat: no-repeat;
+  background-position: center bottom;
+  background-size: cover;
+  background-attachment: fixed;
 }
 
 .siosa-portrait {
   --content-half: 21rem;
-  --portrait-w: min(240px, 26vw);
+  --portrait-scale: 1.2;
+  --portrait-w: min(calc(240px * var(--portrait-scale)), calc(26vw * var(--portrait-scale)));
   position: absolute;
   top: 1.5rem;
   left: max(0.5rem, calc(50% - var(--content-half) - var(--portrait-w) + 1.5rem));
   z-index: 0;
   width: var(--portrait-w);
-  height: min(72vh, 680px);
-  background: url(/siosa_nobg.png) left top / contain no-repeat;
+  height: min(calc(72vh * var(--portrait-scale)), calc(680px * var(--portrait-scale)));
+  background: url("/art assets/siosa_nobg.png") left top / contain no-repeat;
   pointer-events: none;
 }
 
@@ -665,10 +671,11 @@ pre.code-block {
 
 @media (max-width: 768px) {
   .siosa-portrait {
-    --portrait-w: min(140px, 34vw);
+    --portrait-scale: 1.2;
+    --portrait-w: min(calc(140px * var(--portrait-scale)), calc(34vw * var(--portrait-scale)));
     top: 1.25rem;
     left: max(0.25rem, calc(50% - var(--content-half) - var(--portrait-w)));
-    height: min(48vh, 420px);
+    height: min(calc(48vh * var(--portrait-scale)), calc(420px * var(--portrait-scale)));
     opacity: 0.95;
   }
 

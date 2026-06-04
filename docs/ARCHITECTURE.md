@@ -1,122 +1,88 @@
 # PoE Wiki Agent — Architecture
 
-Path of Exile **1** wiki-grounded Q&A. Single source of truth: edit this file, then run `python scripts/sync_docs.py` for `README.md` and browser HTML.
+Path of Exile **1** wiki-grounded Q&A. Edit this file, then run `python scripts/sync_docs.py` for `README.md` and browser HTML.
 
-## What kind of system is this?
+## What this system is
 
-| Label | Applies? | Meaning here |
-|-------|----------|----------------|
-| **RAG** (Retrieval-Augmented Generation) | Yes | Each answer starts by **retrieving wiki excerpts** (local index and/or live poewiki fetch), then the LLM (or stub) writes using only those excerpts. |
-| **Agentic AI** | Sometimes | With a non-stub LLM and retrieval available, **LangGraph** may run **multiple retrieval steps** before answering (e.g. separate wiki lookups for ignite vs poison). |
-| **Full wiki search** | No | We do **not** query all ~16,000 poewiki articles. Local mode uses a **curated allowlist** of 18 PoE 1 mechanic pages. |
-| **Live wiki per question** | Configurable | Default **`RETRIEVAL_MODE=live`**: MediaWiki search + fetch at Ask time (cached under `data/live_cache/`). Use **`local`** for offline index only, or **`hybrid`** to supplement weak local hits. |
+**Siosa's Library** is a wiki-grounded question-answering app for Path of Exile 1: you ask a mechanics question, the system searches [poewiki.net](https://www.poewiki.net) at Ask time, reranks the best passages, and an LLM writes a short answer with citations. Harder questions can use a **LangGraph** planner that adds extra search terms before a single fused retrieval pass—not a crawl of the entire wiki, but targeted MediaWiki lookups. The public demo runs at [poesiosa.net](https://www.poesiosa.net/). Operators configure keys and deploy via [DEPLOY.md](../DEPLOY.md).
 
-**Important:** All LLM modes only see **top-k retrieved chunks** (about 5 after reranking), not the whole curated corpus.
+The LLM only sees **top reranked chunks** (typically five), not whole articles. Answer style is fixed by the system prompt; there is no per-user tone control.
 
 ---
 
-## How to explain this system
+## Live retrieval
 
-Use this as a booth or resume pitch:
-
-This is a **wiki-grounded RAG system** for **Path of Exile 1**: you ask a mechanics question, the app **searches poewiki.net** (by default at Ask time), keeps the best passages after **reranking**, and an **LLM** (Claude or GPT-4, switchable in the UI) writes a short answer with **citations** to the wiki pages it used. For harder questions, **LangGraph** can run a **planner** that issues **one or more wiki lookups** before synthesis—not a search of the entire wiki, but targeted fetches. A **public demo** runs at [poesiosa.net](https://www.poesiosa.net/). Operators: see [DEPLOY.md](../DEPLOY.md).
-
-There is **no** per-user control over answer style (fixed system prompt). There is **no** large formal user study—quality is checked with a **small labeled gold set**, optional **LLM judges**, and **trace-based** debugging.
-
----
-
-## Retrieval: live vs local hybrid
-
-The word **hybrid** means different things in different layers. Do not conflate them.
-
-| Term | Meaning here |
-|------|----------------|
-| **Hybrid retrieval (local)** | On the **ingested index only**: dense vectors in **ChromaDB** + **BM25** keyword search, merged with **Reciprocal Rank Fusion (RRF)**, then **cross-encoder rerank**. Used when `RETRIEVAL_MODE=local` or as the first leg of `hybrid`. |
-| **Live retrieval (default)** | **Multiple MediaWiki search strings** per retrieval pass (**multi-query fusion**), union of hits, fetch up to **`LIVE_WIKI_MAX_PAGES`** full pages, chunk in memory, **cross-encoder rerank** vs the user question. Does **not** use BM25 on the whole wiki. |
-| **Multi-query fusion** | Runs on **every** live `wiki_search` call—whether the overall pipeline is linear or LangGraph. Fuses verbatim question, keyword variants, subtask query, and optional **title probes**. |
-| **LangGraph multi-search** | **Separate** `wiki_search` passes when the planner emits multiple retrieve subtasks (up to **`PLANNER_MAX_RETRIEVE_SUBTASKS`**). Compare-style questions are a common case, not the only case. |
+Each Ask searches poewiki, fetches full pages, chunks them in memory, and reranks with a cross-encoder (`ms-marco-MiniLM-L-6-v2`). Pages are cached on disk under `data/live_cache/` (TTL via `LIVE_WIKI_CACHE_TTL_HOURS`).
 
 ```mermaid
 flowchart TB
-  subgraph livePath [Live retrieval default]
-    Q1[User question]
-    F1[Multi-query fusion]
-    W[poewiki search and fetch]
-    C1[Chunk in memory]
-    R1[Cross-encoder rerank top 5]
-    Q1 --> F1 --> W --> C1 --> R1
+  subgraph agentic["Agentic — LangGraph plan step only"]
+    PL[Planner LLM adds 0–3 short extra search terms]
   end
-  subgraph localPath [Local index optional]
-    Q2[User question]
-    D[Dense Chroma]
-    B[BM25 sparse]
-    RRF[RRF fuse]
-    R2[Cross-encoder rerank]
-    Q2 --> D
-    Q2 --> B
-    D --> RRF
-    B --> RRF
-    RRF --> R2
+  subgraph pass["One live wiki_search — same pipeline every time"]
+    Q[Your question]
+    F[Fuse search queries]
+    S[Search poewiki]
+    T[Try likely page titles]
+    O[Re-order hits by overlap with your question]
+    DL[Download pages]
+    C[Split into passages]
+    RR[Rerank passages]
+    FT[Optional: down-rank tangential pages]
+    OUT[Top passages for the LLM]
   end
-  subgraph agentLayer [LangGraph layer when enabled]
-    P[Planner 1 to 4 wiki_search steps]
-    P --> livePath
-  end
+  PL -.->|merged into fusion| F
+  Q --> F
+  F --> S
+  F --> T
+  S --> O
+  T --> O
+  O --> DL --> C --> RR --> FT --> OUT
 ```
 
-### Data, chunks, and online vs offline
+*Figure: **Agentic** = the planner chooses extra lookup strings (compare questions are the usual case). **Not agentic** = everything in the lower box runs once per graph execute step—one poewiki round-trip—even when the plan lists several retrieve subtasks. The trace still shows each planner sub-query under retrieval debug.*
 
-| | **Offline / local index** | **Online / live (default)** |
-|--|---------------------------|-----------------------------|
-| **Corpus** | 18 pages in [`seed_pages.yaml`](../src/poe_agent/knowledge/seed_pages.yaml) | Whatever poewiki search returns per question |
-| **Build** | `poe-ingest` → `data/chunks/chunks.jsonl` + Chroma under `data/chroma/` | Fetch at Ask time; disk cache `data/live_cache/` (TTL via `LIVE_WIKI_CACHE_TTL_HOURS`) |
-| **`chroma_ready` on `/health`** | `true` after ingest | Often **`false` on production**—expected when live-only deploy never runs ingest; **not** a sign the app is broken |
+**Agentic vs one fetch.** Older LangGraph builds called `wiki_search` **once per planner subtask** (several full retrieval round-trips). We kept **planner flexibility** (multiple retrieve intents in the plan JSON) but changed the executor to fold those strings into **one** fused pass (figure). That is what the “merged into one fusion pass” row in the table below means—not “we removed the planner.”
 
-**Default sizing (tunable in [`.env.example`](../.env.example)):**
+**Linear / stub** (`linear_rag` trace) skips the LLM planner; fusion still runs from heuristics on your question only. Optional **refine** (when enabled) is a second **agentic** LLM step that may trigger **one** extra `wiki_search`, not one fetch per subtask.
 
-| Knob | Typical default | Role |
-|------|-----------------|------|
-| `LIVE_WIKI_MAX_PAGES` | 5 | Max full wiki pages fetched per fusion pass |
-| `RERANK_TOP_N` | 5 | Chunks passed to the generator after rerank |
-| Chunk ingest | ~1800 chars, 200 overlap | Fixed-size chunking in [`ingest.py`](../src/poe_agent/retriever/ingest.py) |
-| `LIVE_WIKI_MAX_SEARCH_QUERIES` | 4 | Cap on fused search strings per live pass |
+### Algorithm (one `wiki_search` pass)
+
+1. **Query fusion** — Build up to `LIVE_WIKI_MAX_SEARCH_QUERIES` search strings: mechanic entities and short topic terms first, then the full user question last ([`query_fusion.py`](../src/poe_agent/retriever/query_fusion.py)).
+2. **MediaWiki search** — Run each string; merge hit lists.
+3. **Title probes** — Up to `LIVE_WIKI_MAX_TITLE_PROBES` direct page-title fetches for high-precision hits (e.g. skill or mechanic names).
+4. **Title overlap rank** — Re-order search hits before download using overlap with question terms.
+5. **Fetch & chunk** — Download up to `LIVE_WIKI_MAX_PAGES` pages, split into overlapping chunks (~1800 chars, 200 overlap).
+6. **Rerank** — Cross-encoder scores chunks vs the user question; keep top `RERANK_TOP_N` (default 5).
+7. **Optional overlap penalty** — `LIVE_WIKI_TITLE_OVERLAP_FILTER` down-weights tangential pages (figure: “down-rank tangential pages”).
+
+Planner sub-queries are **inputs to step 1** (fusion), not separate passes—see figure and **Agentic vs one fetch** above.
+
+**Optional refinement:** `RETRIEVAL_REFINE_ENABLED=true` can run one extra fetch round with LLM-suggested short queries if the gate scores retrieval as weak.
+
+### What we used before
+
+| Past approach | Why we moved on |
+|---------------|-----------------|
+| **18-page curated index** | Fast offline demo, but too narrow for arbitrary questions. Still available via `RETRIEVAL_MODE=local` after `poe-ingest`. |
+| **One `wiki_search` per planner subtask** | Same multi-intent **plan**, but N full poewiki round-trips. **Now:** one fusion pass per execute step; planner output unchanged in spirit. |
 
 ---
 
-## Agent routing: linear vs LangGraph
+## Agent routing
 
-| Pipeline trace | When it runs |
-|----------------|--------------|
-| **`langgraph`** | Retrieval available and provider is not **`stub`** or **`linear`**—typical for **Claude / GPT-4** in the UI |
-| **`linear_rag`** | Provider **`stub`** or **`linear`**, or LangGraph not used |
+| Pipeline trace | When | What is agentic |
+|----------------|------|-----------------|
+| **`langgraph`** | Non-stub cloud providers (typical Claude / GPT-4 Ask) | **Plan** (LLM JSON; heuristic fallback). Optional **refine** queries when enabled. Then **one** fused live retrieval (see [Live retrieval](#live-retrieval)). |
+| **`linear_rag`** | Provider **`stub`** or explicit linear path | No LLM plan—single `wiki_search` from the user question. |
 
-The planner (LLM JSON, with heuristic fallback) may emit **one** retrieve subtask or **several** short wiki queries before synthesis. Each subtask calls `wiki_search`, which still runs **multi-query fusion** inside the pass.
-
-**Optional refinement:** `RETRIEVAL_REFINE_ENABLED=true` adds a gated second fetch round (LangGraph and linear).
-
-Implementation: [`query_service.py`](../src/poe_agent/harness/api/query_service.py), [`graph.py`](../src/poe_agent/orchestrator/graph.py).
+Implementation: [`query_service.py`](../src/poe_agent/harness/api/query_service.py), [`graph.py`](../src/poe_agent/orchestrator/graph.py), [`executor/node.py`](../src/poe_agent/executor/node.py) (`_collect_plan_search_extras` → `extra_search_queries` on one `wiki_search`).
 
 ---
 
 ## Pipeline overview
 
-End-to-end flow (left to right). **Interactive version** (hover each step for detail; faded options are paths we did not choose) is rendered on the [browser architecture page](http://127.0.0.1:8000/docs/architecture.html#pipeline-interactive).
-
-```mermaid
-flowchart LR
-  S01["0.1 Corpus\n18 pages + ingest"]
-  S02["0.2 Ask\nReact → API"]
-  S03["0.3 Retrieve\nlive or local + rerank"]
-  S04["0.4 Plan\nLangGraph optional"]
-  S05["0.5 Generate\nLLM or stub"]
-  S06["0.6 Judge\nGen + eval split"]
-  S07["0.7 Respond\nCitations + trace"]
-  S01 --> S02 --> S03 --> S04 --> S05 --> S06 --> S07
-```
-
 <!-- INTERACTIVE_PIPELINE -->
-
----
 
 ## Provider modes
 
@@ -127,149 +93,69 @@ flowchart LR
 | **gpt4** | OpenAI API | `OPENAI_API_KEY` | UI or `.env` |
 | **bedrock** | AWS Bedrock | AWS credentials | `.env` only |
 
-Claude Pro and ChatGPT Plus are **not** the same as API billing. Embeddings stay **local sentence-transformers** except in bedrock mode.
+Claude Pro / ChatGPT Plus subscriptions are **not** API access. Embeddings for local index mode use **sentence-transformers** locally. Voice input defaults to **OpenAI Whisper** (`TRANSCRIBE_PROVIDER=openai`); production forces OpenAI because the Docker image does not bundle faster-whisper.
 
-### Retrieval modes
+### Retrieval mode env
 
 | `RETRIEVAL_MODE` | Behavior |
 |------------------|----------|
-| **live** (default) | Search poewiki.net → fetch top pages → chunk in memory → cross-encoder rerank. No Chroma required for Ask. |
-| **local** | Hybrid dense + BM25 on the ingested index only (`poe-ingest`). |
-| **hybrid** | Local retrieve first; if no chunks or weak top scores, supplement with live fetch. |
+| **live** (default) | Algorithm above; no Chroma required. |
+| **local** | Hybrid dense + BM25 on ingested allowlist only. |
+| **hybrid** | Local first, live supplement on weak scores. |
 
-Supporting env vars: `LIVE_WIKI_MAX_PAGES`, `LIVE_WIKI_SEARCH_LIMIT`, `LIVE_WIKI_MAX_SEARCH_QUERIES`, `LIVE_WIKI_TITLE_PROBE`, `LIVE_WIKI_TITLE_OVERLAP_FILTER`, `LIVE_WIKI_CACHE_TTL_HOURS`. Each `wiki_search` call fuses the **verbatim user question**, the subtask query (LangGraph), keyword variants, and optional **direct title fetch** before one rerank against the user question. Live mode adds typical **+2–8s** retrieval latency per question (more with multiple LangGraph subtasks).
-
-**Optional refinement (Phase 2):** `RETRIEVAL_REFINE_ENABLED=true` runs a heuristic gate after retrieval; on weak results, a short LLM generates 1–2 new search strings and fetches once more (`RETRIEVAL_MAX_REFINE_ROUNDS=1`).
-
-### Local vs production
-
-| | **Local dev** | **Production** ([poesiosa.net](https://www.poesiosa.net/)) |
-|--|---------------|--------------------------------------------------------------|
-| Config | [`.env`](.env.example) | Railway **Variables** ([`railway.variables.example`](../railway.variables.example)) |
-| Inline judges | `INLINE_EVAL=false` (default); **Score response** button runs five judges on demand | `INLINE_EVAL=false` — no judge LLM calls |
-| UI | Full: trace, timing, on-demand scores (`dev_ui_enabled`) | Booth: Answer + Sources only |
-| Cloud LLMs | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` in `.env` | Same keys in Railway Variables |
-
-Production uses the same codebase; env vars control booth vs dev behavior. Push to `main` redeploys on Railway.
+Key env vars: `LIVE_WIKI_MAX_PAGES`, `LIVE_WIKI_MAX_SEARCH_QUERIES`, `LIVE_WIKI_TITLE_PROBE`, `LIVE_WIKI_TITLE_OVERLAP_FILTER`, `LIVE_WIKI_CACHE_TTL_HOURS`, `RETRIEVAL_REFINE_ENABLED`.
 
 ---
 
-## Evaluation, gold set, and limits
+## Quality metrics
 
-| What | Detail |
-|------|--------|
-| **Gold set** | **10** hand-labeled rows in [`gold.jsonl`](../src/poe_agent/knowledge/eval/gold.jsonl): `expected_pages` for exact **retrieval precision/recall**; optional `gold_answer` for token-overlap **extraction** on `POST /evaluate` |
-| **Inline judges** | Custom **LLM-as-judge** prompts (RAGAS-inspired names). **Five** calls via `POST /score` or when `INLINE_EVAL=true`. All judges share the same **1200-char/chunk** excerpts as the answer LLM (`format_evidence_context`). |
-| **Production** | `INLINE_EVAL=false`, `dev_ui_enabled=false` — no judges, booth UI only |
-| **User feedback** | **Provider** choice only (stub / Claude / GPT-4)—no UI for answer length, tone, or thumbs up/down |
-| **Studies / MLOps** | No large user study; no MLflow, W&B, or vLLM in this project. Improvement loop: **traces**, spot checks, and small gold regression |
+Scores are **for demonstration and debugging**—they do **not** feed back into retrieval or generation. Default: click **Score response** after Ask (`POST /score`). Set `INLINE_EVAL=true` to judge every Ask automatically.
 
-A **`verbosity`** judge exists in code but is **not** run on inline `/query`.
+**Retrieval (2 metrics, 0–100% in UI)**
+
+- **Context precision** — How much of the retrieved wiki text actually matters for your question.
+- **Context recall** — Whether retrieval pulled in enough facts to answer well.
+
+**Generation (3 metrics, 1–5, higher is better)**
+
+- **Faithfulness** — Whether claims in the answer are supported by the retrieved excerpts.
+- **Relevance** — Whether the answer addresses what you asked.
+- **Prompt adherence** — Whether the answer follows PoE 1 focus and excerpts-only rules given what was retrieved.
 
 ---
 
-<details class="arch-collapse">
-<summary>Quality metrics reference</summary>
+## Judges (technical)
 
-Evaluation is split into **retrieval** (did we fetch the right wiki pages?) and **generation** (is the answer good given what we fetched?). Scores are **display-only** — they do not change the answer. Local dev: click **Score response** after Ask (sends retrieved chunk text from the trace to `POST /score`). Set `INLINE_EVAL=true` to judge every Ask automatically.
+Five separate **LLM-as-judge** calls (RAGAS-inspired names; **not** the RAGAS library). Each judge receives the same excerpt formatting as the answer model: up to **1200 characters per chunk** via [`format_evidence_context`](../src/poe_agent/evaluator/context.py). Prompt-adherence sees excerpts plus rules, not rules alone.
 
-### Retrieval metrics (on Score response or inline eval)
+| Judge key | Backend prompt focus |
+|-----------|----------------------|
+| `context_precision` | Relevance of retrieved excerpts to the question |
+| `context_recall` | Coverage of facts needed to answer |
+| `faithfulness` | Answer claims vs excerpts |
+| `relevance` | Answer vs user question |
+| `prompt_adherence` | Rules + excerpts vs answer |
 
-Two **LLM-as-judge** scores (0–100% in the UI; judge returns 1–5, normalized to 0–1):
+`JUDGE_PROVIDER` selects **claude**, **gpt4**, or **bedrock** (default **claude**). The UI provider choice auto-aligns judges for the session. **`INLINE_EVAL=false`** (default, including production profile) keeps judges off the `/query` hot path; **`dev_ui_enabled=true`** (default) still shows timing, trace, and the Score button.
 
-| Metric | How computed | What it tells you |
-|--------|----------------|-------------------|
-| **Context precision** | Judge rates retrieved chunk excerpts vs your question | How much of what we retrieved is actually relevant? |
-| **Context recall** | Judge rates whether retrieval captured enough to answer | Did we pull in the key facts needed? |
-
-These are **approximations** inspired by RAGAS context precision/recall — not exact chunk-level math.
-
-**Evaluate / gold set:** `POST /evaluate` with `expected_pages` computes exact **retrieval precision** and **retrieval recall** on page-title overlap. Batch over `gold.jsonl` via evaluator service helpers.
-
-### Generation metrics (on Score response or inline eval)
-
-Three separate **LLM-as-judge** calls (1–5, higher is better), run after the answer is written:
-
-| Metric | How computed | What it tells you |
-|--------|----------------|-------------------|
-| **Faithfulness** | Judge compares answer to the same wiki excerpts as the generator | Are claims grounded in the excerpts? |
-| **Relevance** | Judge compares answer to your question | Does the answer address what you asked? |
-| **Prompt adherence** | Judge checks rules **and** wiki excerpts | Did the answer follow excerpts-only constraints given what was retrieved? |
-
-**Timing** (`plan`, `retrieval`, `generation`, `evaluation` ms in trace) is observability only — LangGraph uses `perf_counter` per node with no extra LLM cost.
-
-### Judge models
-
-| Setting | Meaning |
-|---------|---------|
-| `JUDGE_PROVIDER` | Which backend runs judges: **claude** (default in `.env`), **gpt4**, or **bedrock**. Selecting Claude or GPT-4 in the UI **auto-matches** judges to the same provider for that session |
-| `INLINE_EVAL=false` | Default: no judges on `/query`; use **Score response** or `POST /score` |
-| `dev_ui_enabled` | `false` on `DEPLOYMENT_PROFILE=production`; else trace, timing, score button |
-
-Five judge calls when scoring: context precision, context recall, faithfulness, relevance, prompt adherence.
-
-**Harness** = your code under `src/poe_agent/harness/` (FastAPI, React UI, config, logging) — not a third-party product.
-
-</details>
+Judges are **not** part of the agentic loop: they never change which pages are fetched or how the answer is drafted. Trace timing (`plan`, `retrieval`, `generation`, `evaluation`) is observability only.
 
 ---
 
 ## Deployment and cost snapshot
 
-| Piece | What it is here |
-|-------|-----------------|
-| **Docker** | Multi-stage image: build React UI, install Python package, pre-download rerank model; one container serves API + static UI |
-| **Railway** | Platform-as-a-service: connects to GitHub, builds the Dockerfile on push to `main`, runs the container with env vars for API keys |
-| **GitHub Actions** | CI: lint (`ruff`), tests (`pytest`), verify Docker build |
+| Piece | Role |
+|-------|------|
+| **Docker** | Builds React UI + Python API; rerank model baked into the image |
+| **Railway** | Deploys from GitHub `main`; env vars for keys and `DEPLOYMENT_PROFILE` |
+| **GitHub Actions** | `ruff`, `pytest`, Docker build verify |
 
-**Rough cost** (see [DEPLOY.md § Billing](../DEPLOY.md#billing-rough)): Railway Hobby ~**$5/mo** plus RAM/CPU while running (~**$12–25** for a busy week at 4 GB); **Anthropic/OpenAI** billed per Ask separately.
+Rough cost: Railway Hobby ~**$5/mo** plus compute; **Anthropic/OpenAI** per Ask and per Score.
 
-**Latency:** Slowness on live deploy is mainly **poewiki fetch + rerank** (+ **five judge LLM calls** when `INLINE_EVAL=true` locally). Production skips judges. The demo path does **not** require AWS Bedrock or vLLM—cloud **Claude/GPT-4 APIs** plus local cross-encoder rerank are sufficient.
-
----
-
-<details class="arch-collapse">
-<summary>Explicit non-goals (this repo)</summary>
-
-- **vLLM** — not used; generation via OpenAI/Anthropic APIs or stub
-- **MLflow / Weights & Biases** — not used; eval via gold set, `/evaluate`, and inline judges
-- **RAGAS library** — metrics are custom LLM judges with similar names
-- **Full poewiki index** — 18-page allowlist + live search, not ~16k articles ingested
-- **Formal large-scale user study** — portfolio demo + small labeled set only
-- **Per-user answer-style preferences** — fixed system prompt
-
-</details>
-
-<details class="arch-collapse">
-<summary>Scaling to the full wiki</summary>
-
-Today the corpus is **18 curated pages** in `knowledge/seed_pages.yaml`, not all of poewiki (~16k articles).
-
-### Phase 1 — Today
-
-- Edit `seed_pages.yaml` → run `poe-ingest` → restart the API if it was running during ingest.
-
-### Phase 2 — Medium corpus
-
-- Category crawl via MediaWiki API, or link crawl outward from seed pages (rate-limited).
-
-### Phase 3 — Large corpus
-
-- Full wiki dump or `allpages` pagination; incremental updates; larger Chroma index and disk use.
-
-### Phase 4 — Quality at scale
-
-- Section-aware chunking; “I don’t know” when retrieval is weak; PoE1 filters on live search hits (v2).
-
-Check the [poewiki license](https://www.poewiki.net/wiki/Path_of_Exile_Wiki:Copyrights) before public deployment.
-
-</details>
+**Latency:** Dominated by poewiki fetch + rerank (+ five judge calls when scoring). Production skips automatic judges but keeps the full dev UI unless `DEV_UI_ENABLED=false`.
 
 ---
 
 ## Further reading
 
-- [LangGraph](https://langchain-ai.github.io/langgraph/)
 - [Path of Exile Wiki](https://www.poewiki.net/wiki/Path_of_Exile_Wiki)
-- [DEPLOY.md](../DEPLOY.md) — Railway, Docker, billing, booth variables
-- [AWS Bedrock](https://docs.aws.amazon.com/bedrock/) (optional)

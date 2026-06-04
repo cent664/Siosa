@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from poe_agent.harness.config import Settings, short_model_label
+from poe_agent.harness.config import short_model_label
 
 
 def test_short_model_label_claude_sonnet():

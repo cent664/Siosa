@@ -1,116 +1,63 @@
-# PoE Wiki Agent
+# Siosa's Library
 
+**Path of Exile 1** wiki Q&A — live [poewiki.net](https://www.poewiki.net) retrieval, cited answers, optional LangGraph planning.
 
+**Demo** [poesiosa.net](https://www.poesiosa.net/) · **Docs** [Architecture](docs/architecture.html) · [Changelog](docs/changelog.html) · [Deploy](DEPLOY.md)  
+*(local: http://127.0.0.1:8000/docs/architecture.html with API running)*
 
-Path of Exile **1** wiki-grounded Q&A for portfolio and learning. Ask mechanics questions; get answers with citations from [poewiki.net](https://www.poewiki.net/wiki/Path_of_Exile_Wiki).
+## How it works
 
+```mermaid
+flowchart TB
+  subgraph agentic["Agentic — plan step only"]
+    PL[Planner adds short search terms]
+  end
+  subgraph pass["One live retrieval pass"]
+    Q[Your question]
+    F[Fuse queries]
+    S[Search poewiki]
+    T[Title probes]
+    O[Re-order hits by overlap]
+    DL[Download pages]
+    C[Chunk]
+    RR[Rerank]
+    FT[Optional tangential filter]
+    OUT[Top excerpts → LLM]
+  end
+  PL -.-> F
+  Q --> F --> S
+  F --> T
+  S --> O
+  T --> O
+  O --> DL --> C --> RR --> FT --> OUT
+```
 
-
-**Browser docs** (with API running): [Architecture](http://127.0.0.1:8000/docs/architecture.html) · [Changelog](http://127.0.0.1:8000/docs/changelog.html)
-
-
+**Interactive pipeline** (hover steps, alternatives): open [Architecture](docs/architecture.html#pipeline-overview). Algorithm detail, providers, judges, and deploy notes live there—not duplicated here.
 
 ## Quick start
 
-
-
 ```powershell
-
 cd Project
-
 python -m venv .venv
-
 .venv\Scripts\activate
-
 pip install -e ".[dev,speech]"
-
-
-
 copy .env.example .env
-
 ```
 
+**One click:** `start.bat` or `.\start.ps1` → http://127.0.0.1:8000/
 
+| | |
+|--|--|
+| **Provider** | `stub` / `claude` / `gpt4` in UI (keys in `.env`) |
+| **Score** | On-demand judges after Ask (`INLINE_EVAL=false` default) |
+| **Offline index** | `poe-ingest` once → `RETRIEVAL_MODE=local` (18 curated pages) |
 
-**Preferred — one click:** double-click `start.bat` (or run `.\start.ps1`). Builds the React UI if needed, then starts the API.
-
-
-
-- App: http://127.0.0.1:8000/
-
-- API: http://127.0.0.1:8000
-
-- Docs: http://127.0.0.1:8000/docs/
-
-
-
-**UI development (hot reload):**
-
-
-
-```powershell
-
-# Terminal 1
-
-uvicorn poe_agent.harness.api.app:app --reload --host 127.0.0.1 --port 8000
-
-
-
-# Terminal 2
-
-cd web
-
-npm install
-
-npm run dev
-
-```
-
-
-
-Vite runs on http://localhost:5173 and proxies API routes to port 8000.
-
-
-
-## Index wiki content (once)
-
-
-
-```powershell
-
-poe-ingest
-
-```
-
-
-
-Fetches **18 curated** PoE 1 pages → `data/chunks/` + `data/chroma/`. Restart API if it was running during ingest.
-
-
-
-## Answer mode
-
-
-
-Use the **sidebar** to switch **stub**, **claude**, or **gpt4**. Claude/GPT-4 need API keys in `.env`. Each answer shows quality scores and an expandable LLM trace.
-
-
+**UI dev:** API on `:8000`, `cd web && npm run dev` on `:5173` (proxied).
 
 ## Regenerate docs
 
-
-
-After editing `docs/ARCHITECTURE.md` or `docs/CHANGELOG.md`:
-
-
-
 ```powershell
-
 python scripts/sync_docs.py
-
 ```
 
-
-
----
-
+Edits go in `docs/ARCHITECTURE.md` and `docs/CHANGELOG.md`; `README.md` is generated from this header only.

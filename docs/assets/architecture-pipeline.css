@@ -1,8 +1,6 @@
 .pipeline-interactive {
-  margin: 2rem 0 2.5rem;
-  padding: 1.25rem 0;
-  border-top: 1px solid #4a4030;
-  border-bottom: 1px solid #4a4030;
+  margin: 0.35rem 0 2rem;
+  padding: 0 0 1.25rem;
   max-width: 100%;
 }
 

@@ -2,124 +2,95 @@
   "stages": [
     {
       "id": "0.1",
-      "title": "Corpus",
-      "chosen": "18-page allowlist",
-      "summary": "Offline poewiki ingest into a local index.",
-      "detail": "<p><strong>Where data comes from:</strong> Path of Exile 1 articles on <a href=\"https://www.poewiki.net\">poewiki.net</a>, listed in <code>seed_pages.yaml</code> (18 mechanic pages) for offline ingest.</p><p><strong>How we decided:</strong> A small allowlist keeps ingest fast and answers focused on core mechanics — not the full ~16k-article wiki.</p><p><strong>What runs:</strong> <code>poe-ingest</code> writes <code>data/raw/</code>, <code>chunks.jsonl</code>, and a Chroma vector index. With <code>RETRIEVAL_MODE=live</code> (default), Ask can skip the local corpus and fetch pages at query time.</p>",
+      "title": "Ask",
+      "chosen": "React + FastAPI",
+      "summary": "Question, provider, optional voice.",
+      "detail": "<p><strong>What happens:</strong> The UI sends your question to <code>POST /query</code> with the selected provider (stub, Claude, or GPT-4).</p><p><strong>Also:</strong> <code>POST /settings/provider</code>, <code>POST /transcribe</code> (OpenAI Whisper by default), mic capture in the browser.</p>",
       "alternatives": [
         {
-          "label": "Full wiki dump",
+          "label": "Streamlit UI",
           "opaque": true,
-          "detail": "<p><strong>Industry pattern:</strong> Mirror the entire wiki (dump or crawl-all) into one search index.</p><p><strong>Here:</strong> Not implemented — would raise storage, ingest time, and noise. See <em>Scaling to the full wiki</em> in this doc.</p>"
-        },
-        {
-          "label": "Live fetch per query",
-          "opaque": false,
-          "detail": "<p><strong>Industry pattern:</strong> Fetch missing pages at question time (dynamic RAG).</p><p><strong>Here:</strong> Default via <code>RETRIEVAL_MODE=live</code> — MediaWiki search, fetch, disk cache (<code>data/live_cache/</code>), in-memory chunk + rerank. Set <code>RETRIEVAL_MODE=local</code> to use only the pre-built index.</p>"
+          "detail": "<p>Early prototype UI — replaced by React + Vite in <code>web/dist/</code>.</p>"
         }
       ]
     },
     {
       "id": "0.2",
-      "title": "Ask",
-      "chosen": "React + FastAPI",
-      "summary": "Your question enters the harness API.",
-      "detail": "<p><strong>What happens:</strong> The React UI sends your question (and provider choice) to <code>POST /query</code>. No retrieval yet — this step only captures input and settings.</p><p><strong>Also:</strong> <code>POST /settings/provider</code>, optional <code>POST /transcribe</code> for voice.</p>",
+      "title": "Plan",
+      "chosen": "LangGraph optional",
+      "summary": "Extra search terms when needed.",
+      "detail": "<p>For Claude/GPT-4, <strong>LangGraph</strong> may run a planner that emits one or more retrieve intents (compare questions are a common case).</p><p>All planner queries are merged into <strong>one</strong> live <code>wiki_search</code> with multi-query fusion — not separate fetches per subtask.</p><p><strong>Stub</strong> uses a single linear pass (<code>linear_rag</code> trace).</p>",
       "alternatives": [
         {
-          "label": "Streamlit UI",
+          "label": "Linear only",
+          "opaque": false,
+          "detail": "<p>One retrieval pass with the user question — always available for stub or when the planner emits a single step.</p>"
+        },
+        {
+          "label": "Rule-based planner",
           "opaque": true,
-          "detail": "<p>Earlier prototype UI on port 8501 — removed in favor of React + Vite served from <code>web/dist/</code>.</p>"
+          "detail": "<p>Heuristic fallback when LLM planning fails.</p>"
         }
       ]
     },
     {
       "id": "0.3",
       "title": "Retrieve",
-      "chosen": "Mode-aware retrieve",
-      "summary": "Live poewiki (default) or local hybrid + rerank.",
-      "detail": "<p><strong>Default (<code>live</code>):</strong> Multi-query fusion on every <code>wiki_search</code> — several poewiki search strings, fetch up to <code>LIVE_WIKI_MAX_PAGES</code> pages, chunk, cross-encoder rerank (~top 5). Not BM25 on the full wiki.</p><p><strong>Local hybrid:</strong> Dense Chroma + BM25 + RRF on the 18-page ingested index only (<code>local</code> or weak-hit fallback in <code>hybrid</code>).</p><p><strong>Note:</strong> <code>chroma_ready=false</code> on production is normal when live-only — no local ingest on the server.</p>",
+      "chosen": "Live poewiki fusion",
+      "summary": "Search, probe titles, fetch, rerank.",
+      "detail": "<p><strong>Default (<code>RETRIEVAL_MODE=live</code>):</strong></p><ul><li>Fused MediaWiki queries (mechanic entities + topic terms, full question last)</li><li>Up to four title probes + title-overlap ranking of hits</li><li>Fetch up to <code>LIVE_WIKI_MAX_PAGES</code> pages, chunk in memory</li><li>Cross-encoder rerank → top <code>RERANK_TOP_N</code> chunks</li></ul><p>Disk cache: <code>data/live_cache/</code>. Optional refine round if <code>RETRIEVAL_REFINE_ENABLED=true</code>.</p>",
       "alternatives": [
         {
-          "label": "Dense only",
+          "label": "Local 18-page index",
           "opaque": true,
-          "detail": "<p><strong>What it is:</strong> Semantic vector search only — good for paraphrases, weaker on exact item names.</p><p><strong>Here:</strong> We always combine dense with BM25.</p>"
+          "detail": "<p><code>RETRIEVAL_MODE=local</code>: Chroma dense + BM25 + RRF on the curated allowlist after <code>poe-ingest</code> — offline / regression use, not the live demo path.</p>"
         },
         {
-          "label": "Sparse only",
+          "label": "Hybrid local + live",
           "opaque": true,
-          "detail": "<p><strong>What it is:</strong> BM25 / keyword search — strong on exact terms, weaker on rephrased questions.</p><p><strong>Here:</strong> Used together with dense in hybrid mode.</p>"
+          "detail": "<p><code>RETRIEVAL_MODE=hybrid</code>: try local index first; live fetch when local scores are weak.</p>"
         },
         {
           "label": "No rerank",
           "opaque": true,
-          "detail": "<p><strong>What it is:</strong> Take top fusion results without a cross-encoder second pass.</p><p><strong>Here:</strong> Cross-encoder rerank runs when the model loads successfully.</p>"
+          "detail": "<p>Skip cross-encoder second pass — not used; rerank runs when the model loads.</p>"
         }
       ]
     },
     {
       "id": "0.4",
-      "title": "Plan",
-      "chosen": "LangGraph (optional)",
-      "summary": "Planner-driven multi-search when needed.",
-      "detail": "<p><strong>LangGraph</strong> runs for typical Claude/GPT-4 Ask paths: a planner emits <strong>1–4</strong> retrieve subtasks (verbatim question plus short wiki keywords). Compare questions are a common case, not the only one.</p><p>Each subtask still uses <strong>multi-query fusion</strong> inside <code>wiki_search</code>.</p><p><strong>Linear RAG</strong> (<code>linear_rag</code> trace) when provider is <code>stub</code> or <code>linear</code> — one retrieval pass, fusion still applies in live mode.</p>",
+      "title": "Generate",
+      "chosen": "UI provider",
+      "summary": "LLM or stub from excerpts only.",
+      "detail": "<p>The selected provider writes using <strong>only</strong> reranked wiki excerpts (PoE 1, excerpts-only system prompt).</p><p><strong>Stub:</strong> top chunk text, no LLM.</p><p>LangGraph records <code>timing_ms</code> for plan, retrieval, and generation.</p>",
       "alternatives": [
         {
-          "label": "Linear only",
+          "label": "Bedrock",
           "opaque": true,
-          "detail": "<p><strong>What it is:</strong> Single retrieval pass with the user question — the classic RAG loop.</p><p><strong>Here:</strong> Always available; used when LangGraph does not plan extra steps.</p>"
-        },
-        {
-          "label": "Rule-based planner",
-          "opaque": true,
-          "detail": "<p><strong>What it is:</strong> Heuristics instead of an LLM to split compare questions.</p><p><strong>Here:</strong> Fallback when LLM planning fails.</p>"
+          "detail": "<p>AWS Bedrock via <code>.env</code> — not in the UI provider dropdown.</p>"
         }
       ]
     },
     {
       "id": "0.5",
-      "title": "Generate",
-      "chosen": "UI provider",
-      "summary": "LLM or stub writes from retrieved chunks only.",
-      "detail": "<p><strong>What we do:</strong> The selected provider (stub, Claude, or GPT-4) generates an answer using <strong>only</strong> the retrieved excerpts — not the whole corpus.</p><p><strong>Stub:</strong> Returns a wiki excerpt with no LLM call.</p><p><strong>LLM modes:</strong> Short grounded answer with citations; system prompt enforces PoE 1 and excerpt-only rules.</p>",
+      "title": "Score",
+      "chosen": "On demand",
+      "summary": "Five judges optional.",
+      "detail": "<p><strong>Default:</strong> <code>INLINE_EVAL=false</code> — no judges on <code>/query</code>. Click <strong>Score response</strong> to run five LLM judges via <code>POST /score</code>.</p><p>Judges use the same 1200-char/chunk excerpts as generation. Scores do not change the answer or retrieval.</p>",
       "alternatives": [
         {
-          "label": "Stub",
+          "label": "Inline on every Ask",
           "opaque": true,
-          "detail": "<p>No generation model — fastest path, shows top chunk text for debugging retrieval.</p>"
-        },
-        {
-          "label": "Bedrock",
-          "opaque": true,
-          "detail": "<p><strong>AWS Bedrock</strong> as a cloud provider — supported via <code>.env</code> for generation or judges, not exposed in the UI toggle.</p>"
+          "detail": "<p>Set <code>INLINE_EVAL=true</code> to run all five judges automatically after each answer (slower).</p>"
         }
       ]
     },
     {
       "id": "0.6",
-      "title": "Judge",
-      "chosen": "Retrieval + generation judges",
-      "summary": "Five inline judges when enabled; gold set on /evaluate.",
-      "detail": "<p><strong>Inline Ask (<code>INLINE_EVAL=true</code>):</strong> Five LLM judge calls — context precision, context recall, faithfulness, relevance, prompt adherence (custom prompts; RAGAS-inspired names, not the RAGAS library).</p><p><strong>Gold set:</strong> 10 labeled questions in <code>gold.jsonl</code>; <code>POST /evaluate</code> gives exact page-title retrieval P/R plus optional extraction overlap.</p><p><strong>Production:</strong> <code>INLINE_EVAL=false</code> skips all judges for speed.</p>",
-      "alternatives": [
-        {
-          "label": "Skip inline judges",
-          "opaque": true,
-          "detail": "<p>Set <code>INLINE_EVAL=false</code> in <code>.env</code> to skip generation judges on <code>/query</code> (faster, no 1–5 scores in UI).</p>"
-        },
-        {
-          "label": "Gold /evaluate",
-          "opaque": true,
-          "detail": "<p><strong>Harness Evaluate button</strong> runs retrieval precision/recall plus generation judges and optional extraction vs a gold answer — for regression testing, not casual Q&A.</p>"
-        }
-      ]
-    },
-    {
-      "id": "0.7",
       "title": "Respond",
       "chosen": "Answer + trace",
-      "summary": "Answer + citations; trace when dev UI.",
-      "detail": "<p><strong>Always:</strong> Grounded answer and wiki citations (title, URL, snippet).</p><p><strong>Local dev:</strong> <code>quality_scores</code> (five metrics when inline eval on), full <code>trace</code> — plan, tool calls, timing, LLM I/O.</p><p><strong>Production booth:</strong> Answer + Sources only — no scores, trace, or timing in the UI.</p>",
+      "summary": "Citations; dev panels when enabled.",
+      "detail": "<p><strong>Always:</strong> Answer markdown and wiki source links.</p><p><strong>With <code>dev_ui_enabled=true</code> (default):</strong> pipeline timing bars, Score button, quality metrics, agent trace, LLM call log.</p><p>Set <code>DEV_UI_ENABLED=false</code> for answer + sources only.</p>",
       "alternatives": []
     }
   ]

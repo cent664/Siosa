@@ -1,5 +1,12 @@
 Newest first. Each entry uses the same format: a short title and a few bullets on what changed and why it mattered. Edit this file, then run `python scripts/sync_docs.py` for browser HTML.
 
+## 2026-06-04 — Architecture doc and Siosa UI polish
+
+- Docs — Architecture page rewritten for the live pipeline; removed obsolete non-goals, scaling, gold-set, and local-vs-prod sections; added current retrieval algorithm and compact metrics copy.
+- Docs — Interactive pipeline diagram updated (live fusion, on-demand judges); docs hub removed; Architecture and Changelog nav use a home icon back to the app.
+- Web — Art assets moved to `art assets/`; `siosa_nobg` portrait; library background anchored to bottom; removed Ask loading text; footer links only Architecture and Changelog.
+- Config — Production keeps `dev_ui_enabled` and OpenAI transcription; judges stay off the hot path via `INLINE_EVAL=false`.
+
 ## 2026-06-04 — Dev UI layout and metrics help
 
 - Web — Answer shows first as plain markdown; pipeline timing bars and scoring timing (after **Score response**) sit below in a fixed order.

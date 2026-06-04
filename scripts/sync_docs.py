@@ -106,6 +106,8 @@ SHARED_STYLES = """
     .changelog-label { font-family: var(--font-heading); font-weight: 600; color: var(--poe-gold-light); }
     pre.mermaid { background: transparent; border: none; padding: 0.5rem 0; overflow-x: auto; text-align: center; }
     .mermaid { margin: 1.5rem 0; }
+    .pipeline-interactive { margin-top: 0.35rem; }
+    em { color: var(--poe-text-muted); }
     details { background: rgba(0, 0, 0, 0.35); border: 1px solid var(--poe-panel-border); border-radius: 6px; padding: 0.5rem 0.75rem; }
     details summary { font-family: var(--font-heading); color: var(--poe-gold-light); cursor: pointer; }
 """
@@ -336,7 +338,6 @@ def _render_interactive_pipeline() -> str:
     details_json = json.dumps(details_map).replace("</", "<\\/")
     return (
         f'<section id="pipeline-interactive" class="pipeline-interactive">'
-        f"<h2>Interactive pipeline</h2>"
         f'<p class="pipeline-hint">Hover a step to open alternatives we did not choose. '
         f"Hover an alternative or the step itself to read details below. "
         f'Click a step to pin its details.</p>'
@@ -353,10 +354,8 @@ def _render_interactive_pipeline() -> str:
 
 
 def sync_readme() -> None:
-    header = (DOCS / "README_HEADER.md").read_text(encoding="utf-8")
-    arch = (DOCS / "ARCHITECTURE.md").read_text(encoding="utf-8")
-    arch = arch.replace(PIPELINE_MARKER, "")
-    (ROOT / "README.md").write_text(header + "\n" + arch, encoding="utf-8")
+    header = (DOCS / "README_HEADER.md").read_text(encoding="utf-8").strip()
+    (ROOT / "README.md").write_text(header + "\n", encoding="utf-8")
     print("Wrote README.md")
 
 

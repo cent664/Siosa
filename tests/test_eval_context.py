@@ -2,7 +2,7 @@
 
 from __future__ import annotations
 
-from poe_agent.evaluator.context import format_evidence_context, truncate_for_judge
+from poe_agent.evaluator.context import format_evidence_context
 from poe_agent.evaluator.judges import judge_prompt_adherence
 from poe_agent.evaluator.inline import chunks_from_score_payload, run_inline_quality
 from poe_agent.generator.answer import get_answer_system_prompt

@@ -193,13 +193,6 @@ export default function App() {
           </form>
 
           {queryError && <div className="error-banner">{queryError}</div>}
-          {loading && (
-            <p className="spinner">
-              {inlineEval
-                ? "Retrieving, generating, and scoring…"
-                : "Retrieving and generating…"}
-            </p>
-          )}
         </section>
 
         {result && (
