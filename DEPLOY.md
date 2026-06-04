@@ -24,7 +24,9 @@ Copy into Railway **Variables** (replace secrets with your real keys).
 
 **Judges are not a Railway product** — `JUDGE_PROVIDER` chooses which **your** LLM API runs optional quality scores on each Ask (only when `INLINE_EVAL=true`). For the booth, use `INLINE_EVAL=false` or `DEPLOYMENT_PROFILE=production`.
 
-**Booth UI:** When `INLINE_EVAL=false`, the web UI shows **Answer + Sources only** (no quality scores, trace, or timing). `/health` returns `"inline_eval": false`.
+**Booth scoring:** `INLINE_EVAL=false` skips automatic judges on each Ask; use **Score response** in the UI instead. **`DEV_UI_ENABLED=true`** (default) keeps timing, trace, and LLM call panels. Set `DEV_UI_ENABLED=false` for answer + sources only.
+
+**Voice on Railway:** Production profile forces `TRANSCRIBE_PROVIDER=openai` (no faster-whisper in the Docker image). Ensure `OPENAI_API_KEY` is set.
 
 **Do not set** a custom `PORT` — Railway injects it; the container uses it via [`scripts/start_api.sh`](scripts/start_api.sh).
 

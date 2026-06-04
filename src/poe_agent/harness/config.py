@@ -26,6 +26,7 @@ class Settings(BaseSettings):
     openai_model: str = "gpt-4o"
     judge_provider: str = "claude"  # claude | gpt4 | stub | bedrock
     inline_eval: bool = False
+    dev_ui_enabled: bool = True  # trace, timing, score button; set DEV_UI_ENABLED=false for booth-only UI
     deployment_profile: str = ""  # set DEPLOYMENT_PROFILE=production on Railway for booth defaults
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     retrieval_top_k: int = 8
@@ -71,11 +72,6 @@ class Settings(BaseSettings):
     def eval_dir(self) -> Path:
         return self.poe_data_dir / "eval"
 
-    @property
-    def dev_ui_enabled(self) -> bool:
-        """Trace, timing, and on-demand scoring UI (off in production booth)."""
-        return self.deployment_profile.lower().strip() != "production"
-
     @model_validator(mode="after")
     def apply_deployment_profile(self) -> Self:
         if self.deployment_profile.lower().strip() != "production":
@@ -85,6 +81,8 @@ class Settings(BaseSettings):
         if self.poe_provider_mode.lower() == "stub" and self.anthropic_api_key:
             object.__setattr__(self, "poe_provider_mode", "claude")
         object.__setattr__(self, "inline_eval", False)
+        # Docker image has no faster-whisper; voice uses OpenAI when keys are set.
+        object.__setattr__(self, "transcribe_provider", "openai")
         return self
 
 

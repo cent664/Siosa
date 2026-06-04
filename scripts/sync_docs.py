@@ -50,9 +50,52 @@ SHARED_STYLES = """
     th { background: rgba(0, 0, 0, 0.4); color: var(--poe-gold-light); font-family: var(--font-heading); }
     code { background: rgba(255, 255, 255, 0.08); color: var(--poe-gold-light); padding: 0.1em 0.3em; border-radius: 3px; }
     pre { background: rgba(0, 0, 0, 0.45); color: var(--poe-text); padding: 1rem; overflow-x: auto; border: 1px solid var(--poe-panel-border); border-radius: 6px; }
-    nav { margin-bottom: 1.5rem; padding: 0.75rem 1rem; background: rgba(10, 9, 8, 0.94); border: 1px solid var(--poe-panel-border); border-radius: 6px; }
-    nav a { margin-right: 1rem; font-family: var(--font-heading); color: var(--poe-link); text-decoration: none; }
-    nav a:hover { color: var(--poe-gold-light); text-decoration: underline; }
+    nav.docs-nav {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.65rem 1rem;
+      margin-bottom: 1.5rem;
+      padding: 0.75rem 1rem;
+      background: rgba(10, 9, 8, 0.94);
+      border: 1px solid var(--poe-panel-border);
+      border-radius: 6px;
+    }
+    nav.docs-nav a:not(.nav-home-btn) {
+      font-family: var(--font-heading);
+      color: var(--poe-link);
+      text-decoration: none;
+    }
+    nav.docs-nav a:not(.nav-home-btn):hover {
+      color: var(--poe-gold-light);
+      text-decoration: underline;
+    }
+    a.nav-home-btn {
+      order: -1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.35rem;
+      height: 2.35rem;
+      margin-right: 0.15rem;
+      border: 1px solid var(--poe-panel-border);
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.4);
+      color: var(--poe-gold-light);
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+    a.nav-home-btn:hover {
+      border-color: var(--poe-gold-light);
+      color: var(--poe-gold-light);
+      text-decoration: none;
+      background: rgba(92, 74, 32, 0.35);
+    }
+    a.nav-home-btn svg {
+      width: 1.15rem;
+      height: 1.15rem;
+      fill: currentColor;
+    }
     a { color: var(--poe-link); }
     a:hover { color: var(--poe-gold-light); }
     article { border-left: 4px solid #8b7028; padding-left: 1rem; margin-bottom: 2rem; }
@@ -93,11 +136,12 @@ HTML_HEAD_BASE = """<!DOCTYPE html>
   </script>
 </head>
 <body>
-  <nav>
-    <a href="/docs/">Docs hub</a>
+  <nav class="docs-nav" aria-label="Documentation">
+    <a href="/" class="nav-home-btn" title="Back to Siosa's Library" aria-label="Back to app">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"/></svg>
+    </a>
     <a href="/docs/architecture.html">Architecture</a>
     <a href="/docs/changelog.html">Changelog</a>
-    <a href="/">App UI</a>
   </nav>
 """
 

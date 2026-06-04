@@ -264,10 +264,6 @@ export default function App() {
 
       <footer className="app-footer">
         <nav className="footer-docs" aria-label="Documentation">
-          <span className="footer-docs-label">Documentation</span>
-          <a href={docsUrl("index.html")} target="_blank" rel="noreferrer">
-            Docs hub
-          </a>
           <a href={docsUrl("architecture.html")} target="_blank" rel="noreferrer">
             Architecture
           </a>

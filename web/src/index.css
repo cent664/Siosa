@@ -37,13 +37,15 @@ body {
 }
 
 .siosa-portrait {
-  position: fixed;
-  left: 0;
-  bottom: 0;
+  --content-half: 21rem;
+  --portrait-w: min(240px, 26vw);
+  position: absolute;
+  top: 1.5rem;
+  left: max(0.5rem, calc(50% - var(--content-half) - var(--portrait-w) + 1.5rem));
   z-index: 0;
-  width: min(38vw, 420px);
-  height: min(88vh, 920px);
-  background: url(/siosa.jpg) left bottom / contain no-repeat;
+  width: var(--portrait-w);
+  height: min(72vh, 680px);
+  background: url(/siosa_nobg.png) left top / contain no-repeat;
   pointer-events: none;
 }
 
@@ -54,7 +56,8 @@ body {
   padding: 1.5rem 1.25rem 2rem;
   max-width: 42rem;
   width: 100%;
-  margin: 0 auto 0 max(1.25rem, min(36vw, 400px));
+  margin-left: auto;
+  margin-right: auto;
 }
 
 .app-header {
@@ -104,8 +107,8 @@ body {
 
 .question-section {
   max-width: 36rem;
-  margin: 0 0 1rem;
-  text-align: left;
+  margin: 0 auto 1rem;
+  text-align: center;
 }
 
 .question-form {
@@ -128,7 +131,7 @@ body {
   display: flex;
   gap: 0.5rem;
   align-items: stretch;
-  justify-content: flex-start;
+  justify-content: center;
   margin-bottom: 0;
 }
 
@@ -179,19 +182,14 @@ body {
   flex-wrap: wrap;
   align-items: center;
   justify-content: center;
-  gap: 0.5rem 1.25rem;
+  gap: 1.25rem;
   max-width: 960px;
   margin: 0 auto;
-  font-size: calc(0.9rem + var(--font-bump));
-}
-
-.footer-docs-label {
-  font-family: var(--font-heading);
-  font-weight: 600;
-  color: var(--poe-text-muted);
 }
 
 .footer-docs a {
+  font-family: var(--font-heading);
+  font-size: calc(1.05rem + var(--font-bump));
   color: var(--poe-link);
   text-decoration: none;
 }
@@ -574,7 +572,7 @@ pre.code-block {
   font-family: var(--font-heading);
   font-size: calc(1rem + var(--font-bump));
   text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
-  margin: 0.75rem 0 0;
+  margin: 0.75rem auto 0;
   text-align: left;
   width: 100%;
   max-width: 36rem;
@@ -667,13 +665,14 @@ pre.code-block {
 
 @media (max-width: 768px) {
   .siosa-portrait {
-    width: min(32vw, 200px);
-    height: 55vh;
-    opacity: 0.92;
+    --portrait-w: min(140px, 34vw);
+    top: 1.25rem;
+    left: max(0.25rem, calc(50% - var(--content-half) - var(--portrait-w)));
+    height: min(48vh, 420px);
+    opacity: 0.95;
   }
 
   .main {
-    margin-left: min(30vw, 180px);
     max-width: none;
     padding-left: 0.75rem;
     padding-right: 0.75rem;

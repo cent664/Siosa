@@ -35,7 +35,11 @@ $health = Test-Endpoint "/health" $true
 if (-not $health -or $health.status -ne "ok") { exit 1 }
 
 if ($health.inline_eval -eq $true) {
-    Write-Host "WARN inline_eval is true - booth UI still shows scores/trace. Set DEPLOYMENT_PROFILE=production or INLINE_EVAL=false in Railway Variables."
+    Write-Host "WARN inline_eval is true - judges run on every Ask. Set INLINE_EVAL=false or DEPLOYMENT_PROFILE=production."
+    $exitCode = 2
+}
+if ($health.dev_ui_enabled -eq $false) {
+    Write-Host "WARN dev_ui_enabled is false - timing/trace/score hidden. Set DEV_UI_ENABLED=true in Railway Variables."
     $exitCode = 2
 }
 if ($health.deployment_hint) {
