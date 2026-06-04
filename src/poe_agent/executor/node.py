@@ -26,6 +26,7 @@ def _tool_log_entry(
     debug: RetrievalDebugInfo | None,
     *,
     refine_queries: list[str] | None = None,
+    plan_queries: list[str] | None = None,
 ) -> dict:
     entry: dict = {
         "tool": "wiki_search",
@@ -34,32 +35,51 @@ def _tool_log_entry(
     }
     if refine_queries is not None:
         entry["refine_queries"] = refine_queries
+    if plan_queries is not None:
+        entry["plan_queries"] = plan_queries
     if debug is not None:
         entry["retrieval_debug"] = debug.to_dict()
     return entry
+
+
+def _collect_plan_search_extras(question: str, subtasks: list[dict]) -> list[str]:
+    """Planner subtask strings merged into one fused wiki_search (excluding verbatim)."""
+    q_norm = question.strip().casefold()
+    extras: list[str] = []
+    seen: set[str] = set()
+    for task in subtasks:
+        if task.get("action", "retrieve") == "synthesize":
+            continue
+        rq = str(task.get("query", "")).strip()
+        if not rq:
+            continue
+        key = rq.casefold()
+        if key == q_norm or key in seen:
+            continue
+        seen.add(key)
+        extras.append(rq)
+    return extras
 
 
 def execute_subtasks(
     question: str,
     subtasks: list[dict],
 ) -> tuple[list[RetrievedChunk], list[dict]]:
-    all_chunks: list[RetrievedChunk] = []
-    seen_ids: set[str] = set()
-    tool_log: list[dict] = []
-
-    for task in subtasks:
-        action = task.get("action", "retrieve")
-        if action == "synthesize":
-            continue
-        query = task.get("query", question)
-        results, debug = wiki_search(query, user_question=question)
-        tool_log.append(_tool_log_entry(query, results, debug))
-        for ch in results:
-            if ch.chunk_id not in seen_ids:
-                seen_ids.add(ch.chunk_id)
-                all_chunks.append(ch)
-
-    return all_chunks, tool_log
+    extras = _collect_plan_search_extras(question, subtasks)
+    results, debug = wiki_search(
+        question,
+        user_question=question,
+        extra_search_queries=extras or None,
+    )
+    tool_log = [
+        _tool_log_entry(
+            question,
+            results,
+            debug,
+            plan_queries=extras or None,
+        )
+    ]
+    return results, tool_log
 
 
 def execute_refine_retrieval(

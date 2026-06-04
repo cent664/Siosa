@@ -38,16 +38,12 @@ if ($health.inline_eval -eq $true) {
     Write-Host "WARN inline_eval is true - booth UI still shows scores/trace. Set DEPLOYMENT_PROFILE=production or INLINE_EVAL=false in Railway Variables."
     $exitCode = 2
 }
-if ($health.enable_ollama -eq $true) {
-    Write-Host "WARN enable_ollama is true - Ollama still in provider dropdown. Set DEPLOYMENT_PROFILE=production or POE_ENABLE_OLLAMA=false in Railway Variables."
-    $exitCode = 2
-}
 if ($health.deployment_hint) {
     Write-Host "WARN deployment_hint: $($health.deployment_hint)"
     $exitCode = 2
 }
-if ($health.judge_provider -eq "ollama") {
-    Write-Host "WARN judge_provider is ollama - set JUDGE_PROVIDER=claude or DEPLOYMENT_PROFILE=production in Railway Variables"
+if ($health.judge_provider -notin @("claude", "gpt4")) {
+    Write-Host "WARN judge_provider is $($health.judge_provider) - set JUDGE_PROVIDER=claude or DEPLOYMENT_PROFILE=production"
     $exitCode = 2
 }
 if ($health.provider_mode -eq "stub") {

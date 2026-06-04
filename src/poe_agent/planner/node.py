@@ -65,7 +65,29 @@ def _heuristic_plan(question: str) -> list[dict]:
     q = question.lower()
     subtasks: list[dict] = [{"action": "retrieve", "query": question}]
 
-    if " vs " in q or " versus " in q or "compare" in q:
+    between = re.search(
+        r"(?:difference|differences|comparison)\s+between\s+(.+?)\s+and\s+(.+?)\??\s*$",
+        question,
+        re.IGNORECASE,
+    )
+    count_as = re.search(
+        r"does\s+(.+?)\s+count\s+as\s+(.+?)\??\s*$",
+        question,
+        re.IGNORECASE,
+    )
+    if between:
+        subtasks = [
+            {"action": "retrieve", "query": question},
+            {"action": "retrieve", "query": between.group(1).strip(" ?.")},
+            {"action": "retrieve", "query": between.group(2).strip(" ?.")},
+        ]
+    elif count_as:
+        subtasks = [
+            {"action": "retrieve", "query": question},
+            {"action": "retrieve", "query": count_as.group(1).strip(" ?.")},
+            {"action": "retrieve", "query": count_as.group(2).strip(" ?.")},
+        ]
+    elif " vs " in q or " versus " in q or "compare" in q:
         parts = re.split(r"\s+vs\.?\s+|\s+versus\s+|compare\s+", q, maxsplit=1)
         if len(parts) == 2:
             subtasks = [

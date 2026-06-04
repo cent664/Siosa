@@ -68,13 +68,33 @@ class HealthResponse(BaseModel):
     chunk_count: int = 0
     retrieval_mode: str = "local"
     live_retrieval_hint: str = ""
-    inline_eval: bool = True
-    enable_ollama: bool = True
+    inline_eval: bool = False
+    dev_ui_enabled: bool = True
     deployment_profile: str = ""
     deployment_hint: str = ""
-    judge_provider: str = "ollama"
+    judge_provider: str = "claude"
     judge_reachable: bool = True
     judge_hint: str = ""
+
+
+class ScoreChunkInput(BaseModel):
+    page_title: str = ""
+    wiki_url: str = ""
+    text: str = Field(..., min_length=1)
+    chunk_id: str = ""
+    score: float | None = None
+
+
+class ScoreRequest(BaseModel):
+    question: str = Field(..., min_length=1, max_length=2000)
+    answer: str = Field(..., min_length=1)
+    chunks: list[ScoreChunkInput] = Field(..., min_length=1)
+
+
+class ScoreResponse(BaseModel):
+    run_id: str
+    quality_scores: QualityScores = Field(default_factory=QualityScores)
+    timing_ms: dict[str, float] = Field(default_factory=dict)
 
 
 class EvaluateRequest(BaseModel):
@@ -99,13 +119,13 @@ class ProviderSettingsResponse(BaseModel):
     mode: str
     source: str
     available_modes: list[ProviderModeInfo] = Field(default_factory=list)
-    judge_provider: str = "ollama"
+    judge_provider: str = "claude"
     judge_reachable: bool = True
     judge_hint: str = ""
 
 
 class ProviderSettingsRequest(BaseModel):
-    mode: str = Field(..., pattern="^(stub|ollama|claude|gpt4)$")
+    mode: str = Field(..., pattern="^(stub|claude|gpt4)$")
 
 
 class TranscribeResponse(BaseModel):

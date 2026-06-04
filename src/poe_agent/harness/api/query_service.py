@@ -12,6 +12,7 @@ from poe_agent.harness.api.schemas import (
     QueryResponse,
     QueryTrace,
 )
+from poe_agent.evaluator.context import EVIDENCE_CHARS_PER_CHUNK
 from poe_agent.harness.config import get_effective_provider_mode, get_settings
 from poe_agent.harness.logging import RunLog, agent_run
 from poe_agent.harness.trace import get_llm_calls, reset_llm_calls
@@ -46,14 +47,16 @@ def _retrieval_config_snapshot() -> dict:
         "max_search_queries": s.live_wiki_max_search_queries,
         "search_limit": s.live_wiki_search_limit,
         "title_probe": s.live_wiki_title_probe,
+        "max_title_probes": s.live_wiki_max_title_probes,
         "title_overlap_filter": s.live_wiki_title_overlap_filter,
         "rerank_top_n": s.rerank_top_n,
     }
 
 
-def _chunk_dicts(chunks: list[RetrievedChunk]) -> list[dict]:
-    return [
-        {
+def _chunk_dicts(chunks: list[RetrievedChunk], *, include_text: bool = False) -> list[dict]:
+    rows: list[dict] = []
+    for c in chunks:
+        row: dict = {
             "chunk_id": c.chunk_id,
             "page_title": c.metadata.get("page_title"),
             "wiki_url": c.metadata.get("wiki_url"),
@@ -63,8 +66,10 @@ def _chunk_dicts(chunks: list[RetrievedChunk]) -> list[dict]:
             "search_query": c.metadata.get("search_query"),
             "text_preview": c.text[:200],
         }
-        for c in chunks
-    ]
+        if include_text:
+            row["text"] = c.text[:EVIDENCE_CHARS_PER_CHUNK]
+        rows.append(row)
+    return rows
 
 
 def _build_trace(
@@ -104,12 +109,13 @@ def _finalize_response(
     plan: list | None = None,
     retrieval_source: str = "",
 ) -> QueryResponse:
-    context = "\n".join(c.text[:500] for c in chunks)
+    settings = get_settings()
+    run.retrieved_chunks = _chunk_dicts(chunks, include_text=settings.dev_ui_enabled)
     quality = QualityScores()
     if should_run_inline_eval() and answer and not answer.startswith("(Stub mode"):
         t0 = time.perf_counter()
         try:
-            quality = run_inline_quality(question, answer, context, chunks=chunks)
+            quality, _ = run_inline_quality(question, answer, chunks)
         except Exception as exc:
             quality = QualityScores(
                 notes={
@@ -145,7 +151,6 @@ def handle_query(question: str) -> QueryResponse:
                 "Pipeline not connected yet. Run `poe-ingest` or set RETRIEVAL_MODE=live, "
                 "then pick a provider. See docs/changelog.html."
             )
-            timing["total"] = run.latency_ms
             return QueryResponse(
                 answer=run.output_answer,
                 citations=[],
@@ -155,10 +160,9 @@ def handle_query(question: str) -> QueryResponse:
             )
 
         if _use_langgraph():
-            t0 = time.perf_counter()
             result = run_agent_graph(question, run)
-            timing["generation"] = round((time.perf_counter() - t0) * 1000, 2)
-            timing["total"] = run.latency_ms
+            graph_timing = dict(result.get("timing_ms", {}))
+            timing.update(graph_timing)
             chunks = run.extra.get("raw_chunks", [])
             return _finalize_response(
                 question,
@@ -225,7 +229,6 @@ def _linear_rag(question: str, run: RunLog, timing: dict[str, float]) -> QueryRe
     if run.extra.get("retrieval_refined"):
         timing["retrieval_refine"] = round((time.perf_counter() - t_ref) * 1000, 2)
 
-    run.retrieved_chunks = _chunk_dicts(chunks)
     if not run.extra.get("retrieval_refined"):
         entry: dict = {
             "tool": "wiki_search",
@@ -246,8 +249,6 @@ def _linear_rag(question: str, run: RunLog, timing: dict[str, float]) -> QueryRe
     run.output_answer = answer
     run.citations = citations
     run.token_counts = tokens
-    timing["total"] = run.latency_ms
-
     pipeline = "linear_rag" if get_effective_provider_mode() != "stub" else "linear_rag_stub"
     return _finalize_response(
         question,

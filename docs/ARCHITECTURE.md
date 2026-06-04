@@ -123,7 +123,6 @@ flowchart LR
 | Mode | Generation | API key | Set via |
 |------|------------|---------|---------|
 | **stub** | Wiki excerpt only | None | UI or `.env` |
-| **ollama** | Local `llama3.2` | None (local) | UI or `.env` (local only; set `POE_ENABLE_OLLAMA=false` on production) |
 | **claude** | Anthropic API | `ANTHROPIC_API_KEY` | UI or `.env` |
 | **gpt4** | OpenAI API | `OPENAI_API_KEY` | UI or `.env` |
 | **bedrock** | AWS Bedrock | AWS credentials | `.env` only |
@@ -147,9 +146,8 @@ Supporting env vars: `LIVE_WIKI_MAX_PAGES`, `LIVE_WIKI_SEARCH_LIMIT`, `LIVE_WIKI
 | | **Local dev** | **Production** ([poesiosa.net](https://www.poesiosa.net/)) |
 |--|---------------|--------------------------------------------------------------|
 | Config | [`.env`](.env.example) | Railway **Variables** ([`railway.variables.example`](../railway.variables.example)) |
-| Inline judges | `INLINE_EVAL=true` (default) | `INLINE_EVAL=false` — no judge LLM calls |
-| UI | Full: quality scores, trace, timing, Ollama option | Booth: Answer + Sources only |
-| Ollama | `POE_ENABLE_OLLAMA=true` (default) | `POE_ENABLE_OLLAMA=false` |
+| Inline judges | `INLINE_EVAL=false` (default); **Score response** button runs five judges on demand | `INLINE_EVAL=false` — no judge LLM calls |
+| UI | Full: trace, timing, on-demand scores (`dev_ui_enabled`) | Booth: Answer + Sources only |
 | Cloud LLMs | `ANTHROPIC_API_KEY`, `OPENAI_API_KEY` in `.env` | Same keys in Railway Variables |
 
 Production uses the same codebase; env vars control booth vs dev behavior. Push to `main` redeploys on Railway.
@@ -161,9 +159,9 @@ Production uses the same codebase; env vars control booth vs dev behavior. Push 
 | What | Detail |
 |------|--------|
 | **Gold set** | **10** hand-labeled rows in [`gold.jsonl`](../src/poe_agent/knowledge/eval/gold.jsonl): `expected_pages` for exact **retrieval precision/recall**; optional `gold_answer` for token-overlap **extraction** on `POST /evaluate` |
-| **Inline judges** | Custom **LLM-as-judge** prompts (metrics **inspired by** RAGAS—not the RAGAS library). **Five** calls when `INLINE_EVAL=true`: context precision, context recall, faithfulness, relevance, prompt adherence |
-| **Production** | `INLINE_EVAL=false` skips all judge LLM calls for speed |
-| **User feedback** | **Provider** choice only (stub / Ollama / Claude / GPT-4)—no UI for answer length, tone, or thumbs up/down |
+| **Inline judges** | Custom **LLM-as-judge** prompts (RAGAS-inspired names). **Five** calls via `POST /score` or when `INLINE_EVAL=true`. All judges share the same **1200-char/chunk** excerpts as the answer LLM (`format_evidence_context`). |
+| **Production** | `INLINE_EVAL=false`, `dev_ui_enabled=false` — no judges, booth UI only |
+| **User feedback** | **Provider** choice only (stub / Claude / GPT-4)—no UI for answer length, tone, or thumbs up/down |
 | **Studies / MLOps** | No large user study; no MLflow, W&B, or vLLM in this project. Improvement loop: **traces**, spot checks, and small gold regression |
 
 A **`verbosity`** judge exists in code but is **not** run on inline `/query`.
@@ -173,9 +171,9 @@ A **`verbosity`** judge exists in code but is **not** run on inline `/query`.
 <details class="arch-collapse">
 <summary>Quality metrics reference</summary>
 
-Evaluation is split into **retrieval** (did we fetch the right wiki pages?) and **generation** (is the answer good given what we fetched?). Scores are **display-only** today — they do not change the answer or trigger retries. On production (`INLINE_EVAL=false`), judges are skipped entirely for speed; re-enable when building agentic revise loops that use scores as control signals.
+Evaluation is split into **retrieval** (did we fetch the right wiki pages?) and **generation** (is the answer good given what we fetched?). Scores are **display-only** — they do not change the answer. Local dev: click **Score response** after Ask (sends retrieved chunk text from the trace to `POST /score`). Set `INLINE_EVAL=true` to judge every Ask automatically.
 
-### Retrieval metrics (after every Ask when inline eval on)
+### Retrieval metrics (on Score response or inline eval)
 
 Two **LLM-as-judge** scores (0–100% in the UI; judge returns 1–5, normalized to 0–1):
 
@@ -188,27 +186,27 @@ These are **approximations** inspired by RAGAS context precision/recall — not 
 
 **Evaluate / gold set:** `POST /evaluate` with `expected_pages` computes exact **retrieval precision** and **retrieval recall** on page-title overlap. Batch over `gold.jsonl` via evaluator service helpers.
 
-### Generation metrics (inline after every Ask when inline eval on)
+### Generation metrics (on Score response or inline eval)
 
 Three separate **LLM-as-judge** calls (1–5, higher is better), run after the answer is written:
 
 | Metric | How computed | What it tells you |
 |--------|----------------|-------------------|
-| **Faithfulness** | Judge compares answer to retrieved chunk text | Are claims grounded in the wiki excerpts? (Also the main proxy for hallucination risk.) |
+| **Faithfulness** | Judge compares answer to the same wiki excerpts as the generator | Are claims grounded in the excerpts? |
 | **Relevance** | Judge compares answer to your question | Does the answer address what you asked? |
-| **Prompt adherence** | Judge checks PoE 1 + excerpts-only rules | Did the model follow system constraints? |
+| **Prompt adherence** | Judge checks rules **and** wiki excerpts | Did the answer follow excerpts-only constraints given what was retrieved? |
 
-**Timing** (`perf_counter` per phase) is observability in the trace, not a quality grade.
+**Timing** (`plan`, `retrieval`, `generation`, `evaluation` ms in trace) is observability only — LangGraph uses `perf_counter` per node with no extra LLM cost.
 
 ### Judge models
 
 | Setting | Meaning |
 |---------|---------|
-| `JUDGE_PROVIDER` | Which backend runs judges: **ollama** (default in `.env`), **claude**, **gpt4**, or **bedrock**. Selecting Claude or GPT-4 in the UI **auto-matches** judges to the same provider for that session |
-| `INLINE_EVAL=false` | Skip all inline judges on `/query` (retrieval + generation); production booth default |
-| `POE_ENABLE_OLLAMA=false` | Hide Ollama from provider UI (production default) |
+| `JUDGE_PROVIDER` | Which backend runs judges: **claude** (default in `.env`), **gpt4**, or **bedrock**. Selecting Claude or GPT-4 in the UI **auto-matches** judges to the same provider for that session |
+| `INLINE_EVAL=false` | Default: no judges on `/query`; use **Score response** or `POST /score` |
+| `dev_ui_enabled` | `false` on `DEPLOYMENT_PROFILE=production`; else trace, timing, score button |
 
-Inline Ask runs **five** judge calls when enabled: context precision, context recall, faithfulness, relevance, prompt adherence.
+Five judge calls when scoring: context precision, context recall, faithfulness, relevance, prompt adherence.
 
 **Harness** = your code under `src/poe_agent/harness/` (FastAPI, React UI, config, logging) — not a third-party product.
 
@@ -233,7 +231,7 @@ Inline Ask runs **five** judge calls when enabled: context precision, context re
 <details class="arch-collapse">
 <summary>Explicit non-goals (this repo)</summary>
 
-- **vLLM** — not used; generation via OpenAI/Anthropic APIs, Ollama locally, or stub
+- **vLLM** — not used; generation via OpenAI/Anthropic APIs or stub
 - **MLflow / Weights & Biases** — not used; eval via gold set, `/evaluate`, and inline judges
 - **RAGAS library** — metrics are custom LLM judges with similar names
 - **Full poewiki index** — 18-page allowlist + live search, not ~16k articles ingested

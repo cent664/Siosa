@@ -5,16 +5,24 @@ import {
   getHealth,
   getProvider,
   postQuery,
+  postScore,
   setProvider,
 } from "./api/client";
-import type { HealthResponse, ProviderSettingsResponse, QueryResponse } from "./api/types";
+import type { QualityScores as Qs } from "./api/types";
+import type { ProviderSettingsResponse, QueryResponse } from "./api/types";
 import QualityScores from "./components/QualityScores";
-import TimingRow from "./components/TimingRow";
+import { TimingSection } from "./components/TimingRow";
+import {
+  formatSeconds,
+  orderedJudgeEntries,
+  orderedPipelineEntries,
+} from "./components/timingFormat";
 import TracePanels from "./components/TracePanels";
+import { partitionTiming } from "./components/timingFormat";
 import VoiceRecordButton from "./components/VoiceRecordButton";
 
 export default function App() {
-  const [health, setHealth] = useState<HealthResponse | null>(null);
+  const [health, setHealth] = useState<Awaited<ReturnType<typeof getHealth>> | null>(null);
   const [providerInfo, setProviderInfo] = useState<ProviderSettingsResponse | null>(null);
   const [apiError, setApiError] = useState<string | null>(null);
   const [question, setQuestion] = useState("");
@@ -22,6 +30,15 @@ export default function App() {
   const [queryError, setQueryError] = useState<string | null>(null);
   const [result, setResult] = useState<QueryResponse | null>(null);
   const [lastQuestion, setLastQuestion] = useState("");
+  const [qualityScores, setQualityScores] = useState<Qs | undefined>(undefined);
+  const [pipelineTiming, setPipelineTiming] = useState<Record<string, number> | undefined>(
+    undefined,
+  );
+  const [scoringTiming, setScoringTiming] = useState<Record<string, number> | undefined>(
+    undefined,
+  );
+  const [scoreBusy, setScoreBusy] = useState(false);
+  const [scoreError, setScoreError] = useState<string | null>(null);
 
   const refreshStatus = useCallback(async () => {
     try {
@@ -60,10 +77,20 @@ export default function App() {
     setQueryError(null);
     setLoading(true);
     setResult(null);
+    setQualityScores(undefined);
+    setPipelineTiming(undefined);
+    setScoringTiming(undefined);
+    setScoreError(null);
     try {
       const data = await postQuery(q);
       setResult(data);
       setLastQuestion(q);
+      const { pipeline, scoring } = partitionTiming(data.trace?.timing_ms);
+      setPipelineTiming(Object.keys(pipeline).length > 0 ? pipeline : undefined);
+      if (health?.inline_eval) {
+        setQualityScores(data.quality_scores);
+        setScoringTiming(Object.keys(scoring).length > 0 ? scoring : undefined);
+      }
     } catch (err) {
       setQueryError(err instanceof Error ? err.message : "Request failed");
     } finally {
@@ -73,141 +100,147 @@ export default function App() {
 
   const modes = providerInfo?.available_modes ?? [];
   const currentMode = providerInfo?.mode ?? health?.provider_mode ?? "stub";
-  const showDevUi = health?.inline_eval !== false;
+  const showDevUi = health?.dev_ui_enabled !== false;
+  const inlineEval = health?.inline_eval === true;
+
+  const handleScore = async () => {
+    if (!result || !lastQuestion) return;
+    const chunks = (result.trace?.retrieved_chunks ?? [])
+      .filter((ch) => ch.text && ch.text.trim().length > 0)
+      .map((ch) => ({
+        page_title: ch.page_title ?? "",
+        wiki_url: ch.wiki_url ?? "",
+        text: ch.text!,
+        chunk_id: ch.chunk_id,
+        score: ch.score ?? null,
+      }));
+    if (chunks.length === 0) {
+      setScoreError("No chunk text in trace — restart API after update.");
+      return;
+    }
+    setScoreBusy(true);
+    setScoreError(null);
+    try {
+      const res = await postScore({
+        question: lastQuestion,
+        answer: result.answer,
+        chunks,
+      });
+      setQualityScores(res.quality_scores);
+      setScoringTiming(res.timing_ms);
+    } catch (e) {
+      setScoreError(e instanceof Error ? e.message : "Scoring failed");
+    } finally {
+      setScoreBusy(false);
+    }
+  };
 
   return (
-    <div className="app-layout">
-      <aside className="sidebar">
-        <h2>System</h2>
-        {apiError ? (
-          <p className="status-err">{apiError}</p>
-        ) : (
-          <>
-            <p className="status-ok">API: {health?.status ?? "unknown"}</p>
-            <p>Indexed chunks: {health?.chunk_count ?? 0}</p>
-            <p>Chroma ready: {String(health?.chroma_ready ?? false)}</p>
-            {health?.retrieval_mode && (
-              <p>
-                Retrieval: <code>{health.retrieval_mode}</code>
-              </p>
-            )}
-            {health?.live_retrieval_hint && (
-              <p className="caption" style={{ fontSize: "0.85rem" }}>
-                {health.live_retrieval_hint}
-              </p>
-            )}
-            {health?.deployment_hint && (
-              <p className="status-err" style={{ fontSize: "0.85rem" }}>
-                {health.deployment_hint}
-              </p>
-            )}
-            {showDevUi && health?.judge_provider && (
-              <p>
-                Judges: <code>{health.judge_provider}</code>
-                {health.judge_reachable === false ? " (unreachable)" : ""}
-              </p>
-            )}
-            {showDevUi && health?.judge_hint && (
-              <p className="status-err" style={{ fontSize: "0.85rem" }}>
-                {health.judge_hint}
-              </p>
-            )}
-          </>
-        )}
-
-        <h2>Answer mode</h2>
-        <label htmlFor="provider">Provider</label>
-        <select
-          id="provider"
-          value={currentMode}
-          onChange={(ev) => void handleProviderChange(ev.target.value)}
-          disabled={modes.length === 0}
-        >
-          {(modes.length > 0 ? modes : [{ id: "stub", label: "Stub", available: true }]).map(
-            (m) => (
-              <option key={m.id} value={m.id} disabled={!m.available}>
-                {m.label}
-                {!m.available ? " (needs API key)" : ""}
-              </option>
-            ),
-          )}
-        </select>
-        {providerInfo && (
-          <p className="caption" style={{ marginTop: "0.5rem" }}>
-            Active: <strong>{providerInfo.mode}</strong> ({providerInfo.source})
-            {showDevUi && providerInfo.judge_provider && (
-              <>
-                <br />
-                Judges: <strong>{providerInfo.judge_provider}</strong>
-                {currentMode === "claude" || currentMode === "gpt4"
-                  ? " (matched to answer provider)"
-                  : ""}
-              </>
-            )}
-          </p>
-        )}
-
-        <h2>Documentation</h2>
-        <div className="doc-links">
-          <a href={docsUrl("index.html")} target="_blank" rel="noreferrer">
-            Docs hub
-          </a>
-          <a href={docsUrl("architecture.html")} target="_blank" rel="noreferrer">
-            Architecture
-          </a>
-          <a href={docsUrl("changelog.html")} target="_blank" rel="noreferrer">
-            Changelog
-          </a>
-        </div>
-      </aside>
-
+    <div className="app-shell">
+      <div className="siosa-portrait" role="presentation" aria-hidden="true" />
       <main className="main">
-        <h1>Path of Exile Wiki Agent</h1>
-        <p className="caption">
-          PoE 1 mechanics Q&A · curated wiki index · Press Enter to submit · mic button
-          transcribes into your question
-        </p>
-
-        <form onSubmit={(e) => void handleAsk(e)}>
-          <label htmlFor="question">Your question</label>
-          <div className="question-row">
-            <input
-              id="question"
-              type="text"
-              placeholder="How does poison damage scale?"
-              maxLength={2000}
-              value={question}
-              onChange={(e) => setQuestion(e.target.value)}
-              disabled={loading}
-            />
-            <VoiceRecordButton
-              onTranscribed={setQuestion}
-              onError={setQueryError}
-              disabled={loading}
-            />
-            <button type="submit" className="btn btn-primary" disabled={loading}>
-              Ask
-            </button>
+        <header className="app-header">
+          <h1 className="app-title">Siosa&apos;s Library</h1>
+          <div className="provider-row">
+            <label htmlFor="provider">Provider</label>
+            <select
+              id="provider"
+              value={currentMode}
+              onChange={(ev) => void handleProviderChange(ev.target.value)}
+              disabled={modes.length === 0 || !!apiError}
+            >
+              {(modes.length > 0 ? modes : [{ id: "stub", label: "Stub", available: true }]).map(
+                (m) => (
+                  <option key={m.id} value={m.id} disabled={!m.available}>
+                    {m.label}
+                    {!m.available ? " (needs API key)" : ""}
+                  </option>
+                ),
+              )}
+            </select>
           </div>
-        </form>
+        </header>
 
-        {queryError && <div className="error-banner">{queryError}</div>}
-        {loading && (
-          <p className="spinner">
-            {showDevUi ? "Retrieving, generating, and scoring…" : "Retrieving and generating…"}
-          </p>
+        {apiError && <div className="error-banner">{apiError}</div>}
+        {health?.deployment_hint && (
+          <div className="error-banner">{health.deployment_hint}</div>
         )}
+
+        <section className="question-section">
+          <form className="question-form" onSubmit={(e) => void handleAsk(e)}>
+            <label htmlFor="question" className="question-prompt">
+              May Reason preserve us. What are we curious about today?
+            </label>
+            <div className="question-row">
+              <input
+                id="question"
+                type="text"
+                placeholder="How does poison damage scale?"
+                maxLength={2000}
+                value={question}
+                onChange={(e) => setQuestion(e.target.value)}
+                disabled={loading}
+              />
+              <VoiceRecordButton
+                onTranscribed={setQuestion}
+                onError={setQueryError}
+                disabled={loading}
+              />
+              <button type="submit" className="btn btn-primary" disabled={loading}>
+                Ask
+              </button>
+            </div>
+          </form>
+
+          {queryError && <div className="error-banner">{queryError}</div>}
+          {loading && (
+            <p className="spinner">
+              {inlineEval
+                ? "Retrieving, generating, and scoring…"
+                : "Retrieving and generating…"}
+            </p>
+          )}
+        </section>
 
         {result && (
-          <div className="answer-block">
-            <h2>Answer</h2>
-            <ReactMarkdown>{result.answer}</ReactMarkdown>
-            <p className="meta">
-              Run ID: <code>{result.run_id}</code> · Mode: <code>{result.mode}</code>
-            </p>
+          <div className="answer-block answer-panel">
+            <div className="answer-display">
+              <ReactMarkdown>{result.answer}</ReactMarkdown>
+            </div>
 
-            <QualityScores scores={showDevUi ? result.quality_scores : undefined} />
-            {showDevUi && <TimingRow timing={result.trace?.timing_ms} />}
+            {showDevUi && pipelineTiming && (
+              <TimingSection
+                title="Pipeline timing"
+                entries={orderedPipelineEntries(pipelineTiming)}
+              />
+            )}
+
+            {showDevUi && !inlineEval && (
+              <p className="score-actions">
+                <button
+                  type="button"
+                  className="btn"
+                  onClick={() => void handleScore()}
+                  disabled={scoreBusy}
+                >
+                  {scoreBusy ? "Scoring…" : "Score response"}
+                </button>
+                {scoreError && <span className="status-err score-error">{scoreError}</span>}
+              </p>
+            )}
+
+            {showDevUi && scoringTiming && (
+              <TimingSection
+                title={`Scoring Timing${
+                  scoringTiming.evaluation != null
+                    ? ` - ${formatSeconds(scoringTiming.evaluation)}`
+                    : ""
+                }`}
+                entries={orderedJudgeEntries(scoringTiming)}
+              />
+            )}
+
+            <QualityScores scores={showDevUi ? qualityScores ?? result.quality_scores : undefined} />
 
             {result.citations && result.citations.length > 0 && (
               <div className="citations">
@@ -218,23 +251,31 @@ export default function App() {
                       <a href={cite.url} target="_blank" rel="noreferrer">
                         {cite.title}
                       </a>
-                      {cite.snippet && (
-                        <span className="snippet">
-                          {cite.snippet.length > 300
-                            ? `${cite.snippet.slice(0, 300)}…`
-                            : cite.snippet}
-                        </span>
-                      )}
                     </li>
                   ))}
                 </ul>
               </div>
             )}
 
-            {showDevUi && <TracePanels data={result} question={lastQuestion} />}
+            {showDevUi && <TracePanels data={result} />}
           </div>
         )}
       </main>
+
+      <footer className="app-footer">
+        <nav className="footer-docs" aria-label="Documentation">
+          <span className="footer-docs-label">Documentation</span>
+          <a href={docsUrl("index.html")} target="_blank" rel="noreferrer">
+            Docs hub
+          </a>
+          <a href={docsUrl("architecture.html")} target="_blank" rel="noreferrer">
+            Architecture
+          </a>
+          <a href={docsUrl("changelog.html")} target="_blank" rel="noreferrer">
+            Changelog
+          </a>
+        </nav>
+      </footer>
     </div>
   );
 }

@@ -20,3 +20,4 @@ class AgentState(TypedDict, total=False):
     refine_queries: list[str]
     retrieval_refined: bool
     retrieval_gate_reason: str
+    timing_ms: dict[str, float]

@@ -5,6 +5,7 @@ from __future__ import annotations
 from poe_agent.harness.config import get_effective_provider_mode, get_settings
 from poe_agent.harness.providers import get_llm_provider, get_provider_model_id
 from poe_agent.harness.trace import traced_generate
+from poe_agent.evaluator.context import format_evidence_context
 from poe_agent.retriever.models import RetrievedChunk
 
 SYSTEM_PROMPT = """You are a Path of Exile 1 mechanics assistant.
@@ -16,15 +17,6 @@ Keep answers concise (2-5 sentences) for beginners."""
 
 def get_answer_system_prompt() -> str:
     return SYSTEM_PROMPT
-
-
-def _format_context(chunks: list[RetrievedChunk]) -> str:
-    parts = []
-    for i, ch in enumerate(chunks, start=1):
-        title = ch.metadata.get("page_title", "Unknown")
-        url = ch.metadata.get("wiki_url", "")
-        parts.append(f"[{i}] {title} ({url})\n{ch.text[:1200]}")
-    return "\n\n".join(parts)
 
 
 def _chunks_to_citations(chunks: list[RetrievedChunk]) -> list[dict]:
@@ -65,11 +57,11 @@ def generate_answer_with_meta(
         excerpt = top.text[:500].strip()
         answer = (
             f"(Stub mode — excerpt from **{title}**) {excerpt}… "
-            "Switch to Ollama, Claude, or GPT-4 for full LLM answers."
+            "Switch to Claude or GPT-4 for full LLM answers."
         )
         return answer, _chunks_to_citations(chunks), {"prompt_tokens": 0, "completion_tokens": 0}
 
-    context = _format_context(chunks)
+    context = format_evidence_context(chunks)
     user_prompt = f"""Question: {question}
 
 Wiki excerpts:

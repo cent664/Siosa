@@ -20,8 +20,8 @@ def test_query_response_includes_trace_and_scores():
                 LLMCallTrace(
                     call_id="1",
                     purpose="answer",
-                    provider="ollama",
-                    model="llama3.2",
+                    provider="claude",
+                    model="claude-sonnet-4-6",
                     system_prompt="sys",
                     user_prompt="user",
                     response="out",

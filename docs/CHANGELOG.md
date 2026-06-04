@@ -1,138 +1,104 @@
-## 2026-06-02 — Architecture conference FAQ
+Newest first. Each entry uses the same format: a short title and a few bullets on what changed and why it mattered. Edit this file, then run `python scripts/sync_docs.py` for browser HTML.
 
-- Docs — `ARCHITECTURE.md`: booth pitch, live vs local hybrid, multi-query fusion vs LangGraph, routing table, chunk defaults, gold eval summary, deploy/cost snapshot, explicit non-goals; mermaid retrieve label fix.
-- Docs — `pipeline-config.json`: interactive stages 0.3–0.7 aligned (five inline judges, planner multi-search, production Answer+Sources UI, `chroma_ready` note).
+## 2026-06-04 — Dev UI layout and metrics help
 
-## 2026-06-02 — Production env profile
+- Web — Answer shows first as plain markdown; pipeline timing bars and scoring timing (after **Score response**) sit below in a fixed order.
+- Web — Timing bars use proportional widths capped at ~30% of the page; provider labels shortened (e.g. Sonnet 4.6, GPT-4o).
+- Web — Sidebar removed; provider control under the title; documentation links moved to the footer.
+- Web — **What do these metrics mean?** uses short bullets; each metric can expand **Show judge notes**. LLM call rows again show system, user, and response text when opened.
 
-- Config — `DEPLOYMENT_PROFILE=production` applies booth defaults on Railway (`INLINE_EVAL=false`, `POE_ENABLE_OLLAMA=false`, cloud judge/provider when keys set).
-- API — `/health` returns `deployment_hint` when booth mode is not active.
-- Deploy — Verify script checks `inline_eval`, `enable_ollama`, and deployment hints.
+## 2026-06-04 — Voice via OpenAI Whisper
 
-## 2026-06-02 — Production booth mode (poesiosa.net)
+- Voice — Default `TRANSCRIBE_PROVIDER=openai` uses `whisper-1` with the same `OPENAI_API_KEY` as GPT-4.
+- Voice — Browser mic still uploads WAV; local faster-whisper remains available when `TRANSCRIBE_PROVIDER=local`.
+- Config — `.env.example` and deploy variable templates document OpenAI transcription for faster turnaround on laptops.
 
-- Deploy — Live at **https://www.poesiosa.net/** (custom domain on Railway).
-- Config — `INLINE_EVAL=false` on production skips inline judge LLM calls; booth UI hides scores, trace, and timing (Answer + Sources only).
-- Config — `POE_ENABLE_OLLAMA=false` on production hides Ollama from the provider dropdown; local dev keeps Ollama via `POE_ENABLE_OLLAMA=true`.
-- API — `/health` exposes `inline_eval` and `enable_ollama` for frontend booth vs dev UI.
-- CI — Fix Ruff lint errors (unused imports in src/tests).
-- Deploy — Railway variable checklist for Claude/GPT-4 API keys on production.
+## 2026-06-04 — Live retrieval tuning
 
-## 2026-06-02 — Railway deployment
+- Retrieval — Mechanic entities and topic terms drive fused MediaWiki queries; short mechanic strings run before the full user question.
+- Retrieval — Up to four direct page-title probes plus title-overlap ranking of search hits before pages are fetched.
+- Orchestrator — Planner retrieve subtasks merge into one fused `wiki_search` per pass instead of separate tool round-trips.
+- Debug — Trace and tool panels still expose fused queries, title probes, and per-call retrieval debug.
 
-- Deploy — `railway.toml`, `DEPLOY.md`, Dockerfile PORT + pre-baked rerank model for Railway hosting.
+## 2026-06-04 — Ollama removed from local dev
 
-## 2026-05-29 — Trace debug UI
+- Providers — Ollama mode and harness wiring removed from the repo; local stack is stub, Claude, or GPT-4 only.
+- Config — `POE_ENABLE_OLLAMA`, `OLLAMA_*`, and judge routing to Ollama dropped from settings and deploy docs.
+- Tests — Provider settings tests assert Ollama is not listed among available modes.
 
-- Web UI — Agent reasoning trace shows retrieval summary, structured plan/tool/chunk tables, and per-call fused searches + pages fetched.
-- API — `retrieval_debug` on tool_calls; chunk trace includes `fetch_reason`, `search_query`, `chunk_id`; `retrieval_mode` / `retrieval_config` on trace.
+## 2026-06-04 — Judge context and pipeline timing
 
-## 2026-05-29 — Live retrieval quality
+- Eval — Prompt-adherence judge now receives the same wiki excerpt blocks as faithfulness and relevance (not rules-only).
+- Eval — Shared 1200-character chunk formatting across all five judges; trace includes chunk text for on-demand `POST /score`.
+- API — LangGraph records `timing_ms` for plan, retrieval, and generation; scoring timing stays separate when judges run on demand.
+- Web — Pipeline and scoring timing render as separate bar sections after Ask and after **Score response**.
 
-- Retrieval — Multi-query fusion per `wiki_search`: verbatim user question, subtask query, keyword variants, direct title probe; rerank scored against user question.
-- Retrieval — Title overlap filter downranks tangential pages (e.g. Ruthless mode mentioning Pantheon).
-- Planner — Verbatim question always first retrieve subtask; short variant queries only; up to 4 subtasks.
-- Retrieval — Optional `RETRIEVAL_REFINE_ENABLED` gate + one LLM refine pass (LangGraph and linear).
+## 2026-06-04 — Changelog accuracy
 
-## 2026-05-29 — Live poewiki retrieval
+- Docs — Phase labels removed; May 28 milestones rewritten to match the same detail level as later entries.
+- Correction — Gold-set regression and AWS Bedrock/S3 were scaffolded in the repo but never finished or used in the demo; entries below now say that explicitly.
 
-- Retrieval — `RETRIEVAL_MODE=local|live|hybrid` (default **live**): search and fetch poewiki at Ask time with disk cache and cross-encoder rerank.
-- Retriever — `wiki_client.py` shared MediaWiki helpers; `live.py` for query-time fetch; ingest refactored to reuse the client.
-- API — Health and query trace expose `retrieval_mode` / `retrieval_source`; sidebar shows live-mode latency hint.
-- Docs — Architecture and interactive pipeline updated for live retrieval.
+## 2026-06-04 — Cloud-only providers and scoring UX
 
-## 2026-05-30 — Anthropic Sonnet 4.6
+- Providers — Removed Ollama from the UI and judges; stub, Claude, and GPT-4 only, matching production.
+- Eval — Inline judges off by default; optional **Score response** button and `POST /score` for on-demand scoring in dev.
+- Eval — Judges now receive the same wiki excerpts as the answer model (shared context formatting).
+- Web — Timing row shows plan, retrieval, and generation; `/health` uses `dev_ui_enabled` to hide trace UI on the public site.
 
-- Config — `ANTHROPIC_MODEL` set to `claude-sonnet-4-6` (replaces deprecated `claude-sonnet-4-20250514`).
+## 2026-06-02 — Public demo on Railway
 
-## 2026-05-30 — Judge provider alignment
+- Deploy — App live at **https://www.poesiosa.net/**; Docker image with rerank model baked in; Railway config and `DEPLOY.md`.
+- Booth — Production UI shows answer and sources only; no per-ask judge calls, no quality panel, no trace or timing.
+- Config — `DEPLOYMENT_PROFILE=production` sets booth defaults; verify script checks deploy variables.
+- Docs — Conference-oriented architecture FAQ: live vs local retrieval, LangGraph routing, costs, and explicit non-goals.
 
-- Config — Selecting Claude or GPT-4 in the UI auto-sets judges to the same cloud provider (no Ollama required for scoring).
-- Config — Updated `ANTHROPIC_MODEL` default; fix deprecated model id in `.env`.
+## 2026-05-30 — Cloud reliability and documentation
 
-## 2026-05-30 — Cloud provider error handling
+- API — Cloud LLM failures return readable 502 messages instead of generic 500s.
+- Eval — If inline judges fail, the answer still returns with scores marked skipped.
+- Config — Choosing Claude or GPT-4 auto-aligns judges to that provider; default model updated to Claude Sonnet 4.6.
+- Docs — Interactive pipeline diagram, slimmer architecture page, collapsible metrics; UI shows faithfulness, relevance, adherence, and context precision/recall.
 
-- API — `/query` maps LLM/network errors to 502 with readable `detail` (not generic 500).
-- API — Health and provider settings expose `judge_provider`, `judge_reachable`, and hints when Ollama judges are down.
-- Eval — Inline judge failures return the answer with skipped scores instead of failing the whole request.
-- Config — Default `ANTHROPIC_MODEL` updated; `.env.example` documents `JUDGE_PROVIDER` for cloud-only setups.
+## 2026-05-29 — Live wiki retrieval and quality
 
-## 2026-05-30 — Docs and architecture refresh
+- Retrieval — Default `RETRIEVAL_MODE=live`: search poewiki per question, cache pages on disk, rerank chunks (no ingest required for Ask).
+- Search — Several query variants per lookup (full question, keywords, optional direct page-title fetch).
+- Quality — Title overlap filter reduces tangential pages; planner may run up to four wiki searches before answering.
+- Debug — Trace shows fused searches, pages fetched, and chunk previews for each tool call.
 
-- Docs — Interactive pipeline diagram in `architecture.html` (hover details, faded alternative paths).
-- Docs — Slimmer `ARCHITECTURE.md`: one LR Mermaid flow, removed code map and per-component I/O tables.
-- Changelog — Bullet entries use `Label — description`; HTML renders proper lists (no raw `**Config:**`).
-- Collapsible — Scaling and quality metrics sections collapsed by default in browser docs.
-- Docs UX — Collapsible sections render Markdown tables; pipeline uses wing layout and fixed detail strip.
-- Docs UX — Quality metrics split into retrieval (Evaluate) vs generation (inline Ask); enriched learning copy.
-- Eval — Removed inline verbosity and hallucination risk; UI shows faithfulness, relevance, prompt adherence only.
-- Eval — Inline LLM context precision and context recall on every Ask (shown with generation scores).
-- Web UI — Voice control is mic icon only (no Record label).
-- Docs UX — Pipeline alternatives in hover dropdown; seven steps fit page width without horizontal scroll.
+## 2026-05-29 — React UI, voice, and observability
 
-## 2026-05-29 — React UI replaces Streamlit
+- UI — React + Vite replaces Streamlit on port 8000; `start.bat` builds the SPA and starts one API process.
+- Voice — Browser mic upload; server transcribes with local faster-whisper or OpenAI Whisper.
+- Providers — Claude and GPT-4 added beside stub and Ollama; API keys validated before enabling a mode.
+- Trace — Every `/query` returns pipeline trace, LLM call log, and inline quality scores in dev.
 
-- Web UI — React + Vite SPA at `http://127.0.0.1:8000/` (single FastAPI process).
-- Removed — Streamlit, port 8501, `streamlit_app.py`.
-- Voice — Browser `MediaRecorder` and `POST /transcribe`.
-- Launcher — `start.bat` builds `web/dist` if needed, then uvicorn only.
-- Docker — Multi-stage image includes compiled web UI.
+## 2026-05-28 — Eval and deploy scaffolds
 
-## 2026-05-29 — Voice UX (Streamlit era)
+- Eval — `POST /evaluate` and a 10-row labeled gold file started for future retrieval checks; no automated regression suite was run.
+- Deploy — Dockerfile, docker-compose, and GitHub Actions CI for build and test.
+- Deploy — README and env docs for provider modes; Bedrock and S3 helpers exist in code but were not wired or validated for the demo.
 
-- Voice — Record / Stop beside Ask; auto-transcribe into question field.
-- Enter — Submits question without Ctrl+Enter.
+## 2026-05-28 — Agent planner and multi-search
 
-## 2026-05-29 — Voice transcription (STT)
+- Orchestrator — LangGraph flow: plan → retrieve → generate.
+- Planner — Compare-style questions can trigger multiple `wiki_search` steps (e.g. full question plus short topic queries).
+- Routing — Cloud providers use the graph; stub stays on a single linear retrieval pass.
 
-- Speech — `harness/speech/transcribe.py` with local faster-whisper or OpenAI Whisper API.
-- API — `POST /transcribe` multipart WAV upload.
-- Config — `TRANSCRIBE_PROVIDER`, `TRANSCRIBE_MODEL` in `.env.example`.
-- Install — `pip install -e ".[speech]"` for offline STT.
+## 2026-05-28 — Hybrid retrieval and rerank
 
-## 2026-05-29 — UI polish, metrics guide, diagram fixes
+- Search — Dense vectors (Chroma) plus BM25 keywords merged with reciprocal rank fusion.
+- Rerank — Cross-encoder (`ms-marco-MiniLM-L-6-v2`) picks top passages for the LLM.
+- Filter — PoE 1 metadata filter drops PoE 2 / wrong-game hits from the local index.
 
-- Form — Enter / Ctrl+Enter submits question (Streamlit).
-- UI — Compact quality and timing tables.
-- Docs — Metrics reference, scaling guide, Mermaid fix in `sync_docs.py`.
+## 2026-05-28 — Curated wiki RAG
 
-## 2026-05-29 — Multi-provider LLM, trace, inline quality scores
+- Corpus — `poe-ingest` pulls 18 curated PoE 1 mechanic pages into chunks and ChromaDB.
+- Pipeline — Linear retrieve-then-answer; stub mode returns wiki excerpts without an LLM.
+- Providers — Ollama supported locally for free answers when a model is running.
 
-- Providers — Claude and GPT-4 alongside stub and Ollama; UI validation for API keys.
-- Trace — `trace` and `llm_calls` on every `/query`.
-- Inline eval — Faithfulness, relevance, verbosity, adherence (`JUDGE_PROVIDER` default ollama).
-- Config — `ANTHROPIC_API_KEY`, `OPENAI_API_KEY`, `INLINE_EVAL`, `JUDGE_PROVIDER` in `.env.example`.
+## 2026-05-28 — Foundation
 
-## 2026-05-29 — Docs, launcher, and UX
-
-- Launcher — `start.bat` / `start.ps1` one-click API (later: React UI on same port).
-- UI — Runtime provider toggle without editing `.env`.
-- Docs — Served at `http://127.0.0.1:8000/docs/`; sync via `scripts/sync_docs.py`.
-
-## 2026-05-28 — Phase 6 — Production hygiene
-
-Bedrock adapters, optional S3 sync, Dockerfile, docker-compose, GitHub Actions CI. README covers deploy and `POE_PROVIDER_MODE`.
-
-## 2026-05-28 — Phase 5 — Evaluator
-
-`POST /evaluate` with retrieval P/R, LLM judges, extraction overlap. Gold set in `knowledge/eval/gold.jsonl`.
-
-## 2026-05-28 — Phase 4 — LangGraph orchestrator
-
-Planner → executor → generator; compare questions trigger multiple `wiki_search` calls.
-
-## 2026-05-28 — Phase 3 — Hybrid retrieval + rerank
-
-BM25 + dense vectors with RRF; cross-encoder reranking; PoE1 metadata filter.
-
-## 2026-05-28 — Phase 2 — Wiki RAG pipeline
-
-Curated ingest (`poe-ingest`), ChromaDB, linear RAG. Stub excerpts or Ollama answers.
-
-## 2026-05-28 — Phase 1 — Local UI + API
-
-First web UI (Streamlit) and FastAPI `/health`, `/query`, structured run logs.
-
-## 2026-05-28 — Phase 0 — Skeleton
-
-Package layout, `pyproject.toml`, architecture and changelog pages, `.env.example`.
+- Repo — Package layout, `pyproject.toml`, `.env.example`, architecture and changelog pages.
+- API — FastAPI with `/health`, `/query`, and structured run logs.
+- UI — First Streamlit front end for asking questions locally.

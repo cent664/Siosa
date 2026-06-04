@@ -81,7 +81,7 @@
       "title": "Generate",
       "chosen": "UI provider",
       "summary": "LLM or stub writes from retrieved chunks only.",
-      "detail": "<p><strong>What we do:</strong> The selected provider (stub, Claude, or GPT-4; Ollama locally when <code>POE_ENABLE_OLLAMA=true</code>) generates an answer using <strong>only</strong> the retrieved excerpts — not the whole corpus.</p><p><strong>Stub:</strong> Returns a wiki excerpt with no LLM call.</p><p><strong>LLM modes:</strong> Short grounded answer with citations; system prompt enforces PoE 1 and excerpt-only rules.</p>",
+      "detail": "<p><strong>What we do:</strong> The selected provider (stub, Claude, or GPT-4) generates an answer using <strong>only</strong> the retrieved excerpts — not the whole corpus.</p><p><strong>Stub:</strong> Returns a wiki excerpt with no LLM call.</p><p><strong>LLM modes:</strong> Short grounded answer with citations; system prompt enforces PoE 1 and excerpt-only rules.</p>",
       "alternatives": [
         {
           "label": "Stub",

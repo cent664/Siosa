@@ -22,7 +22,6 @@ from poe_agent.harness.config import (
 from poe_agent.harness.provider_health import (
     judge_provider_hint,
     judge_provider_reachable,
-    ollama_reachable,
 )
 
 router = APIRouter(prefix="/settings", tags=["settings"])
@@ -61,16 +60,6 @@ def set_provider(body: ProviderSettingsRequest) -> ProviderSettingsResponse:
     mode = body.mode.lower()
     settings = get_settings()
 
-    if mode == "ollama" and not settings.enable_ollama:
-        raise HTTPException(
-            status_code=400,
-            detail="Ollama is not available on this deployment.",
-        )
-    if mode == "ollama" and not ollama_reachable(settings):
-        raise HTTPException(
-            status_code=503,
-            detail="Ollama is not reachable. Start Ollama or use stub mode.",
-        )
     if mode == "claude" and not settings.anthropic_api_key:
         raise HTTPException(
             status_code=400,
@@ -83,7 +72,7 @@ def set_provider(body: ProviderSettingsRequest) -> ProviderSettingsResponse:
         )
 
     set_runtime_provider_mode(mode)
-    if mode in ("claude", "gpt4", "ollama"):
+    if mode in ("claude", "gpt4"):
         set_runtime_judge_provider(default_judge_for_answer_mode(mode))
     else:
         set_runtime_judge_provider(None)

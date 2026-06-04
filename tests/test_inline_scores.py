@@ -1,4 +1,5 @@
-from poe_agent.evaluator.inline import format_retrieval_preview, score_to_normalized
+from poe_agent.evaluator.context import format_evidence_context
+from poe_agent.evaluator.inline import score_to_normalized
 from poe_agent.retriever.models import RetrievedChunk
 
 
@@ -10,7 +11,7 @@ def test_score_to_normalized():
     assert score_to_normalized(0.0) == 0.0
 
 
-def test_format_retrieval_preview():
+def test_format_evidence_context_preview():
     chunks = [
         RetrievedChunk(
             chunk_id="a",
@@ -19,6 +20,6 @@ def test_format_retrieval_preview():
             score=0.9,
         )
     ]
-    preview = format_retrieval_preview(chunks)
+    preview = format_evidence_context(chunks)
     assert "[1] Poison" in preview
     assert "Poison damage" in preview

@@ -1,5 +1,4 @@
 import type { QualityScores as Qs } from "../api/types";
-import { docsUrl } from "../api/client";
 
 interface Props {
   scores: Qs | undefined;
@@ -8,6 +7,72 @@ interface Props {
 function fmtPct(v: number | null | undefined): string {
   if (v == null) return "—";
   return `${Math.round(v * 100)}%`;
+}
+
+type MetricDef = {
+  noteKey: string;
+  label: string;
+  definition: string;
+  format: (s: Qs) => string | number | null | undefined;
+};
+
+const RETRIEVAL_METRICS: MetricDef[] = [
+  {
+    noteKey: "context_precision",
+    label: "Context precision",
+    definition: "Share of retrieved wiki text that actually matters for your question.",
+    format: (s) => fmtPct(s.context_precision),
+  },
+  {
+    noteKey: "context_recall",
+    label: "Context recall",
+    definition: "Whether retrieval pulled in enough of the facts needed to answer.",
+    format: (s) => fmtPct(s.context_recall),
+  },
+];
+
+const GENERATION_METRICS: MetricDef[] = [
+  {
+    noteKey: "faithfulness",
+    label: "Faithfulness",
+    definition: "Whether claims in the answer are supported by the retrieved excerpts.",
+    format: (s) => s.faithfulness,
+  },
+  {
+    noteKey: "relevance",
+    label: "Relevance",
+    definition: "Whether the answer addresses what you asked.",
+    format: (s) => s.relevance,
+  },
+  {
+    noteKey: "prompt_adherence",
+    label: "Prompt adherence",
+    definition: "Whether the answer follows PoE 1 focus and excerpts-only rules.",
+    format: (s) => s.prompt_adherence,
+  },
+];
+
+function MetricBullet({ def, scores }: { def: MetricDef; scores: Qs }) {
+  const val = def.format(scores);
+  const note = scores.notes?.[def.noteKey]?.trim();
+
+  return (
+    <li className="metric-def-item">
+      <span className="metric-def-line">
+        <strong>{def.label}</strong>
+        {val != null && val !== "—" && (
+          <span className="metric-def-score"> — {val}</span>
+        )}
+        : {def.definition}
+      </span>
+      {note && (
+        <details className="metric-notes-details">
+          <summary>Show judge notes</summary>
+          <p className="metric-note-text">{note}</p>
+        </details>
+      )}
+    </li>
+  );
 }
 
 export default function QualityScores({ scores }: Props) {
@@ -71,51 +136,26 @@ export default function QualityScores({ scores }: Props) {
         </>
       )}
 
-      <details className="panel">
+      <details className="panel metrics-help-panel">
         <summary>What do these metrics mean?</summary>
         <div className="metrics-help">
-          <p>
-            Scores are separate LLM judge calls (default: Ollama via{" "}
-            <code>JUDGE_PROVIDER</code>). Display-only — they do not change the answer.
-          </p>
-          <p>
-            <strong>Retrieval (Ask):</strong> LLM estimates how relevant retrieved excerpts are
-            (context precision) and whether enough was retrieved to answer (context recall).
-          </p>
-          <p>
-            <strong>Evaluate</strong> can still run exact page-title precision/recall when you
-            supply gold <code>expected_pages</code>.
-          </p>
-          <ul>
-            <li>Context precision — Share of retrieved text that matters for the question</li>
-            <li>Context recall — Whether retrieval captured the facts needed</li>
-            <li>Faithfulness — Are answer claims supported by retrieved excerpts?</li>
-            <li>Relevance — Does the answer address your question?</li>
-            <li>Prompt adherence — PoE 1 only, excerpts-only rules?</li>
-          </ul>
-          <a
-            href={docsUrl("architecture.html#quality-metrics-reference")}
-            target="_blank"
-            rel="noreferrer"
-          >
-            Full metrics reference
-          </a>
-          {scores.notes && Object.keys(scores.notes).length > 0 && (
+          {hasRetrieval && (
             <>
-              <p>
-                <strong>Latest judge notes</strong>
-              </p>
+              <p className="metrics-help-heading">Retrieval</p>
               <ul>
-                {Object.entries(scores.notes).map(
-                  ([k, v]) =>
-                    v && (
-                      <li key={k}>
-                        <small>
-                          {k}: {v}
-                        </small>
-                      </li>
-                    ),
-                )}
+                {RETRIEVAL_METRICS.map((def) => (
+                  <MetricBullet key={def.noteKey} def={def} scores={scores} />
+                ))}
+              </ul>
+            </>
+          )}
+          {hasGeneration && (
+            <>
+              <p className="metrics-help-heading">Generation</p>
+              <ul>
+                {GENERATION_METRICS.map((def) => (
+                  <MetricBullet key={def.noteKey} def={def} scores={scores} />
+                ))}
               </ul>
             </>
           )}

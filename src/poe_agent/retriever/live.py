@@ -13,7 +13,7 @@ from poe_agent.retriever.ingest import chunk_text
 from poe_agent.retriever.models import ChunkRecord, RetrievedChunk
 from poe_agent.retriever.query_fusion import (
     build_search_queries,
-    extract_topic_terms,
+    retrieval_focus_terms,
     title_probe_candidates,
 )
 from poe_agent.retriever.rerank import rerank
@@ -119,6 +119,40 @@ def _merge_search_hits(
     return [by_path[p] for p in order]
 
 
+def _title_relevance_score(page_title: str, focus_terms: list[str]) -> float:
+    """Fraction of focus-term tokens present in the page title (0–1)."""
+    if not focus_terms:
+        return 0.0
+    title_tokens = set(re.findall(r"[a-z0-9]+", page_title.lower()))
+    if not title_tokens:
+        return 0.0
+    best = 0.0
+    for term in focus_terms:
+        term_tokens = set(re.findall(r"[a-z0-9]+", term.lower()))
+        if not term_tokens:
+            continue
+        overlap = len(term_tokens & title_tokens) / len(term_tokens)
+        best = max(best, overlap)
+    return best
+
+
+def _rank_search_hits_by_title(
+    pages: list[_PageHit],
+    user_question: str,
+) -> list[_PageHit]:
+    focus = retrieval_focus_terms(user_question)
+    if not focus:
+        return pages
+    probes = [p for p in pages if p.fetch_reason == "title_probe"]
+    search_hits = [p for p in pages if p.fetch_reason != "title_probe"]
+    ranked = sorted(
+        search_hits,
+        key=lambda h: (_title_relevance_score(h.title, focus), h.title.lower()),
+        reverse=True,
+    )
+    return probes + ranked
+
+
 def _prepend_title_probes(
     pages: list[_PageHit],
     user_question: str,
@@ -139,17 +173,10 @@ def _prepend_title_probes(
     return probed + pages
 
 
-def _title_overlap_score(page_title: str, topic_terms: list[str]) -> float:
-    if not topic_terms:
+def _title_overlap_score(page_title: str, focus_terms: list[str]) -> float:
+    if not focus_terms:
         return 1.0
-    title_tokens = set(re.findall(r"[a-z0-9]+", page_title.lower()))
-    if not title_tokens:
-        return 0.0
-    for term in topic_terms:
-        term_tokens = set(re.findall(r"[a-z0-9]+", term.lower()))
-        if term_tokens and term_tokens & title_tokens:
-            return 1.0
-    return 0.0
+    return 1.0 if _title_relevance_score(page_title, focus_terms) >= 0.5 else 0.0
 
 
 def _apply_title_overlap_penalty(
@@ -159,7 +186,7 @@ def _apply_title_overlap_penalty(
 ) -> list[RetrievedChunk]:
     if not settings.live_wiki_title_overlap_filter:
         return chunks
-    terms = extract_topic_terms(user_question)
+    terms = retrieval_focus_terms(user_question)
     if not terms:
         return chunks
 
@@ -245,6 +272,7 @@ def retrieve_live_for_query(
 
     pages = _merge_search_hits(search_queries, settings)
     pages = _prepend_title_probes(pages, user_q, settings)
+    pages = _rank_search_hits_by_title(pages, user_q)
     if not pages:
         return [], debug
 

@@ -1,8 +1,19 @@
 :root {
-  font-family: system-ui, -apple-system, Segoe UI, Roboto, sans-serif;
-  line-height: 1.5;
-  color: #1a1a2e;
-  background: #f5f6fa;
+  --font-display: "Cinzel Decorative", "Cinzel", Georgia, serif;
+  --font-heading: "Cinzel", Georgia, serif;
+  --font-body: "EB Garamond", Georgia, "Times New Roman", serif;
+  --font-bump: 0pt;
+  --poe-gold: #c9a227;
+  --poe-gold-light: #e8d48a;
+  --poe-panel-bg: rgba(10, 9, 8, 0.94);
+  --poe-panel-border: #4a4030;
+  --poe-text: #e8dcc4;
+  --poe-text-muted: #a89f8c;
+  --poe-link: #d4b86a;
+  font-family: var(--font-body);
+  font-size: calc(1rem + var(--font-bump));
+  line-height: 1.55;
+  color: var(--poe-text);
 }
 
 * {
@@ -17,103 +28,216 @@ body {
   min-height: 100vh;
 }
 
-.app-layout {
-  display: grid;
-  grid-template-columns: 280px 1fr;
+.app-shell {
+  display: flex;
+  flex-direction: column;
   min-height: 100vh;
+  position: relative;
+  background: #0a0908 url(/library.png) center 62% / cover no-repeat fixed;
 }
 
-.sidebar {
-  background: #fff;
-  border-right: 1px solid #e2e4ec;
-  padding: 1.25rem;
+.siosa-portrait {
+  position: fixed;
+  left: 0;
+  bottom: 0;
+  z-index: 0;
+  width: min(38vw, 420px);
+  height: min(88vh, 920px);
+  background: url(/siosa.jpg) left bottom / contain no-repeat;
+  pointer-events: none;
 }
 
 .main {
-  padding: 1.5rem 2rem;
-  max-width: 960px;
-}
-
-h1 {
-  font-size: 1.5rem;
-  margin: 0 0 0.25rem;
-}
-
-.caption {
-  color: #555;
-  font-size: 0.9rem;
-  margin-bottom: 1.25rem;
-}
-
-.status-ok {
-  color: #0d7a4a;
-  font-weight: 600;
-}
-
-.status-err {
-  color: #b42318;
-  font-weight: 600;
-}
-
-.sidebar h2 {
-  font-size: 0.95rem;
-  margin: 1.25rem 0 0.5rem;
-  color: #333;
-}
-
-.sidebar label {
-  display: block;
-  font-size: 0.85rem;
-  margin-bottom: 0.35rem;
-  color: #444;
-}
-
-.sidebar select {
+  position: relative;
+  z-index: 1;
+  flex: 1;
+  padding: 1.5rem 1.25rem 2rem;
+  max-width: 42rem;
   width: 100%;
-  padding: 0.45rem 0.5rem;
-  border: 1px solid #ccc;
-  border-radius: 6px;
+  margin: 0 auto 0 max(1.25rem, min(36vw, 400px));
 }
 
-.doc-links {
+.app-header {
+  margin-bottom: 1.5rem;
+  text-align: center;
+}
+
+.app-title {
+  font-family: var(--font-display);
+  font-size: clamp(calc(1.85rem + var(--font-bump)), 5vw, calc(2.75rem + var(--font-bump)));
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  margin: 0 0 0.75rem;
+  color: var(--poe-gold-light);
+  text-shadow:
+    0 2px 8px rgba(0, 0, 0, 0.85),
+    0 0 24px rgba(201, 162, 39, 0.35);
+}
+
+.provider-row {
   display: flex;
-  flex-direction: column;
-  gap: 0.5rem;
-  margin-top: 0.5rem;
+  align-items: center;
+  justify-content: center;
+  gap: 0.65rem;
+  margin-top: 0.65rem;
+  padding-left: 0;
 }
 
-.doc-links a {
-  color: #2d4a9a;
-  text-decoration: none;
-  font-size: 0.9rem;
+.provider-row label {
+  font-family: var(--font-heading);
+  font-size: calc(0.9rem + var(--font-bump));
+  color: var(--poe-text);
+  margin: 0;
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
 }
 
-.doc-links a:hover {
-  text-decoration: underline;
+.provider-row select {
+  min-width: 12rem;
+  padding: 0.45rem 0.5rem;
+  border: 1px solid var(--poe-panel-border);
+  border-radius: 4px;
+  font-size: calc(0.95rem + var(--font-bump));
+  font-family: var(--font-body);
+  background: rgba(10, 9, 8, 0.88);
+  color: var(--poe-text);
+}
+
+.question-section {
+  max-width: 36rem;
+  margin: 0 0 1rem;
+  text-align: left;
+}
+
+.question-form {
+  margin: 0;
+}
+
+.question-prompt {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: calc(1.05rem + var(--font-bump));
+  font-weight: 600;
+  line-height: 1.45;
+  font-style: normal;
+  color: var(--poe-gold-light);
+  margin: 0 0 0.85rem;
+  text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
 }
 
 .question-row {
   display: flex;
   gap: 0.5rem;
   align-items: stretch;
-  margin-bottom: 1rem;
+  justify-content: flex-start;
+  margin-bottom: 0;
 }
 
 .question-row input {
   flex: 1;
+  min-width: 0;
+  max-width: 22rem;
   padding: 0.6rem 0.75rem;
-  border: 1px solid #ccc;
-  border-radius: 8px;
-  font-size: 1rem;
+  border: 1px solid var(--poe-panel-border);
+  border-radius: 4px;
+  font-size: calc(1rem + var(--font-bump));
+  font-family: var(--font-body);
+  background: rgba(10, 9, 8, 0.88);
+  color: var(--poe-text);
+}
+
+.question-row input::placeholder {
+  color: var(--poe-text-muted);
+  font-style: normal;
+  opacity: 0.85;
+}
+
+.question-row input:-webkit-autofill,
+.question-row input:-webkit-autofill:hover,
+.question-row input:-webkit-autofill:focus,
+.question-row input:-webkit-autofill:active {
+  -webkit-text-fill-color: var(--poe-text);
+  caret-color: var(--poe-text);
+  box-shadow: 0 0 0 1000px rgba(10, 9, 8, 0.98) inset;
+  transition: background-color 99999s ease-out 0s;
+}
+
+.question-row input:autofill {
+  box-shadow: 0 0 0 1000px rgba(10, 9, 8, 0.98) inset;
+  -webkit-text-fill-color: var(--poe-text);
+  color: var(--poe-text);
+}
+
+.app-footer {
+  border-top: 1px solid var(--poe-panel-border);
+  background: var(--poe-panel-bg);
+  padding: 1rem 2rem;
+  box-shadow: 0 -4px 24px rgba(0, 0, 0, 0.35);
+}
+
+.footer-docs {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 0.5rem 1.25rem;
+  max-width: 960px;
+  margin: 0 auto;
+  font-size: calc(0.9rem + var(--font-bump));
+}
+
+.footer-docs-label {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  color: var(--poe-text-muted);
+}
+
+.footer-docs a {
+  color: var(--poe-link);
+  text-decoration: none;
+}
+
+.footer-docs a:hover {
+  color: var(--poe-gold-light);
+  text-decoration: underline;
+}
+
+.score-actions {
+  margin-top: 0.75rem;
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 0.5rem;
+}
+
+.score-error {
+  margin: 0;
+}
+
+.caption {
+  color: var(--poe-text-muted);
+  font-size: calc(0.9rem + var(--font-bump));
+  margin-bottom: 1.25rem;
+}
+
+.status-ok {
+  color: #6fcf97;
+  font-weight: 600;
+}
+
+.status-err {
+  color: #e8a090;
+  font-weight: 600;
 }
 
 .btn {
   padding: 0.55rem 1rem;
-  border-radius: 8px;
-  border: 1px solid #ccc;
-  background: #fff;
+  border-radius: 4px;
+  border: 1px solid var(--poe-panel-border);
+  background: rgba(30, 26, 20, 0.95);
+  color: var(--poe-text);
   cursor: pointer;
-  font-size: 0.95rem;
+  font-size: calc(0.95rem + var(--font-bump));
+  font-family: var(--font-heading);
   white-space: nowrap;
 }
 
@@ -123,13 +247,13 @@ h1 {
 }
 
 .btn-primary {
-  background: #2d4a9a;
-  color: #fff;
-  border-color: #2d4a9a;
+  background: linear-gradient(180deg, #5c4a20 0%, #3d3010 100%);
+  color: var(--poe-gold-light);
+  border-color: var(--poe-gold);
 }
 
 .btn-primary:hover:not(:disabled) {
-  background: #243d82;
+  background: linear-gradient(180deg, #6d5828 0%, #4a3c14 100%);
 }
 
 .btn-record {
@@ -153,36 +277,63 @@ h1 {
 }
 
 .btn-record.recording {
-  background: #b42318;
-  color: #fff;
-  border-color: #b42318;
+  background: #6b2820;
+  color: #f5e0dc;
+  border-color: #8b3830;
 }
 
 .error-banner {
-  background: #fde8e8;
-  color: #912018;
+  background: rgba(80, 24, 20, 0.92);
+  color: #fde8e8;
   padding: 0.75rem 1rem;
-  border-radius: 8px;
-  margin-bottom: 1rem;
+  border-radius: 6px;
+  margin-top: 0.75rem;
+  border: 1px solid #8b3830;
+  text-align: left;
 }
 
-.answer-block {
-  background: #fff;
-  border: 1px solid #e2e4ec;
-  border-radius: 10px;
-  padding: 1.25rem;
-  margin-top: 1rem;
+.answer-block,
+.answer-panel {
+  background: var(--poe-panel-bg);
+  border: 1px solid var(--poe-panel-border);
+  border-radius: 6px;
+  padding: 1.35rem 1.5rem;
+  margin-top: 1.25rem;
+  max-width: 52rem;
+  margin-left: auto;
+  margin-right: auto;
+  color: var(--poe-text);
+  font-family: var(--font-body);
+  font-size: calc(1.08rem + var(--font-bump));
+  box-shadow: 0 8px 32px rgba(0, 0, 0, 0.55);
+}
+
+.answer-block h2,
+.answer-block h3,
+.answer-block h4 {
+  font-family: var(--font-heading);
+  color: var(--poe-gold-light);
+  font-weight: 600;
 }
 
 .answer-block h2 {
   margin-top: 0;
-  font-size: 1.15rem;
+  font-size: calc(1.15rem + var(--font-bump));
 }
 
-.meta {
-  font-size: 0.85rem;
-  color: #666;
-  margin-top: 0.5rem;
+.answer-block a {
+  color: var(--poe-link);
+}
+
+.answer-block a:hover {
+  color: var(--poe-gold-light);
+}
+
+.answer-block code {
+  background: rgba(255, 255, 255, 0.08);
+  color: var(--poe-gold-light);
+  padding: 0.1em 0.35em;
+  border-radius: 3px;
 }
 
 .compact-metrics {
@@ -193,15 +344,16 @@ h1 {
 }
 
 .compact-metrics td {
-  border: 1px solid #ddd;
+  border: 1px solid var(--poe-panel-border);
   padding: 0.35rem 0.5rem;
   text-align: center;
   vertical-align: top;
 }
 
 .compact-metrics b {
+  font-family: var(--font-heading);
   font-size: 0.72rem;
-  color: #444;
+  color: var(--poe-text-muted);
   display: block;
   font-weight: 600;
 }
@@ -209,14 +361,149 @@ h1 {
 .compact-metrics .val {
   font-size: 0.95rem;
   font-weight: 700;
-  color: #1a1a2e;
+  color: var(--poe-gold-light);
 }
 
 .section-label {
+  font-family: var(--font-heading);
   font-size: 0.95rem;
   font-weight: 600;
   margin: 1rem 0 0.25rem;
-  color: #333;
+  color: var(--poe-gold-light);
+}
+
+.answer-panel .timing-sections,
+.answer-panel .timing-section {
+  max-width: 30%;
+  min-width: 12rem;
+}
+
+.timing-sections > div + div {
+  margin-top: 0.5rem;
+}
+
+.timing-sections .section-label:first-child,
+.timing-section .section-label {
+  margin-top: 0.75rem;
+}
+
+.timing-bars {
+  display: flex;
+  flex-direction: column;
+  gap: 0.55rem;
+  margin-top: 0.35rem;
+}
+
+.timing-bar-row {
+  display: flex;
+  flex-direction: column;
+  gap: 0.2rem;
+}
+
+.timing-bar-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: baseline;
+  gap: 0.5rem;
+  font-size: 0.85rem;
+}
+
+.timing-bar-label {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  color: var(--poe-text);
+}
+
+.timing-bar-val {
+  font-weight: 700;
+  color: var(--poe-gold-light);
+  white-space: nowrap;
+}
+
+.timing-bar-track {
+  height: 0.55rem;
+  background: rgba(255, 255, 255, 0.1);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.timing-bar-fill {
+  height: 100%;
+  min-width: 4px;
+  background: linear-gradient(90deg, #8b7028, var(--poe-gold));
+  border-radius: 4px;
+  transition: width 0.2s ease;
+}
+
+.answer-display {
+  margin-bottom: 0.5rem;
+}
+
+.answer-display p:first-child {
+  margin-top: 0;
+}
+
+.metrics-help {
+  font-size: 0.9rem;
+  color: var(--poe-text-muted);
+}
+
+.metrics-help-heading {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  color: var(--poe-text);
+  margin: 0.75rem 0 0.35rem;
+}
+
+.metrics-help-heading:first-child {
+  margin-top: 0;
+}
+
+.metrics-help ul {
+  margin: 0.35rem 0 0;
+  padding-left: 1.25rem;
+}
+
+.metric-def-item {
+  margin-bottom: 0.65rem;
+}
+
+.metric-def-line {
+  display: block;
+  line-height: 1.45;
+}
+
+.metric-def-score {
+  font-weight: 700;
+  color: var(--poe-gold-light);
+}
+
+.metric-notes-details {
+  margin-top: 0.35rem;
+  font-size: 0.85rem;
+}
+
+.metric-notes-details summary {
+  cursor: pointer;
+  color: var(--poe-link);
+  font-family: var(--font-heading);
+}
+
+.metric-note-text {
+  margin: 0.35rem 0 0;
+  color: var(--poe-text-muted);
+  line-height: 1.4;
+}
+
+.llm-calls-section h3 {
+  font-family: var(--font-heading);
+  font-size: 1rem;
+  margin: 1rem 0 0.5rem;
+  color: var(--poe-gold-light);
+}
+
+.llm-call summary {
+  font-size: 0.9rem;
 }
 
 .citations {
@@ -233,63 +520,64 @@ h1 {
 
 .snippet {
   font-size: 0.85rem;
-  color: #555;
+  color: var(--poe-text-muted);
   display: block;
   margin-top: 0.2rem;
 }
 
-details.panel {
+.answer-panel details.panel {
   margin-top: 0.75rem;
-  background: #fafbfc;
-  border: 1px solid #e2e4ec;
-  border-radius: 8px;
+  background: rgba(0, 0, 0, 0.35);
+  border: 1px solid var(--poe-panel-border);
+  border-radius: 6px;
   padding: 0.5rem 0.75rem;
+  color: var(--poe-text);
 }
 
-details.panel summary {
+.answer-panel details.panel summary {
   cursor: pointer;
+  font-family: var(--font-heading);
   font-weight: 600;
   font-size: 0.9rem;
+  color: var(--poe-gold-light);
 }
 
-pre.json-block {
-  background: #f0f1f5;
+pre.json-block,
+pre.code-block {
+  background: rgba(0, 0, 0, 0.45);
+  color: var(--poe-text);
   padding: 0.75rem;
   border-radius: 6px;
   overflow: auto;
   font-size: 0.8rem;
+  border: 1px solid var(--poe-panel-border);
+}
+
+pre.json-block {
   max-height: 320px;
 }
 
 pre.code-block {
-  background: #f0f1f5;
-  padding: 0.75rem;
-  border-radius: 6px;
-  overflow: auto;
-  font-size: 0.8rem;
   white-space: pre-wrap;
   max-height: 240px;
 }
 
 .llm-call {
   margin-top: 0.75rem;
-  border-top: 1px solid #e2e4ec;
+  border-top: 1px solid var(--poe-panel-border);
   padding-top: 0.75rem;
 }
 
-.metrics-help {
-  font-size: 0.88rem;
-  color: #444;
-}
-
-.metrics-help ul {
-  margin: 0.5rem 0;
-  padding-left: 1.25rem;
-}
-
 .spinner {
-  color: #555;
-  font-style: italic;
+  color: var(--poe-gold-light);
+  font-style: normal;
+  font-family: var(--font-heading);
+  font-size: calc(1rem + var(--font-bump));
+  text-shadow: 0 1px 4px rgba(0, 0, 0, 0.8);
+  margin: 0.75rem 0 0;
+  text-align: left;
+  width: 100%;
+  max-width: 36rem;
 }
 
 .trace-summary {
@@ -297,8 +585,8 @@ pre.code-block {
 }
 
 .trace-refine-banner {
-  background: #fff8e6;
-  border: 1px solid #e6d9a8;
+  background: rgba(92, 74, 32, 0.35);
+  border: 1px solid var(--poe-panel-border);
   border-radius: 6px;
   padding: 0.5rem 0.75rem;
   font-size: 0.9rem;
@@ -309,8 +597,10 @@ pre.code-block {
 }
 
 .trace-section h4 {
+  font-family: var(--font-heading);
   margin: 0 0 0.5rem;
   font-size: 0.95rem;
+  color: var(--poe-gold-light);
 }
 
 .trace-plan-list {
@@ -345,20 +635,22 @@ pre.code-block {
 
 .trace-table th,
 .trace-table td {
-  border: 1px solid #e2e4ec;
+  border: 1px solid var(--poe-panel-border);
   padding: 0.35rem 0.5rem;
   text-align: left;
   vertical-align: top;
 }
 
 .trace-table th {
-  background: #eef0f5;
+  background: rgba(0, 0, 0, 0.4);
+  font-family: var(--font-heading);
   font-weight: 600;
+  color: var(--poe-gold-light);
 }
 
 .trace-preview {
   max-width: 280px;
-  color: #555;
+  color: var(--poe-text-muted);
 }
 
 .trace-cell-narrow {
@@ -371,4 +663,19 @@ pre.code-block {
 .trace-raw-json {
   margin-top: 1rem;
   font-size: 0.85rem;
+}
+
+@media (max-width: 768px) {
+  .siosa-portrait {
+    width: min(32vw, 200px);
+    height: 55vh;
+    opacity: 0.92;
+  }
+
+  .main {
+    margin-left: min(30vw, 180px);
+    max-width: none;
+    padding-left: 0.75rem;
+    padding-right: 0.75rem;
+  }
 }

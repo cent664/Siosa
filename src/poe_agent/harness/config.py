@@ -10,23 +10,22 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 _runtime_provider_mode: str | None = None
 _runtime_judge_provider: str | None = None
 
+_VALID_PROVIDER_MODES = frozenset({"stub", "claude", "gpt4", "bedrock"})
+
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    poe_provider_mode: str = "stub"  # stub | ollama | claude | gpt4 | bedrock
+    poe_provider_mode: str = "stub"  # stub | claude | gpt4 | bedrock
     poe_api_host: str = "127.0.0.1"
     poe_api_port: int = 8000
     poe_api_base_url: str = "http://127.0.0.1:8000"
-    ollama_base_url: str = "http://127.0.0.1:11434"
-    ollama_model: str = "llama3.2"
     anthropic_api_key: str = ""
     anthropic_model: str = "claude-sonnet-4-6"
     openai_api_key: str = ""
     openai_model: str = "gpt-4o"
-    judge_provider: str = "ollama"  # provider used for inline quality judges
-    inline_eval: bool = True
-    enable_ollama: bool = True  # POE_ENABLE_OLLAMA — false on production (Railway)
+    judge_provider: str = "claude"  # claude | gpt4 | stub | bedrock
+    inline_eval: bool = False
     deployment_profile: str = ""  # set DEPLOYMENT_PROFILE=production on Railway for booth defaults
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     retrieval_top_k: int = 8
@@ -37,6 +36,7 @@ class Settings(BaseSettings):
     live_wiki_search_limit: int = 8
     live_wiki_max_search_queries: int = 4
     live_wiki_title_probe: bool = True
+    live_wiki_max_title_probes: int = 4
     live_wiki_title_overlap_filter: bool = True
     live_wiki_cache_ttl_hours: float = 24.0
     live_fallback_min_score: float = 0.25
@@ -52,7 +52,7 @@ class Settings(BaseSettings):
     s3_bucket: str = ""
     s3_prefix: str = "poe-wiki-agent/"
     log_level: str = "INFO"
-    transcribe_provider: str = "local"  # local | openai
+    transcribe_provider: str = "openai"  # local | openai
     transcribe_model: str = ""  # default: base (local) or whisper-1 (openai)
 
     @property
@@ -71,16 +71,20 @@ class Settings(BaseSettings):
     def eval_dir(self) -> Path:
         return self.poe_data_dir / "eval"
 
+    @property
+    def dev_ui_enabled(self) -> bool:
+        """Trace, timing, and on-demand scoring UI (off in production booth)."""
+        return self.deployment_profile.lower().strip() != "production"
+
     @model_validator(mode="after")
     def apply_deployment_profile(self) -> Self:
         if self.deployment_profile.lower().strip() != "production":
             return self
-        if self.judge_provider.lower() == "ollama":
+        if self.judge_provider.lower() not in ("claude", "gpt4", "stub"):
             object.__setattr__(self, "judge_provider", "claude")
-        if self.poe_provider_mode.lower() in ("stub", "ollama") and self.anthropic_api_key:
+        if self.poe_provider_mode.lower() == "stub" and self.anthropic_api_key:
             object.__setattr__(self, "poe_provider_mode", "claude")
         object.__setattr__(self, "inline_eval", False)
-        object.__setattr__(self, "enable_ollama", False)
         return self
 
 
@@ -102,7 +106,7 @@ def set_runtime_provider_mode(mode: str | None) -> None:
         _runtime_provider_mode = None
         return
     normalized = mode.lower().strip()
-    if normalized not in ("stub", "ollama", "claude", "gpt4", "bedrock"):
+    if normalized not in _VALID_PROVIDER_MODES:
         raise ValueError(f"Invalid provider mode: {mode}")
     _runtime_provider_mode = normalized
 
@@ -124,7 +128,7 @@ def set_runtime_judge_provider(mode: str | None) -> None:
         _runtime_judge_provider = None
         return
     normalized = mode.lower().strip()
-    if normalized not in ("stub", "ollama", "claude", "gpt4", "bedrock"):
+    if normalized not in _VALID_PROVIDER_MODES:
         raise ValueError(f"Invalid judge provider: {mode}")
     _runtime_judge_provider = normalized
 
@@ -135,47 +139,68 @@ def default_judge_for_answer_mode(answer_mode: str) -> str:
         return "claude"
     if answer_mode == "gpt4":
         return "gpt4"
-    if answer_mode == "ollama":
-        return "ollama"
     return get_settings().judge_provider.lower()
+
+
+def short_model_label(model_id: str) -> str:
+    """Short display name for provider dropdown (e.g. claude-sonnet-4-6 → Sonnet 4.6)."""
+    mid = (model_id or "").strip()
+    if not mid:
+        return "Stub"
+    low = mid.lower()
+    if low.startswith("claude-"):
+        tail = mid[7:]
+        parts = tail.split("-")
+        family = parts[0].capitalize() if parts else "Claude"
+        if len(parts) > 1:
+            version = ".".join(parts[1:])
+            return f"{family} {version}"
+        return family
+    if low.startswith("gpt"):
+        if "-" in mid:
+            family, version = mid.split("-", 1)
+            return f"{family.upper()}-{version}"
+        return mid.upper()
+    return mid
 
 
 def list_available_provider_modes() -> list[dict[str, str]]:
     """Modes the UI may offer, with availability hints."""
-    from poe_agent.harness.provider_health import ollama_reachable
-
     s = get_settings()
-    modes = [
-        {"id": "stub", "label": "Stub (excerpts)", "available": "true"},
+    return [
+        {"id": "stub", "label": "Stub", "available": "true"},
+        {
+            "id": "claude",
+            "label": short_model_label(s.anthropic_model),
+            "available": "true" if s.anthropic_api_key else "false",
+        },
+        {
+            "id": "gpt4",
+            "label": short_model_label(s.openai_model),
+            "available": "true" if s.openai_api_key else "false",
+        },
     ]
-    if s.enable_ollama:
-        modes.append({
-            "id": "ollama",
-            "label": "Ollama (local)",
-            "available": "true" if ollama_reachable(s) else "false",
-        })
-    modes.append({
-        "id": "claude",
-        "label": "Claude (Anthropic API)",
-        "available": "true" if s.anthropic_api_key else "false",
-    })
-    modes.append({
-        "id": "gpt4",
-        "label": "GPT-4 (OpenAI API)",
-        "available": "true" if s.openai_api_key else "false",
-    })
-    return modes
+
+
+def _is_local_deployment(settings: Settings) -> bool:
+    host = settings.poe_api_host.lower().strip()
+    if host in ("127.0.0.1", "localhost", "::1"):
+        return True
+    base = settings.poe_api_base_url.lower()
+    return "127.0.0.1" in base or "localhost" in base
 
 
 def deployment_hint(settings: Settings | None = None) -> str:
-    """Actionable hint when production booth defaults are not active."""
+    """Actionable hint when production booth defaults are not active (deployed hosts only)."""
     s = settings or get_settings()
     if s.deployment_profile.lower().strip() == "production":
         return ""
-    if s.inline_eval or s.enable_ollama:
+    if _is_local_deployment(s):
+        return ""
+    if s.inline_eval:
         return (
             "Booth mode not active. On Railway set DEPLOYMENT_PROFILE=production "
-            "(or INLINE_EVAL=false and POE_ENABLE_OLLAMA=false). "
+            "(or INLINE_EVAL=false). "
             "Add ANTHROPIC_API_KEY and POE_PROVIDER_MODE=claude for cloud answers."
         )
     return ""

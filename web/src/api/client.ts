@@ -3,6 +3,8 @@ import type {
   HealthResponse,
   ProviderSettingsResponse,
   QueryResponse,
+  ScoreRequest,
+  ScoreResponse,
   TranscribeResponse,
 } from "./types";
 
@@ -45,6 +47,14 @@ export function postQuery(question: string): Promise<QueryResponse> {
     method: "POST",
     headers: { "Content-Type": "application/json" },
     body: JSON.stringify({ question }),
+  });
+}
+
+export function postScore(body: ScoreRequest): Promise<ScoreResponse> {
+  return request<ScoreResponse>("/score", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
   });
 }
 

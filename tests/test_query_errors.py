@@ -8,7 +8,7 @@ def test_map_httpx_error_to_502():
     exc = httpx.ConnectError("Connection refused")
     http_exc = map_query_exception(exc)
     assert http_exc.status_code == 502
-    assert "Ollama" in http_exc.detail or "Network" in http_exc.detail
+    assert "Network" in http_exc.detail
 
 
 def test_map_value_error():

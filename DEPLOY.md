@@ -20,13 +20,11 @@ Public URL for QR codes; your laptop can stay off during the event. Live site: *
 
 Copy into Railway **Variables** (replace secrets with your real keys).
 
-**Fastest fix for booth UI:** set `DEPLOYMENT_PROFILE=production` — this applies booth defaults (`INLINE_EVAL=false`, `POE_ENABLE_OLLAMA=false`, `JUDGE_PROVIDER=claude`) even if you forget the individual flags.
+**Fastest fix for booth UI:** set `DEPLOYMENT_PROFILE=production` — this applies booth defaults (`INLINE_EVAL=false`, `JUDGE_PROVIDER=claude`, `POE_PROVIDER_MODE=claude`) even if you forget the individual flags.
 
 **Judges are not a Railway product** — `JUDGE_PROVIDER` chooses which **your** LLM API runs optional quality scores on each Ask (only when `INLINE_EVAL=true`). For the booth, use `INLINE_EVAL=false` or `DEPLOYMENT_PROFILE=production`.
 
-**Do not use Ollama on Railway:** set `POE_ENABLE_OLLAMA=false`, delete or override any `JUDGE_PROVIDER=ollama`, `POE_PROVIDER_MODE=ollama`, or `OLLAMA_*` variables (local dev defaults from `.env.example`).
-
-**Booth UI:** When `INLINE_EVAL=false`, the web UI shows **Answer + Sources only** (no quality scores, trace, or timing). `/health` returns `"inline_eval": false` and `"enable_ollama": false`.
+**Booth UI:** When `INLINE_EVAL=false`, the web UI shows **Answer + Sources only** (no quality scores, trace, or timing). `/health` returns `"inline_eval": false`.
 
 **Do not set** a custom `PORT` — Railway injects it; the container uses it via [`scripts/start_api.sh`](scripts/start_api.sh).
 
@@ -43,7 +41,6 @@ OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4o
 JUDGE_PROVIDER=claude
 INLINE_EVAL=false
-POE_ENABLE_OLLAMA=false
 RETRIEVAL_MODE=live
 POE_DATA_DIR=/app/data
 ```
@@ -58,7 +55,6 @@ ANTHROPIC_API_KEY=sk-ant-...
 ANTHROPIC_MODEL=claude-sonnet-4-6
 RETRIEVAL_MODE=live
 INLINE_EVAL=false
-POE_ENABLE_OLLAMA=false
 POE_DATA_DIR=/app/data
 ```
 
@@ -75,18 +71,16 @@ LOG_LEVEL=INFO
 
 Use **`INLINE_EVAL=false`** at the booth for faster, cheaper responses. Set back to `true` when testing quality locally.
 
-Do **not** set `OLLAMA_*` on Railway (no Ollama on the server).
-
 ## Redeploy checklist
 
 After changing RAM or variables, or pushing code to `main`:
 
-1. **Variables** — Use a block above; set `POE_ENABLE_OLLAMA=false`; remove `ollama` / `OLLAMA_*` / custom `PORT`.
+1. **Variables** — Use a block above; remove any legacy `OLLAMA_*` or custom `PORT`.
 2. **Resources** — **4 GB RAM** and **~2 vCPU** is enough after a successful deploy (8 GB is safe but costs more).
 3. **Push** — `git push origin main` triggers a rebuild (includes `/health/live` in [`railway.toml`](railway.toml)).
 4. **Verify** — Deploy logs show `Uvicorn running on http://0.0.0.0:...`; then:
    - `https://www.poesiosa.net/health/live` → `{"status":"ok"}`
-   - `/health` → `"status":"ok"`, `"inline_eval": false`, `"enable_ollama": false`, `"deployment_profile": "production"`
+   - `/health` → `"status":"ok"`, `"inline_eval": false`, `"deployment_profile": "production"`
    - Root URL → one **Ask** with Claude returns a real answer (not stub text)
    - Or run: `.\scripts\verify_railway_deploy.ps1 -BaseUrl "https://www.poesiosa.net"`
 
@@ -106,11 +100,10 @@ QR code URL **does not change** if you keep the same Railway `*.up.railway.app` 
 | Config | [`.env`](.env.example) | Railway **Variables** ([`railway.variables.example`](railway.variables.example)) |
 | Run API | `poe-api` or `docker compose` | Auto-deploy on `git push origin main` |
 | Run UI | `cd web && npm run dev` | Served from same container as API |
-| Ollama | `POE_ENABLE_OLLAMA=true` (optional `ollama serve`) | `POE_ENABLE_OLLAMA=false` — hidden from dropdown |
 | Judges | `INLINE_EVAL=true` for experiments | `INLINE_EVAL=false` at the booth |
-| UI | Full: scores, trace, timing, Ollama | Booth: Answer + Sources only |
+| UI | Full: scores, trace, timing | Booth: Answer + Sources only |
 
-Production-only tweaks (no code): set Variables as in [Required variables](#required-variables). Code changes (background, UX, retrieval, hiding Ollama in the dropdown) require a git push.
+Production-only tweaks (no code): set Variables as in [Required variables](#required-variables).
 
 ## Custom domain
 
@@ -172,6 +165,23 @@ Reprint or regenerate your QR code with the new `https://` URL.
 
 Delete the Railway service after the conference if you want to stop hosting charges.
 
+## Roll back a bad deploy
+
+Before a risky UI or API push, tag the last known-good commit on `main` (example — adjust the hash to match `git log -1` on production):
+
+```bash
+git tag -a deploy-rollback-pre-siosa-ui <commit-sha> -m "Last known good before Siosa library UI"
+git push origin deploy-rollback-pre-siosa-ui
+```
+
+If the live site breaks after Railway auto-deploys from `main`:
+
+1. **Fastest (Railway UI):** Service → **Deployments** → open the previous successful deployment → **Redeploy** (same commit, no git change).
+2. **Git revert:** On `main`, `git revert <bad-commit-sha>` (or reset to the tag), push `main`; Railway rebuilds the older tree.
+3. **Checkout tag:** `git checkout deploy-rollback-pre-siosa-ui`, push to a hotfix branch and temporarily point Railway at that branch, or merge the tag into `main`.
+
+Verify after rollback: `/health` returns `"status":"ok"`, then one **Ask** on the homepage.
+
 ## Troubleshooting
 
 | Issue | Fix |
@@ -184,8 +194,8 @@ Delete the Railway service after the conference if you want to stop hosting char
 | Works locally, fails on Railway | Check `ANTHROPIC_API_KEY` in Variables, not only in local `.env` |
 | Health OK but stub answers | Set `POE_PROVIDER_MODE=claude` and `ANTHROPIC_API_KEY` in Variables |
 | Claude/GPT greyed out in UI | Add `ANTHROPIC_API_KEY` / `OPENAI_API_KEY` to Railway Variables |
-| `/health` shows `judge_provider: ollama` | Set `JUDGE_PROVIDER=claude` (or `gpt4`); remove `ollama` from Variables |
-| Homepage unchanged after git push | Code deployed; set `DEPLOYMENT_PROFILE=production` (or `INLINE_EVAL=false` + `POE_ENABLE_OLLAMA=false`) in Railway Variables |
+| `/health` shows unexpected `judge_provider` | Set `JUDGE_PROVIDER=claude` (or `gpt4`) in Railway Variables |
+| Homepage unchanged after git push | Code deployed; set `DEPLOYMENT_PROFILE=production` (or `INLINE_EVAL=false`) in Railway Variables |
 | `/health` shows `inline_eval: true` | Add `DEPLOYMENT_PROFILE=production` or `INLINE_EVAL=false` in Railway Variables and redeploy |
 
 ## What the agent cannot do for you

@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from poe_agent.harness.config import get_settings
 from poe_agent.retriever.models import RetrievedChunk
-from poe_agent.retriever.query_fusion import extract_topic_terms
+from poe_agent.retriever.query_fusion import retrieval_focus_terms
 
 
 def _title_overlaps_any(page_title: str, topic_terms: list[str]) -> bool:
@@ -31,7 +31,7 @@ def retrieval_needs_refine(chunks: list[RetrievedChunk], user_question: str) -> 
     if top_score < settings.retrieval_refine_min_score:
         return True, "low_top_score"
 
-    terms = extract_topic_terms(user_question)
+    terms = retrieval_focus_terms(user_question)
     if terms:
         titles = {str(c.metadata.get("page_title", "")) for c in chunks}
         if not any(_title_overlaps_any(t, terms) for t in titles if t):

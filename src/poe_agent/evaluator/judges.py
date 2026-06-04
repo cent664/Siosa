@@ -4,14 +4,18 @@ from __future__ import annotations
 
 import re
 
+from poe_agent.evaluator.context import JUDGE_CONTEXT_MAX_CHARS, truncate_for_judge
 from poe_agent.harness.config import get_settings
 from poe_agent.harness.providers import get_judge_llm_provider, get_provider_model_id
 from poe_agent.harness.trace import traced_generate
 
 RELEVANCE_PROMPT = """Rate 1-5 whether the answer addresses the question.
+5 = materially answers the question; 4 = mostly addresses with minor gaps.
+Do not penalize brevity if the core question is answered.
+1 = does not address the question.
 Reply with JSON only: {"score": N, "reason": "..."}"""
 
-FAITHFULNESS_PROMPT = """Rate 1-5 whether every claim in the answer is supported by the context.
+FAITHFULNESS_PROMPT = """Rate 1-5 whether every claim in the answer is supported by the wiki excerpts.
 5 = fully supported, 1 = unsupported claims present.
 Reply with JSON only: {"score": N, "reason": "..."}"""
 
@@ -19,10 +23,10 @@ VERBOSITY_PROMPT = """Rate 1-5 whether the answer length is appropriate for a be
 5 = concise and complete, 1 = far too long or far too short.
 Reply with JSON only: {"score": N, "reason": "..."}"""
 
-ADHERENCE_PROMPT = """Rate 1-5 whether the answer follows these rules:
-- Uses only provided wiki excerpts
+ADHERENCE_PROMPT = """Rate 1-5 whether the answer follows the system rules given the wiki excerpts.
+- Uses only provided wiki excerpts (no invented mechanics beyond excerpts)
 - Path of Exile 1 focus
-- Does not invent mechanics
+5 = fully adheres, 1 = clear violations (e.g. cites facts not in excerpts).
 Reply with JSON only: {"score": N, "reason": "..."}"""
 
 CONTEXT_PRECISION_PROMPT = """Rate 1-5 the precision of retrieved wiki excerpts for answering the question.
@@ -80,10 +84,11 @@ def judge_relevance(question: str, answer: str) -> dict:
 
 
 def judge_faithfulness(answer: str, context: str) -> dict:
+    ctx = truncate_for_judge(context, JUDGE_CONTEXT_MAX_CHARS)
     return _judge(
         "judge_faithfulness",
         FAITHFULNESS_PROMPT,
-        f"Context:\n{context[:4000]}\n\nAnswer:\n{answer}",
+        f"Wiki excerpts:\n{ctx}\n\nAnswer:\n{answer}",
     )
 
 
@@ -91,27 +96,30 @@ def judge_verbosity(answer: str) -> dict:
     return _judge("judge_verbosity", VERBOSITY_PROMPT, f"Answer:\n{answer}")
 
 
-def judge_prompt_adherence(answer: str, system_prompt: str) -> dict:
+def judge_prompt_adherence(answer: str, system_prompt: str, evidence: str) -> dict:
+    ctx = truncate_for_judge(evidence, JUDGE_CONTEXT_MAX_CHARS)
     return _judge(
         "judge_prompt_adherence",
         ADHERENCE_PROMPT,
-        f"System rules:\n{system_prompt}\n\nAnswer:\n{answer}",
+        f"System rules:\n{system_prompt}\n\nWiki excerpts:\n{ctx}\n\nAnswer:\n{answer}",
     )
 
 
-def judge_context_precision(question: str, retrieval_preview: str) -> dict:
+def judge_context_precision(question: str, evidence: str) -> dict:
+    ctx = truncate_for_judge(evidence, JUDGE_CONTEXT_MAX_CHARS)
     return _judge(
         "judge_context_precision",
         CONTEXT_PRECISION_PROMPT,
-        f"Question: {question}\n\nRetrieved excerpts:\n{retrieval_preview[:4000]}",
+        f"Question: {question}\n\nRetrieved excerpts:\n{ctx}",
     )
 
 
-def judge_context_recall(question: str, retrieval_preview: str) -> dict:
+def judge_context_recall(question: str, evidence: str) -> dict:
+    ctx = truncate_for_judge(evidence, JUDGE_CONTEXT_MAX_CHARS)
     return _judge(
         "judge_context_recall",
         CONTEXT_RECALL_PROMPT,
-        f"Question: {question}\n\nRetrieved excerpts:\n{retrieval_preview[:4000]}",
+        f"Question: {question}\n\nRetrieved excerpts:\n{ctx}",
     )
 
 

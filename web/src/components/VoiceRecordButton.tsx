@@ -47,13 +47,14 @@ function MicIcon() {
   return (
     <svg
       className="icon-mic"
-      width="20"
-      height="20"
+      width="22"
+      height="22"
       viewBox="0 0 24 24"
       fill="currentColor"
       aria-hidden="true"
     >
-      <path d="M12 14a3 3 0 0 0 3-3V5a3 3 0 0 0-6 0v6a3 3 0 0 0 3 3zm5-3a5 5 0 0 1-10 0H5a7 7 0 0 0 14 0h-2zm-5 7a7 7 0 0 0-7-7H3a9 9 0 0 0 18 0h-2a7 7 0 0 0-7 7v3h4v2H8v-2h4v-3z" />
+      <path d="M12 15a4 4 0 0 0 4-4V6a4 4 0 1 0-8 0v5a4 4 0 0 0 4 4z" />
+      <path d="M5 11a7 7 0 0 0 14 0h-2.2a4.8 4.8 0 0 1-9.6 0H5zm7 8.2V22h2v-2.8A8 8 0 0 0 20 13h-2a6 6 0 0 1-12 0H4a8 8 0 0 0 10 6.2z" />
     </svg>
   );
 }

@@ -7,6 +7,7 @@ import time
 import uuid
 from pathlib import Path
 
+from poe_agent.evaluator.context import format_evidence_context, truncate_for_judge
 from poe_agent.evaluator.judges import judge_extraction, judge_faithfulness, judge_relevance
 from poe_agent.evaluator.metrics import retrieval_precision, retrieval_recall, titles_from_chunks
 from poe_agent.harness.api.schemas import EvaluateRequest, EvaluateResponse
@@ -29,7 +30,7 @@ def run_evaluation(body: EvaluateRequest) -> EvaluateResponse:
         chunks, _source, _debug = retrieve_for_query(question)
 
     retrieved_titles = titles_from_chunks(chunks)
-    context = "\n".join(c.text[:500] for c in chunks)
+    context = truncate_for_judge(format_evidence_context(chunks))
 
     metrics = {
         "retrieval_precision": retrieval_precision(retrieved_titles, body.expected_pages),

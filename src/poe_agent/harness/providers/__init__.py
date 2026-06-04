@@ -4,8 +4,6 @@ from __future__ import annotations
 
 import json
 
-import httpx
-
 from poe_agent.harness.config import Settings, get_effective_provider_mode, get_settings
 from poe_agent.harness.providers.base import EmbeddingProvider, LLMProvider
 
@@ -16,32 +14,6 @@ class StubLLMProvider(LLMProvider):
             "Pipeline is in stub mode.",
             {"prompt_tokens": 0, "completion_tokens": 0},
         )
-
-
-class OllamaLLMProvider(LLMProvider):
-    def __init__(self, settings: Settings | None = None) -> None:
-        self.settings = settings or get_settings()
-
-    def generate(self, system: str, user: str) -> tuple[str, dict[str, int]]:
-        url = f"{self.settings.ollama_base_url.rstrip('/')}/api/chat"
-        payload = {
-            "model": self.settings.ollama_model,
-            "messages": [
-                {"role": "system", "content": system},
-                {"role": "user", "content": user},
-            ],
-            "stream": False,
-        }
-        with httpx.Client(timeout=120.0) as client:
-            resp = client.post(url, json=payload)
-            resp.raise_for_status()
-            data = resp.json()
-        message = data.get("message", {})
-        text = message.get("content", "")
-        return text, {
-            "prompt_tokens": int(data.get("prompt_eval_count", 0)),
-            "completion_tokens": int(data.get("eval_count", 0)),
-        }
 
 
 class BedrockLLMProvider(LLMProvider):
@@ -118,8 +90,6 @@ class BedrockEmbeddingProvider(EmbeddingProvider):
 
 
 def _resolve_provider(mode: str, settings: Settings) -> LLMProvider:
-    if mode == "ollama":
-        return OllamaLLMProvider(settings)
     if mode == "claude":
         from poe_agent.harness.providers.anthropic_provider import AnthropicLLMProvider
 
@@ -136,8 +106,6 @@ def _resolve_provider(mode: str, settings: Settings) -> LLMProvider:
 def get_provider_model_id(mode: str | None = None) -> str:
     s = get_settings()
     mode = mode or get_effective_provider_mode()
-    if mode == "ollama":
-        return s.ollama_model
     if mode == "claude":
         return s.anthropic_model
     if mode == "gpt4":

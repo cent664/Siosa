@@ -5,6 +5,8 @@ pages:
     path: Poison
   - title: Ignite
     path: Ignite
+  - title: Righteous Fire
+    path: Righteous_Fire
   - title: Bleed
     path: Bleed
   - title: Damage over time

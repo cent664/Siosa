@@ -1,7 +1,7 @@
 # Copy these into Railway → Service → Variables (replace ... with real secrets).
 # Do not commit real API keys. After saving, Railway redeploys automatically.
 
-# One-line booth mode: sets INLINE_EVAL=false, POE_ENABLE_OLLAMA=false, JUDGE_PROVIDER=claude
+# One-line booth mode: sets INLINE_EVAL=false, JUDGE_PROVIDER=claude, POE_PROVIDER_MODE=claude
 DEPLOYMENT_PROFILE=production
 
 POE_PROVIDER_MODE=claude
@@ -9,10 +9,11 @@ ANTHROPIC_API_KEY=sk-ant-...
 ANTHROPIC_MODEL=claude-sonnet-4-6
 OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4o
+TRANSCRIBE_PROVIDER=openai
+TRANSCRIBE_MODEL=
 JUDGE_PROVIDER=claude
 INLINE_EVAL=false
-POE_ENABLE_OLLAMA=false
 RETRIEVAL_MODE=live
 POE_DATA_DIR=/app/data
 
-# Remove if present: JUDGE_PROVIDER=ollama, OLLAMA_*, custom PORT
+# Remove if present: OLLAMA_*, POE_ENABLE_OLLAMA, custom PORT

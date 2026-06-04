@@ -110,6 +110,25 @@ def test_chunk_text_live_metadata():
     assert chunks[0].metadata["wiki_url"].endswith("/wiki/Poison")
 
 
+def test_rank_search_hits_prefers_mechanic_titles(monkeypatch):
+    from poe_agent.retriever.live import _PageHit, _rank_search_hits_by_title
+
+    hits = [
+        _PageHit("Skill", "Skill", "search", "long question"),
+        _PageHit("Ignite", "Ignite", "search", "ignite"),
+        _PageHit("List of unique gloves", "List_of_unique_gloves", "search", "long question"),
+        _PageHit("Righteous Fire", "Righteous_Fire", "search", "righteous fire"),
+    ]
+    ranked = _rank_search_hits_by_title(
+        hits,
+        "What is the difference between ignite and righteous fire?",
+    )
+    titles = [h.title for h in ranked]
+    assert titles[0] in ("Ignite", "Righteous Fire")
+    assert titles[1] in ("Ignite", "Righteous Fire")
+    assert titles[-1] in ("Skill", "List of unique gloves")
+
+
 def test_multi_search_dedupes_titles(monkeypatch):
     monkeypatch.setenv("LIVE_WIKI_MAX_SEARCH_QUERIES", "4")
     from poe_agent.harness.config import get_settings

@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import time
 from typing import Any
 
 from langgraph.graph import END, StateGraph
@@ -17,15 +18,22 @@ from poe_agent.retriever.gate import retrieval_needs_refine
 
 
 def _plan_node(state: AgentState) -> AgentState:
+    t0 = time.perf_counter()
     subtasks = plan_subtasks(state["query"])
-    return {"plan": subtasks, "refine_round": state.get("refine_round", 0)}
+    timing = dict(state.get("timing_ms", {}))
+    timing["plan"] = round((time.perf_counter() - t0) * 1000, 2)
+    return {"plan": subtasks, "refine_round": state.get("refine_round", 0), "timing_ms": timing}
 
 
 def _execute_node(state: AgentState) -> AgentState:
+    t0 = time.perf_counter()
     chunks, tool_log = execute_subtasks(state["query"], state.get("plan", []))
+    timing = dict(state.get("timing_ms", {}))
+    timing["retrieval"] = round((time.perf_counter() - t0) * 1000, 2)
     return {
         "retrieved_chunks": chunks,
         "tool_calls": tool_log,
+        "timing_ms": timing,
     }
 
 
@@ -55,6 +63,7 @@ def _refine_node(state: AgentState) -> AgentState:
 
 
 def _refine_execute_node(state: AgentState) -> AgentState:
+    t0 = time.perf_counter()
     new_chunks, tool_log = execute_refine_retrieval(
         state["query"],
         state.get("refine_queries", []),
@@ -62,20 +71,28 @@ def _refine_execute_node(state: AgentState) -> AgentState:
     merged = merge_retrieved_chunks(state.get("retrieved_chunks", []), new_chunks)
     prior_log = list(state.get("tool_calls", []))
     prior_log.extend(tool_log)
+    timing = dict(state.get("timing_ms", {}))
+    timing["retrieval_refine"] = round((time.perf_counter() - t0) * 1000, 2)
+    timing["retrieval"] = timing.get("retrieval", 0.0) + timing["retrieval_refine"]
     return {
         "retrieved_chunks": merged,
         "tool_calls": prior_log,
         "retrieval_refined": True,
+        "timing_ms": timing,
     }
 
 
 def _generate_node(state: AgentState) -> AgentState:
+    t0 = time.perf_counter()
     chunks = state.get("retrieved_chunks", [])
     answer, citations, tokens = synthesize_answer(state["query"], chunks)
+    timing = dict(state.get("timing_ms", {}))
+    timing["generation"] = round((time.perf_counter() - t0) * 1000, 2)
     return {
         "answer": answer,
         "citations": citations,
         "token_counts": tokens,
+        "timing_ms": timing,
     }
 
 
@@ -110,7 +127,7 @@ def get_graph():
 
 def run_agent_graph(question: str, run: RunLog | None = None) -> dict[str, Any]:
     graph = get_graph()
-    result = graph.invoke({"query": question, "refine_round": 0})
+    result = graph.invoke({"query": question, "refine_round": 0, "timing_ms": {}})
     if run is not None:
         run.tool_calls = result.get("tool_calls", [])
         chunks = result.get("retrieved_chunks", [])
@@ -125,6 +142,7 @@ def run_agent_graph(question: str, run: RunLog | None = None) -> dict[str, Any]:
         ]
         run.extra["plan"] = result.get("plan", [])
         run.extra["raw_chunks"] = chunks
+        run.extra["graph_timing_ms"] = dict(result.get("timing_ms", {}))
         settings = get_settings()
         run.extra["retrieval_source"] = settings.retrieval_mode.lower()
         run.extra["retrieval_mode"] = settings.retrieval_mode.lower()
@@ -133,6 +151,7 @@ def run_agent_graph(question: str, run: RunLog | None = None) -> dict[str, Any]:
             "max_search_queries": settings.live_wiki_max_search_queries,
             "search_limit": settings.live_wiki_search_limit,
             "title_probe": settings.live_wiki_title_probe,
+            "max_title_probes": settings.live_wiki_max_title_probes,
             "title_overlap_filter": settings.live_wiki_title_overlap_filter,
             "rerank_top_n": settings.rerank_top_n,
         }
@@ -145,4 +164,5 @@ def run_agent_graph(question: str, run: RunLog | None = None) -> dict[str, Any]:
     return {
         "answer": result.get("answer", ""),
         "citations": result.get("citations", []),
+        "timing_ms": dict(result.get("timing_ms", {})),
     }

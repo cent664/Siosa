@@ -60,6 +60,8 @@ export interface RetrievedChunkTrace {
   fetch_reason?: string;
   search_query?: string;
   text_preview?: string;
+  /** Full excerpt for on-demand /score (dev UI only). */
+  text?: string;
 }
 
 export interface PlanStep {
@@ -100,7 +102,7 @@ export interface HealthResponse {
   retrieval_mode?: string;
   live_retrieval_hint?: string;
   inline_eval?: boolean;
-  enable_ollama?: boolean;
+  dev_ui_enabled?: boolean;
   deployment_profile?: string;
   deployment_hint?: string;
   judge_provider?: string;
@@ -126,6 +128,26 @@ export interface ProviderSettingsResponse {
 export interface EvaluateResponse {
   run_id: string;
   metrics: Record<string, unknown>;
+}
+
+export interface ScoreChunkInput {
+  page_title?: string;
+  wiki_url?: string;
+  text: string;
+  chunk_id?: string;
+  score?: number | null;
+}
+
+export interface ScoreRequest {
+  question: string;
+  answer: string;
+  chunks: ScoreChunkInput[];
+}
+
+export interface ScoreResponse {
+  run_id: string;
+  quality_scores: QualityScores;
+  timing_ms?: Record<string, number>;
 }
 
 export interface TranscribeResponse {

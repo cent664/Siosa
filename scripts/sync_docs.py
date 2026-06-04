@@ -21,24 +21,50 @@ ASSETS = DOCS / "assets"
 PIPELINE_MARKER = "<!-- INTERACTIVE_PIPELINE -->"
 
 SHARED_STYLES = """
-    body { font-family: system-ui, sans-serif; max-width: 960px; margin: 2rem auto; padding: 0 1rem; line-height: 1.6; }
-    h1, h2, h3 { color: #1a1a2e; }
+    :root {
+      --font-display: "Cinzel Decorative", "Cinzel", Georgia, serif;
+      --font-heading: "Cinzel", Georgia, serif;
+      --font-body: "EB Garamond", Georgia, "Times New Roman", serif;
+      --font-bump: 0pt;
+      --poe-gold-light: #e8d48a;
+      --poe-panel-border: #4a4030;
+      --poe-text: #e8dcc4;
+      --poe-text-muted: #a89f8c;
+      --poe-link: #d4b86a;
+    }
+    body {
+      font-family: var(--font-body);
+      font-size: calc(1rem + var(--font-bump));
+      max-width: 960px;
+      margin: 2rem auto;
+      padding: 0 1rem 2rem;
+      line-height: 1.6;
+      color: var(--poe-text);
+      background: #0a0908;
+    }
+    h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--poe-gold-light); font-weight: 600; }
+    h1 { font-family: var(--font-display); font-size: calc(1.75rem + var(--font-bump)); }
+    p, li { color: var(--poe-text); }
     table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
-    th, td { border: 1px solid #ccc; padding: 0.5rem 0.75rem; text-align: left; vertical-align: top; }
-    th { background: #f0f0f8; }
-    code { background: #f4f4f4; padding: 0.1em 0.3em; border-radius: 3px; }
-    pre { background: #f8f8fc; padding: 1rem; overflow-x: auto; }
-    nav { margin-bottom: 1.5rem; padding: 0.75rem; background: #f0f4ff; border-radius: 6px; }
-    nav a { margin-right: 1rem; }
-    a { color: #2563eb; }
-    article { border-left: 4px solid #2563eb; padding-left: 1rem; margin-bottom: 2rem; }
-    time { color: #666; font-size: 0.9rem; display: block; margin-bottom: 0.25rem; }
+    th, td { border: 1px solid var(--poe-panel-border); padding: 0.5rem 0.75rem; text-align: left; vertical-align: top; }
+    th { background: rgba(0, 0, 0, 0.4); color: var(--poe-gold-light); font-family: var(--font-heading); }
+    code { background: rgba(255, 255, 255, 0.08); color: var(--poe-gold-light); padding: 0.1em 0.3em; border-radius: 3px; }
+    pre { background: rgba(0, 0, 0, 0.45); color: var(--poe-text); padding: 1rem; overflow-x: auto; border: 1px solid var(--poe-panel-border); border-radius: 6px; }
+    nav { margin-bottom: 1.5rem; padding: 0.75rem 1rem; background: rgba(10, 9, 8, 0.94); border: 1px solid var(--poe-panel-border); border-radius: 6px; }
+    nav a { margin-right: 1rem; font-family: var(--font-heading); color: var(--poe-link); text-decoration: none; }
+    nav a:hover { color: var(--poe-gold-light); text-decoration: underline; }
+    a { color: var(--poe-link); }
+    a:hover { color: var(--poe-gold-light); }
+    article { border-left: 4px solid #8b7028; padding-left: 1rem; margin-bottom: 2rem; }
+    time { color: var(--poe-text-muted); font-size: calc(0.9rem + var(--font-bump)); display: block; margin-bottom: 0.25rem; font-family: var(--font-heading); }
     article h3 { margin-top: 0.25rem; }
     article ul { margin: 0.5rem 0 0 1.1rem; padding: 0; }
     article li { margin: 0.35rem 0; }
-    .changelog-label { font-weight: 600; color: #333; }
+    .changelog-label { font-family: var(--font-heading); font-weight: 600; color: var(--poe-gold-light); }
     pre.mermaid { background: transparent; border: none; padding: 0.5rem 0; overflow-x: auto; text-align: center; }
     .mermaid { margin: 1.5rem 0; }
+    details { background: rgba(0, 0, 0, 0.35); border: 1px solid var(--poe-panel-border); border-radius: 6px; padding: 0.5rem 0.75rem; }
+    details summary { font-family: var(--font-heading); color: var(--poe-gold-light); cursor: pointer; }
 """
 
 ARCH_EXTRA_STYLES = """
@@ -51,13 +77,19 @@ HTML_HEAD_BASE = """<!DOCTYPE html>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <title>{title}</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cinzel:wght@400;600&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap"
+    rel="stylesheet"
+  />
   <style>
 {styles}
   </style>
 {extra_head}
   <script type="module">
     import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
-    mermaid.initialize({{ startOnLoad: true, theme: 'neutral' }});
+    mermaid.initialize({{ startOnLoad: true, theme: 'dark' }});
   </script>
 </head>
 <body>

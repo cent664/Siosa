@@ -92,7 +92,7 @@ Fetches **18 curated** PoE 1 pages → `data/chunks/` + `data/chroma/`. Restart 
 
 
 
-Use the **sidebar** to switch **stub**, **ollama**, **claude**, or **gpt4**. Claude/GPT-4 need API keys in `.env`. Each answer shows quality scores and an expandable LLM trace.
+Use the **sidebar** to switch **stub**, **claude**, or **gpt4**. Claude/GPT-4 need API keys in `.env`. Each answer shows quality scores and an expandable LLM trace.
 
 
 

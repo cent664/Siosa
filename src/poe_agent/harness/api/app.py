@@ -22,6 +22,8 @@ from poe_agent.harness.api.schemas import (
     HealthResponse,
     QueryRequest,
     QueryResponse,
+    ScoreRequest,
+    ScoreResponse,
     TranscribeResponse,
 )
 from poe_agent.harness.config import get_effective_judge_provider, get_settings, deployment_hint
@@ -65,7 +67,7 @@ def _live_retrieval_hint(settings) -> str:
 
 @app.get("/health/live")
 def health_live() -> dict[str, str]:
-    """Lightweight liveness probe for Railway (no Chroma/Ollama/judge checks)."""
+    """Lightweight liveness probe for Railway (no Chroma/judge checks)."""
     return {"status": "ok"}
 
 
@@ -80,7 +82,7 @@ def health() -> HealthResponse:
         retrieval_mode=settings.retrieval_mode.lower(),
         live_retrieval_hint=_live_retrieval_hint(settings),
         inline_eval=settings.inline_eval,
-        enable_ollama=settings.enable_ollama,
+        dev_ui_enabled=settings.dev_ui_enabled,
         deployment_profile=settings.deployment_profile,
         deployment_hint=deployment_hint(settings),
         judge_provider=get_effective_judge_provider(),
@@ -104,6 +106,16 @@ def evaluate(body: EvaluateRequest) -> EvaluateResponse:
     from poe_agent.evaluator.service import run_evaluation
 
     return run_evaluation(body)
+
+
+@app.post("/score", response_model=ScoreResponse)
+def score(body: ScoreRequest) -> ScoreResponse:
+    from poe_agent.harness.api.score_service import handle_score
+
+    try:
+        return handle_score(body)
+    except Exception as exc:
+        raise map_query_exception(exc) from exc
 
 
 @app.post("/transcribe", response_model=TranscribeResponse)

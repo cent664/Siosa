@@ -29,8 +29,8 @@ def map_query_exception(exc: BaseException) -> HTTPException:
         return HTTPException(
             status_code=502,
             detail=(
-                "Network error talking to a local or remote LLM service. "
-                f"If JUDGE_PROVIDER=ollama, start Ollama. ({_safe_api_message(exc)})"
+                "Network error talking to an LLM service. "
+                f"Check API keys and provider settings. ({_safe_api_message(exc)})"
             ),
         )
 

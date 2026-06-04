@@ -1,46 +1,26 @@
-import { useState } from "react";
 import type {
   PageFetched,
   QueryResponse,
   RetrievedChunkTrace,
   ToolCallTrace,
 } from "../api/types";
-import { postEvaluate } from "../api/client";
+import { formatLlmPurpose, formatSeconds } from "./timingFormat";
 
 interface Props {
   data: QueryResponse;
-  question: string;
 }
 
 function sortChunks(chunks: RetrievedChunkTrace[]): RetrievedChunkTrace[] {
   return [...chunks].sort((a, b) => (b.score ?? 0) - (a.score ?? 0));
 }
 
-export default function TracePanels({ data, question }: Props) {
+export default function TracePanels({ data }: Props) {
   const trace = data.trace ?? {};
-  const [evalResult, setEvalResult] = useState<unknown>(null);
-  const [evalBusy, setEvalBusy] = useState(false);
-  const [evalError, setEvalError] = useState<string | null>(null);
-
-  const runEval = async () => {
-    setEvalBusy(true);
-    setEvalError(null);
-    try {
-      const res = await postEvaluate(question, data.answer);
-      setEvalResult(res);
-    } catch (e) {
-      setEvalError(e instanceof Error ? e.message : "Eval failed");
-    } finally {
-      setEvalBusy(false);
-    }
-  };
-
-  const timing = trace.timing_ms ?? {};
   const chunks = sortChunks(trace.retrieved_chunks ?? []);
 
   return (
     <>
-      <details className="panel" open>
+      <details className="panel">
         <summary>Agent reasoning trace</summary>
 
         <div className="trace-summary">
@@ -63,12 +43,6 @@ export default function TracePanels({ data, question }: Props) {
               Config: max pages {String(trace.retrieval_config.max_pages)}, fused queries{" "}
               {String(trace.retrieval_config.max_search_queries)}, title probe{" "}
               {String(trace.retrieval_config.title_probe)}
-            </p>
-          )}
-          {(timing.retrieval != null || timing.retrieval_refine != null) && (
-            <p className="caption">
-              Timing: retrieval {timing.retrieval ?? "—"} ms
-              {timing.retrieval_refine != null && ` · refine ${timing.retrieval_refine} ms`}
             </p>
           )}
           {trace.retrieval_refined && (
@@ -163,16 +137,16 @@ export default function TracePanels({ data, question }: Props) {
       </details>
 
       {trace.llm_calls && trace.llm_calls.length > 0 && (
-        <div style={{ marginTop: "1rem" }}>
-          <h3 style={{ fontSize: "1rem" }}>LLM calls (input / output)</h3>
+        <div className="llm-calls-section">
+          <h3>LLM calls</h3>
           {trace.llm_calls.map((call) => (
             <details key={call.call_id} className="panel llm-call">
               <summary>
-                {call.purpose} · {call.provider} · {call.latency_ms} ms
+                {formatLlmPurpose(call.purpose)} · {call.provider} ·{" "}
+                {formatSeconds(call.latency_ms)}
               </summary>
-              <p>
-                <strong>Model:</strong> <code>{call.model}</code> · <strong>ID:</strong>{" "}
-                <code>{call.call_id}</code>
+              <p className="caption">
+                Model: <code>{call.model}</code>
               </p>
               <p>
                 <strong>System prompt</strong>
@@ -186,24 +160,10 @@ export default function TracePanels({ data, question }: Props) {
                 <strong>Response</strong>
               </p>
               <pre className="code-block">{call.response}</pre>
-              {call.token_counts && (
-                <pre className="json-block">{JSON.stringify(call.token_counts, null, 2)}</pre>
-              )}
             </details>
           ))}
         </div>
       )}
-
-      <details className="panel">
-        <summary>Full /evaluate (optional gold metrics)</summary>
-        <button type="button" className="btn" onClick={() => void runEval()} disabled={evalBusy}>
-          {evalBusy ? "Running…" : "Run full evaluate"}
-        </button>
-        {evalError && <p className="status-err">{evalError}</p>}
-        {evalResult != null && (
-          <pre className="json-block">{JSON.stringify(evalResult, null, 2)}</pre>
-        )}
-      </details>
     </>
   );
 }
