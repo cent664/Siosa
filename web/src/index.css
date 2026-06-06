@@ -32,38 +32,53 @@ body {
   display: flex;
   flex-direction: column;
   min-height: 100vh;
+  background-color: #0a0908;
+}
+
+.app-stage {
+  display: flex;
+  flex-direction: row;
+  align-items: flex-start;
+  flex: 1;
+  width: 100%;
+  max-width: 52rem;
+  margin: 0 auto;
+  min-height: 0;
   position: relative;
   background-color: #0a0908;
-  background-image: url("/art assets/library.png");
   background-repeat: no-repeat;
   background-position: center bottom;
   background-size: cover;
-  background-attachment: fixed;
+  background-image: url("/art assets/library.png");
+}
+
+@supports (background-image: image-set(url("x.webp") type("image/webp") 1x)) {
+  .app-stage {
+    background-image: image-set(
+      url("/art assets/library.webp") type("image/webp") 1x,
+      url("/art assets/library@2x.webp") type("image/webp") 2x
+    );
+  }
 }
 
 .siosa-portrait {
-  --content-half: 21rem;
-  --portrait-scale: 1.2;
-  --portrait-w: min(calc(240px * var(--portrait-scale)), calc(26vw * var(--portrait-scale)));
-  position: absolute;
-  top: 1.5rem;
-  left: max(0.5rem, calc(50% - var(--content-half) - var(--portrait-w) + 1.5rem));
-  z-index: 0;
-  width: var(--portrait-w);
-  height: min(calc(72vh * var(--portrait-scale)), calc(680px * var(--portrait-scale)));
-  background: url("/art assets/siosa_nobg.png") left top / contain no-repeat;
+  flex-shrink: 0;
+  width: clamp(7rem, 22vw, 11rem);
+  max-height: min(72vh, 680px);
+  height: auto;
+  align-self: flex-start;
+  margin-top: 1.5rem;
+  margin-left: 0.25rem;
+  object-fit: contain;
+  object-position: left top;
   pointer-events: none;
+  user-select: none;
 }
 
 .main {
-  position: relative;
-  z-index: 1;
   flex: 1;
-  padding: 1.5rem 1.25rem 2rem;
-  max-width: 42rem;
-  width: 100%;
-  margin-left: auto;
-  margin-right: auto;
+  min-width: 0;
+  padding: 1.5rem 1.25rem 2rem 0.75rem;
 }
 
 .app-header {
@@ -201,6 +216,26 @@ body {
 }
 
 .footer-docs a:hover {
+  color: var(--poe-gold-light);
+  text-decoration: underline;
+}
+
+.footer-disclaimer {
+  max-width: 52rem;
+  margin: 0.85rem auto 0;
+  padding: 0 0.5rem;
+  font-size: calc(0.78rem + var(--font-bump));
+  line-height: 1.45;
+  color: var(--poe-text-muted);
+  text-align: center;
+}
+
+.footer-disclaimer a {
+  color: var(--poe-link);
+  text-decoration: none;
+}
+
+.footer-disclaimer a:hover {
   color: var(--poe-gold-light);
   text-decoration: underline;
 }
@@ -667,21 +702,4 @@ pre.code-block {
 .trace-raw-json {
   margin-top: 1rem;
   font-size: 0.85rem;
-}
-
-@media (max-width: 768px) {
-  .siosa-portrait {
-    --portrait-scale: 1.2;
-    --portrait-w: min(calc(140px * var(--portrait-scale)), calc(34vw * var(--portrait-scale)));
-    top: 1.25rem;
-    left: max(0.25rem, calc(50% - var(--content-half) - var(--portrait-w)));
-    height: min(calc(48vh * var(--portrait-scale)), calc(420px * var(--portrait-scale)));
-    opacity: 0.95;
-  }
-
-  .main {
-    max-width: none;
-    padding-left: 0.75rem;
-    padding-right: 0.75rem;
-  }
 }

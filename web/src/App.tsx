@@ -137,8 +137,16 @@ export default function App() {
 
   return (
     <div className="app-shell">
-      <div className="siosa-portrait" role="presentation" aria-hidden="true" />
-      <main className="main">
+      <div className="app-stage">
+        <img
+          className="siosa-portrait"
+          src="/art assets/siosa_nobg.png"
+          srcSet="/art assets/siosa_nobg.webp 1x, /art assets/siosa_nobg@2x.webp 2x"
+          alt=""
+          aria-hidden="true"
+          decoding="async"
+        />
+        <main className="main">
         <header className="app-header">
           <h1 className="app-title">Siosa&apos;s Library</h1>
           <div className="provider-row">
@@ -253,17 +261,22 @@ export default function App() {
             {showDevUi && <TracePanels data={result} />}
           </div>
         )}
-      </main>
+        </main>
+      </div>
 
       <footer className="app-footer">
         <nav className="footer-docs" aria-label="Documentation">
-          <a href={docsUrl("architecture.html")} target="_blank" rel="noreferrer">
-            Architecture
-          </a>
-          <a href={docsUrl("changelog.html")} target="_blank" rel="noreferrer">
-            Changelog
-          </a>
+          <a href={docsUrl("architecture.html")}>Architecture</a>
+          <a href={docsUrl("changelog.html")}>Changelog</a>
         </nav>
+        <p className="footer-disclaimer">
+          Not affiliated with or endorsed by Grinding Gear Games. Path of Exile and related assets
+          are © Grinding Gear Games. Wiki excerpts via{" "}
+          <a href="https://www.poewiki.net" target="_blank" rel="noreferrer">
+            poewiki.net
+          </a>{" "}
+          (CC BY-NC-SA 3.0 where applicable).
+        </p>
       </footer>
     </div>
   );

@@ -1,0 +1,22 @@
+Third-party assets and content
+==============================
+
+This NOTICE applies to material that is NOT covered by the MIT License in LICENSE.
+
+Path of Exile game assets
+-------------------------
+Artwork in web/public/art assets/ (library background, Siosa portrait, and related
+images) is the intellectual property of Grinding Gear Games Limited. These assets
+are used for non-commercial fan display only. This project does not claim ownership
+and is not affiliated with or endorsed by Grinding Gear Games.
+
+Path of Exile Wiki content
+--------------------------
+Answers may quote or summarize text from https://www.poewiki.net. Where applicable,
+that content is licensed under Creative Commons Attribution-NonCommercial-ShareAlike
+3.0 Unported (CC BY-NC-SA 3.0). See https://www.poewiki.net/wiki/Path_of_Exile_Wiki:Copyrights
+
+Dependencies
+------------
+Python and npm packages used by this project retain their own licenses. See
+pyproject.toml, web/package.json, and package-lock.json.

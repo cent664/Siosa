@@ -8,6 +8,7 @@ version = "0.1.0"
 description = "Path of Exile 1 wiki-grounded Q&A agent"
 readme = "README.md"
 requires-python = ">=3.11"
+license = { text = "MIT" }
 dependencies = [
     # Phase 0-1: harness
     "fastapi>=0.115.0",

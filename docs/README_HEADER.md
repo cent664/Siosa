@@ -61,3 +61,7 @@ python scripts/sync_docs.py
 ```
 
 Edits go in `docs/ARCHITECTURE.md` and `docs/CHANGELOG.md`; `README.md` is generated from this header only.
+
+## License
+
+Source code: [MIT](LICENSE). Game artwork in `web/public/art assets/` is **not** MIT-licensed — see [NOTICE](NOTICE). Not affiliated with Grinding Gear Games.
