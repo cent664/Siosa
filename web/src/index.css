@@ -137,7 +137,9 @@ body {
 }
 
 .question-prompt {
-  display: block;
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
   font-family: var(--font-heading);
   font-size: calc(1.05rem + var(--font-bump));
   font-weight: 600;
@@ -146,6 +148,11 @@ body {
   color: var(--poe-gold-light);
   margin: 0 0 0.85rem;
   text-shadow: 0 2px 6px rgba(0, 0, 0, 0.9);
+}
+
+.question-epigraph,
+.question-ask {
+  display: block;
 }
 
 .question-row {

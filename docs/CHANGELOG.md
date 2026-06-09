@@ -1,5 +1,12 @@
 Newest first. Each entry uses the same format: a short title and a few bullets on what changed and why it mattered. Edit this file, then run `python scripts/sync_docs.py` for browser HTML.
 
+## 2026-06-02 — Visitor Architecture docs, pipeline copy, UI prompt
+
+- Docs — Split visitor Architecture (`docs/ARCHITECTURE.md` → `architecture.html`) from developer README (`docs/ARCHITECTURE_DEVELOPER.md` appended via `sync_docs.py`); no localhost in README header.
+- Docs — Visitor page: +1pt typography; interactive pipeline uses plain language (no `POST /query` / env vars); Plan shows LangGraph for Claude/GPT-4, not “optional.”
+- Docs — Technical pipeline detail in `pipeline-config-developer.json` and README developer section; CONTRIBUTING documents both config files.
+- Web — Question prompt: “What are you curious about today?” on its own line after “May Reason preserve us.”
+
 ## 2026-06-04 — Architecture doc and Siosa UI polish
 
 - Docs — Architecture page rewritten for the live pipeline; removed obsolete non-goals, scaling, gold-set, and local-vs-prod sections; added current retrieval algorithm and compact metrics copy.

@@ -177,7 +177,8 @@ export default function App() {
         <section className="question-section">
           <form className="question-form" onSubmit={(e) => void handleAsk(e)}>
             <label htmlFor="question" className="question-prompt">
-              May Reason preserve us. What are we curious about today?
+              <span className="question-epigraph">May Reason preserve us.</span>
+              <span className="question-ask">What are you curious about today?</span>
             </label>
             <div className="question-row">
               <input

@@ -102,6 +102,7 @@
     details { background: rgba(0, 0, 0, 0.35); border: 1px solid var(--poe-panel-border); border-radius: 6px; padding: 0.5rem 0.75rem; }
     details summary { font-family: var(--font-heading); color: var(--poe-gold-light); cursor: pointer; }
 
+    :root { --font-bump: 1pt; }
     body { max-width: 1100px; }
 
   </style>
@@ -120,19 +121,17 @@
     <a href="/docs/architecture.html">Architecture</a>
     <a href="/docs/changelog.html">Changelog</a>
   </nav>
-<h1>PoE Wiki Agent — Architecture</h1>
-<p>Path of Exile <strong>1</strong> wiki-grounded Q&amp;A. Edit this file, then run <code>python scripts/sync_docs.py</code> for <code>README.md</code> and browser HTML.</p>
-<h2>What this system is</h2>
-<p><strong>Siosa's Library</strong> is a wiki-grounded question-answering app for Path of Exile 1: you ask a mechanics question, the system searches <a href="https://www.poewiki.net">poewiki.net</a> at Ask time, reranks the best passages, and an LLM writes a short answer with citations. Harder questions can use a <strong>LangGraph</strong> planner that adds extra search terms before a single fused retrieval pass—not a crawl of the entire wiki, but targeted MediaWiki lookups. The public demo runs at <a href="https://www.poesiosa.net/">poesiosa.net</a>. Operators configure keys and deploy via <a href="../DEPLOY.md">DEPLOY.md</a>.</p>
-<p>The LLM only sees <strong>top reranked chunks</strong> (typically five), not whole articles. Answer style is fixed by the system prompt; there is no per-user tone control.</p>
+<h1>Siosa's Library — Architecture</h1>
+<p><strong>Siosa's Library</strong> answers Path of Exile 1 mechanics questions using the live <a href="https://www.poewiki.net">poewiki.net</a> wiki. You type a question; the app finds relevant wiki pages, picks the best passages, and writes a short answer with links to the sources. Try it at <a href="https://www.poesiosa.net/">poesiosa.net</a>. For harder questions, the system can plan several search angles before answering—it does not search all ~16,000 wiki articles, only what is relevant to your question.</p>
+<p>The LLM only sees <strong>top reranked passages</strong> (typically five), not whole articles. Answer style is fixed; there is no per-user tone control.</p>
 <hr />
 <h2>Live retrieval</h2>
-<p>Each Ask searches poewiki, fetches full pages, chunks them in memory, and reranks with a cross-encoder (<code>ms-marco-MiniLM-L-6-v2</code>). Pages are cached on disk under <code>data/live_cache/</code> (TTL via <code>LIVE_WIKI_CACHE_TTL_HOURS</code>).</p>
+<p>Each Ask searches poewiki, fetches full pages, splits them into passages in memory, and reranks to find the best matches for your question.</p>
 <pre class="mermaid">flowchart TB
-  subgraph agentic["Agentic — LangGraph plan step only"]
-    PL[Planner LLM adds 0–3 short extra search terms]
+  subgraph agentic["Multi-step planning — when needed"]
+    PL[Planner adds 0–3 short extra search terms]
   end
-  subgraph pass["One live wiki_search — same pipeline every time"]
+  subgraph pass["One live wiki lookup — same pipeline every time"]
     Q[Your question]
     F[Fuse search queries]
     S[Search poewiki]
@@ -151,130 +150,41 @@
   S --> O
   T --> O
   O --> DL --> C --> RR --> FT --> OUT</pre>
-<p><em>Figure: </em><em>Agentic</em><em> = the planner chooses extra lookup strings (compare questions are the usual case). </em><em>Not agentic</em><em> = everything in the lower box runs once per graph execute step—one poewiki round-trip—even when the plan lists several retrieve subtasks. The trace still shows each planner sub-query under retrieval debug.</em></p>
-<p><strong>Agentic vs one fetch.</strong> Older LangGraph builds called <code>wiki_search</code> <strong>once per planner subtask</strong> (several full retrieval round-trips). We kept <strong>planner flexibility</strong> (multiple retrieve intents in the plan JSON) but changed the executor to fold those strings into <strong>one</strong> fused pass (figure). That is what the “merged into one fusion pass” row in the table below means—not “we removed the planner.”</p>
-<p><strong>Linear / stub</strong> (<code>linear_rag</code> trace) skips the LLM planner; fusion still runs from heuristics on your question only. Optional <strong>refine</strong> (when enabled) is a second <strong>agentic</strong> LLM step that may trigger <strong>one</strong> extra <code>wiki_search</code>, not one fetch per subtask.</p>
-<h3>Algorithm (one <code>wiki_search</code> pass)</h3>
-<ol>
-<li><strong>Query fusion</strong> — Build up to <code>LIVE_WIKI_MAX_SEARCH_QUERIES</code> search strings: mechanic entities and short topic terms first, then the full user question last (<a href="../src/poe_agent/retriever/query_fusion.py"><code>query_fusion.py</code></a>).</li>
-<li><strong>MediaWiki search</strong> — Run each string; merge hit lists.</li>
-<li><strong>Title probes</strong> — Up to <code>LIVE_WIKI_MAX_TITLE_PROBES</code> direct page-title fetches for high-precision hits (e.g. skill or mechanic names).</li>
-<li><strong>Title overlap rank</strong> — Re-order search hits before download using overlap with question terms.</li>
-<li><strong>Fetch &amp; chunk</strong> — Download up to <code>LIVE_WIKI_MAX_PAGES</code> pages, split into overlapping chunks (~1800 chars, 200 overlap).</li>
-<li><strong>Rerank</strong> — Cross-encoder scores chunks vs the user question; keep top <code>RERANK_TOP_N</code> (default 5).</li>
-<li><strong>Optional overlap penalty</strong> — <code>LIVE_WIKI_TITLE_OVERLAP_FILTER</code> down-weights tangential pages (figure: “down-rank tangential pages”).</li>
-</ol>
-<p>Planner sub-queries are <strong>inputs to step 1</strong> (fusion), not separate passes—see figure and <strong>Agentic vs one fetch</strong> above.</p>
-<p><strong>Optional refinement:</strong> <code>RETRIEVAL_REFINE_ENABLED=true</code> can run one extra fetch round with LLM-suggested short queries if the gate scores retrieval as weak.</p>
-<h3>What we used before</h3>
-<table>
-<thead>
-<tr>
-<th>Past approach</th>
-<th>Why we moved on</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>18-page curated index</strong></td>
-<td>Fast offline demo, but too narrow for arbitrary questions. Still available via <code>RETRIEVAL_MODE=local</code> after <code>poe-ingest</code>.</td>
-</tr>
-<tr>
-<td><strong>One <code>wiki_search</code> per planner subtask</strong></td>
-<td>Same multi-intent <strong>plan</strong>, but N full poewiki round-trips. <strong>Now:</strong> one fusion pass per execute step; planner output unchanged in spirit.</td>
-</tr>
-</tbody>
-</table>
+<p><em>Figure: </em><em>Multi-step planning</em><em> adds extra lookup strings for comparison-style questions. </em><em>One lookup</em><em> = everything in the lower box runs once per answer step—search, fetch, chunk, rerank—even when several search angles were planned.</em></p>
+<p><strong>Planning vs single pass.</strong> With Claude or GPT-4, a planner may emit several retrieve intents, but the executor merges them into <strong>one</strong> fused wiki lookup per step. The simple <strong>stub</strong> mode skips planning and runs a single lookup from your question. When enabled, an optional refinement step may trigger <strong>one</strong> extra lookup if the first results look weak.</p>
+<p>The project also supports a small offline index for development; the public demo uses live wiki search only.</p>
 <hr />
-<h2>Agent routing</h2>
-<table>
-<thead>
-<tr>
-<th>Pipeline trace</th>
-<th>When</th>
-<th>What is agentic</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong><code>langgraph</code></strong></td>
-<td>Non-stub cloud providers (typical Claude / GPT-4 Ask)</td>
-<td><strong>Plan</strong> (LLM JSON; heuristic fallback). Optional <strong>refine</strong> queries when enabled. Then <strong>one</strong> fused live retrieval (see <a href="#live-retrieval">Live retrieval</a>).</td>
-</tr>
-<tr>
-<td><strong><code>linear_rag</code></strong></td>
-<td>Provider <strong><code>stub</code></strong> or explicit linear path</td>
-<td>No LLM plan—single <code>wiki_search</code> from the user question.</td>
-</tr>
-</tbody>
-</table>
-<p>Implementation: <a href="../src/poe_agent/harness/api/query_service.py"><code>query_service.py</code></a>, <a href="../src/poe_agent/orchestrator/graph.py"><code>graph.py</code></a>, <a href="../src/poe_agent/executor/node.py"><code>executor/node.py</code></a> (<code>_collect_plan_search_extras</code> → <code>extra_search_queries</code> on one <code>wiki_search</code>).</p>
-<hr />
-<h2 id="pipeline-overview">Pipeline overview</h2><section id="pipeline-interactive" class="pipeline-interactive"><p class="pipeline-hint">Hover a step to open alternatives we did not choose. Hover an alternative or the step itself to read details below. Click a step to pin its details.</p><div class="pipeline-track"><div class="pipeline-stage-wrap"><div class="pipeline-stage pipeline-stage--core" tabindex="0" data-detail-id="0.1-core"><div class="pipeline-stage-id">0.1</div><div class="pipeline-stage-title">Ask</div><div class="pipeline-stage-chosen">React + FastAPI</div><div class="pipeline-stage-summary">Question, provider, optional voice.</div></div><div class="pipeline-alts-dropdown"><div class="pipeline-alt pipeline-alt--opaque" tabindex="0" data-detail-id="0.1-alt-0">Streamlit UI</div></div></div><div class="pipeline-stage-wrap"><div class="pipeline-stage pipeline-stage--core" tabindex="0" data-detail-id="0.2-core"><div class="pipeline-stage-id">0.2</div><div class="pipeline-stage-title">Plan</div><div class="pipeline-stage-chosen">LangGraph optional</div><div class="pipeline-stage-summary">Extra search terms when needed.</div></div><div class="pipeline-alts-dropdown"><div class="pipeline-alt" tabindex="0" data-detail-id="0.2-alt-0">Linear only</div><div class="pipeline-alt pipeline-alt--opaque" tabindex="0" data-detail-id="0.2-alt-1">Rule-based planner</div></div></div><div class="pipeline-stage-wrap"><div class="pipeline-stage pipeline-stage--core" tabindex="0" data-detail-id="0.3-core"><div class="pipeline-stage-id">0.3</div><div class="pipeline-stage-title">Retrieve</div><div class="pipeline-stage-chosen">Live poewiki fusion</div><div class="pipeline-stage-summary">Search, probe titles, fetch, rerank.</div></div><div class="pipeline-alts-dropdown"><div class="pipeline-alt pipeline-alt--opaque" tabindex="0" data-detail-id="0.3-alt-0">Local 18-page index</div><div class="pipeline-alt pipeline-alt--opaque" tabindex="0" data-detail-id="0.3-alt-1">Hybrid local + live</div><div class="pipeline-alt pipeline-alt--opaque" tabindex="0" data-detail-id="0.3-alt-2">No rerank</div></div></div><div class="pipeline-stage-wrap"><div class="pipeline-stage pipeline-stage--core" tabindex="0" data-detail-id="0.4-core"><div class="pipeline-stage-id">0.4</div><div class="pipeline-stage-title">Generate</div><div class="pipeline-stage-chosen">UI provider</div><div class="pipeline-stage-summary">LLM or stub from excerpts only.</div></div><div class="pipeline-alts-dropdown"><div class="pipeline-alt pipeline-alt--opaque" tabindex="0" data-detail-id="0.4-alt-0">Bedrock</div></div></div><div class="pipeline-stage-wrap"><div class="pipeline-stage pipeline-stage--core" tabindex="0" data-detail-id="0.5-core"><div class="pipeline-stage-id">0.5</div><div class="pipeline-stage-title">Score</div><div class="pipeline-stage-chosen">On demand</div><div class="pipeline-stage-summary">Five judges optional.</div></div><div class="pipeline-alts-dropdown"><div class="pipeline-alt pipeline-alt--opaque" tabindex="0" data-detail-id="0.5-alt-0">Inline on every Ask</div></div></div><div class="pipeline-stage-wrap"><div class="pipeline-stage pipeline-stage--core" tabindex="0" data-detail-id="0.6-core"><div class="pipeline-stage-id">0.6</div><div class="pipeline-stage-title">Respond</div><div class="pipeline-stage-chosen">Answer + trace</div><div class="pipeline-stage-summary">Citations; dev panels when enabled.</div></div></div></div><div class="pipeline-detail-strip" aria-live="polite"><div class="pipeline-detail-strip-title">Select a step</div><div class="pipeline-detail-strip-body"><p>Move the pointer over any stage to see where your data came from, how retrieval and generation work, and what alternatives exist.</p></div></div><script type="application/json" id="pipeline-details-data">{"0.1-core": {"title": "0.1 Ask \u2014 React + FastAPI", "html": "<p><strong>What happens:<\/strong> The UI sends your question to <code>POST /query<\/code> with the selected provider (stub, Claude, or GPT-4).<\/p><p><strong>Also:<\/strong> <code>POST /settings/provider<\/code>, <code>POST /transcribe<\/code> (OpenAI Whisper by default), mic capture in the browser.<\/p>"}, "0.1-alt-0": {"title": "Streamlit UI", "html": "<p>Early prototype UI \u2014 replaced by React + Vite in <code>web/dist/<\/code>.<\/p>"}, "0.2-core": {"title": "0.2 Plan \u2014 LangGraph optional", "html": "<p>For Claude/GPT-4, <strong>LangGraph<\/strong> may run a planner that emits one or more retrieve intents (compare questions are a common case).<\/p><p>All planner queries are merged into <strong>one<\/strong> live <code>wiki_search<\/code> with multi-query fusion \u2014 not separate fetches per subtask.<\/p><p><strong>Stub<\/strong> uses a single linear pass (<code>linear_rag<\/code> trace).<\/p>"}, "0.2-alt-0": {"title": "Linear only", "html": "<p>One retrieval pass with the user question \u2014 always available for stub or when the planner emits a single step.<\/p>"}, "0.2-alt-1": {"title": "Rule-based planner", "html": "<p>Heuristic fallback when LLM planning fails.<\/p>"}, "0.3-core": {"title": "0.3 Retrieve \u2014 Live poewiki fusion", "html": "<p><strong>Default (<code>RETRIEVAL_MODE=live<\/code>):<\/strong><\/p><ul><li>Fused MediaWiki queries (mechanic entities + topic terms, full question last)<\/li><li>Up to four title probes + title-overlap ranking of hits<\/li><li>Fetch up to <code>LIVE_WIKI_MAX_PAGES<\/code> pages, chunk in memory<\/li><li>Cross-encoder rerank \u2192 top <code>RERANK_TOP_N<\/code> chunks<\/li><\/ul><p>Disk cache: <code>data/live_cache/<\/code>. Optional refine round if <code>RETRIEVAL_REFINE_ENABLED=true<\/code>.<\/p>"}, "0.3-alt-0": {"title": "Local 18-page index", "html": "<p><code>RETRIEVAL_MODE=local<\/code>: Chroma dense + BM25 + RRF on the curated allowlist after <code>poe-ingest<\/code> \u2014 offline / regression use, not the live demo path.<\/p>"}, "0.3-alt-1": {"title": "Hybrid local + live", "html": "<p><code>RETRIEVAL_MODE=hybrid<\/code>: try local index first; live fetch when local scores are weak.<\/p>"}, "0.3-alt-2": {"title": "No rerank", "html": "<p>Skip cross-encoder second pass \u2014 not used; rerank runs when the model loads.<\/p>"}, "0.4-core": {"title": "0.4 Generate \u2014 UI provider", "html": "<p>The selected provider writes using <strong>only<\/strong> reranked wiki excerpts (PoE 1, excerpts-only system prompt).<\/p><p><strong>Stub:<\/strong> top chunk text, no LLM.<\/p><p>LangGraph records <code>timing_ms<\/code> for plan, retrieval, and generation.<\/p>"}, "0.4-alt-0": {"title": "Bedrock", "html": "<p>AWS Bedrock via <code>.env<\/code> \u2014 not in the UI provider dropdown.<\/p>"}, "0.5-core": {"title": "0.5 Score \u2014 On demand", "html": "<p><strong>Default:<\/strong> <code>INLINE_EVAL=false<\/code> \u2014 no judges on <code>/query<\/code>. Click <strong>Score response<\/strong> to run five LLM judges via <code>POST /score<\/code>.<\/p><p>Judges use the same 1200-char/chunk excerpts as generation. Scores do not change the answer or retrieval.<\/p>"}, "0.5-alt-0": {"title": "Inline on every Ask", "html": "<p>Set <code>INLINE_EVAL=true<\/code> to run all five judges automatically after each answer (slower).<\/p>"}, "0.6-core": {"title": "0.6 Respond \u2014 Answer + trace", "html": "<p><strong>Always:<\/strong> Answer markdown and wiki source links.<\/p><p><strong>With <code>dev_ui_enabled=true<\/code> (default):<\/strong> pipeline timing bars, Score button, quality metrics, agent trace, LLM call log.<\/p><p>Set <code>DEV_UI_ENABLED=false<\/code> for answer + sources only.<\/p>"}}</script></section><h2>Provider modes</h2>
+<h2 id="pipeline-overview">Pipeline overview</h2><section id="pipeline-interactive" class="pipeline-interactive"><p class="pipeline-hint">Hover a step to open alternatives we did not choose. Hover an alternative or the step itself to read details below. Click a step to pin its details.</p><div class="pipeline-track"><div class="pipeline-stage-wrap"><div class="pipeline-stage pipeline-stage--core" tabindex="0" data-detail-id="0.1-core"><div class="pipeline-stage-id">0.1</div><div class="pipeline-stage-title">Ask</div><div class="pipeline-stage-chosen">Web app</div><div class="pipeline-stage-summary">Your question and provider.</div></div><div class="pipeline-alts-dropdown"><div class="pipeline-alt pipeline-alt--opaque" tabindex="0" data-detail-id="0.1-alt-0">Streamlit UI</div></div></div><div class="pipeline-stage-wrap"><div class="pipeline-stage pipeline-stage--core" tabindex="0" data-detail-id="0.2-core"><div class="pipeline-stage-id">0.2</div><div class="pipeline-stage-title">Plan</div><div class="pipeline-stage-chosen">LangGraph (Claude / GPT-4)</div><div class="pipeline-stage-summary">Extra search terms when needed.</div></div><div class="pipeline-alts-dropdown"><div class="pipeline-alt" tabindex="0" data-detail-id="0.2-alt-0">Stub — single pass</div><div class="pipeline-alt pipeline-alt--opaque" tabindex="0" data-detail-id="0.2-alt-1">Rule-based planner</div></div></div><div class="pipeline-stage-wrap"><div class="pipeline-stage pipeline-stage--core" tabindex="0" data-detail-id="0.3-core"><div class="pipeline-stage-id">0.3</div><div class="pipeline-stage-title">Retrieve</div><div class="pipeline-stage-chosen">Live poewiki fusion</div><div class="pipeline-stage-summary">Search, probe titles, fetch, rerank.</div></div><div class="pipeline-alts-dropdown"><div class="pipeline-alt pipeline-alt--opaque" tabindex="0" data-detail-id="0.3-alt-0">Local 18-page index</div><div class="pipeline-alt pipeline-alt--opaque" tabindex="0" data-detail-id="0.3-alt-1">Hybrid local + live</div><div class="pipeline-alt pipeline-alt--opaque" tabindex="0" data-detail-id="0.3-alt-2">No rerank</div></div></div><div class="pipeline-stage-wrap"><div class="pipeline-stage pipeline-stage--core" tabindex="0" data-detail-id="0.4-core"><div class="pipeline-stage-id">0.4</div><div class="pipeline-stage-title">Generate</div><div class="pipeline-stage-chosen">Your provider</div><div class="pipeline-stage-summary">LLM or stub from excerpts only.</div></div><div class="pipeline-alts-dropdown"><div class="pipeline-alt pipeline-alt--opaque" tabindex="0" data-detail-id="0.4-alt-0">Bedrock</div></div></div><div class="pipeline-stage-wrap"><div class="pipeline-stage pipeline-stage--core" tabindex="0" data-detail-id="0.5-core"><div class="pipeline-stage-id">0.5</div><div class="pipeline-stage-title">Score</div><div class="pipeline-stage-chosen">On demand</div><div class="pipeline-stage-summary">Five quality checks.</div></div><div class="pipeline-alts-dropdown"><div class="pipeline-alt pipeline-alt--opaque" tabindex="0" data-detail-id="0.5-alt-0">Inline on every Ask</div></div></div><div class="pipeline-stage-wrap"><div class="pipeline-stage pipeline-stage--core" tabindex="0" data-detail-id="0.6-core"><div class="pipeline-stage-id">0.6</div><div class="pipeline-stage-title">Respond</div><div class="pipeline-stage-chosen">Answer + sources</div><div class="pipeline-stage-summary">Citations and optional detail panels.</div></div></div></div><div class="pipeline-detail-strip" aria-live="polite"><div class="pipeline-detail-strip-title">Select a step</div><div class="pipeline-detail-strip-body"><p>Move the pointer over any stage to see where your data came from, how retrieval and generation work, and what alternatives exist.</p></div></div><script type="application/json" id="pipeline-details-data">{"0.1-core": {"title": "0.1 Ask \u2014 Web app", "html": "<p><strong>What happens:<\/strong> You type a question and choose stub, Claude, or GPT-4 in the UI. Optional voice input uses the mic button.<\/p><p>The app sends your question to the server with your provider choice.<\/p>"}, "0.1-alt-0": {"title": "Streamlit UI", "html": "<p>Early prototype UI \u2014 replaced by the current React app.<\/p>"}, "0.2-core": {"title": "0.2 Plan \u2014 LangGraph (Claude / GPT-4)", "html": "<p>With <strong>Claude<\/strong> or <strong>GPT-4<\/strong>, the system runs a LangGraph planner that may add one or more search angles (comparison questions are a common case).<\/p><p>All planned queries are merged into <strong>one<\/strong> live wiki lookup \u2014 not separate fetches per subtask.<\/p><p><strong>Stub<\/strong> skips the planner and goes straight to a single lookup.<\/p>"}, "0.2-alt-0": {"title": "Stub \u2014 single pass", "html": "<p>Stub mode uses one retrieval pass from your question with no LLM planner.<\/p>"}, "0.2-alt-1": {"title": "Rule-based planner", "html": "<p>Heuristic fallback when LLM planning fails.<\/p>"}, "0.3-core": {"title": "0.3 Retrieve \u2014 Live poewiki fusion", "html": "<p><strong>Live wiki (default):<\/strong><\/p><ul><li>Fused search queries (mechanic terms + topic terms, full question last)<\/li><li>Direct page-title probes + overlap ranking of hits<\/li><li>Fetch relevant pages, split into passages in memory<\/li><li>Cross-encoder rerank \u2192 top passages for the answer model<\/li><\/ul><p>Results are cached between asks. An optional second lookup may run if the first pass looks weak.<\/p>"}, "0.3-alt-0": {"title": "Local 18-page index", "html": "<p>Small offline index for development \u2014 not used on the public demo.<\/p>"}, "0.3-alt-1": {"title": "Hybrid local + live", "html": "<p>Try a local index first; fall back to live wiki when scores are weak.<\/p>"}, "0.3-alt-2": {"title": "No rerank", "html": "<p>Skip cross-encoder second pass \u2014 not used in production.<\/p>"}, "0.4-core": {"title": "0.4 Generate \u2014 Your provider", "html": "<p>The selected provider writes using <strong>only<\/strong> reranked wiki excerpts (PoE 1, excerpts-only rules).<\/p><p><strong>Stub:<\/strong> top chunk text, no LLM.<\/p><p><strong>Claude / GPT-4:<\/strong> full answer from the same excerpts.<\/p>"}, "0.4-alt-0": {"title": "Bedrock", "html": "<p>AWS Bedrock \u2014 server-side configuration only; not in the UI provider dropdown.<\/p>"}, "0.5-core": {"title": "0.5 Score \u2014 On demand", "html": "<p><strong>Default:<\/strong> judges do not run automatically. Click <strong>Score response<\/strong> after Ask to run five quality checks.<\/p><p>Judges read the same wiki excerpts as the answer model. Scores do not change the answer or retrieval.<\/p>"}, "0.5-alt-0": {"title": "Inline on every Ask", "html": "<p>Run all five judges automatically after each answer (slower; used in some dev setups).<\/p>"}, "0.6-core": {"title": "0.6 Respond \u2014 Answer + sources", "html": "<p><strong>Always:<\/strong> answer markdown and wiki source links.<\/p><p><strong>Full UI (default):<\/strong> pipeline timing bars, Score button, quality metrics, and optional trace panels.<\/p><p>A minimal booth mode can show answer and sources only.<\/p>"}}</script></section><h2>Provider modes</h2>
 <table>
 <thead>
 <tr>
 <th>Mode</th>
-<th>Generation</th>
+<th>What you get</th>
 <th>API key</th>
-<th>Set via</th>
 </tr>
 </thead>
 <tbody>
 <tr>
 <td><strong>stub</strong></td>
-<td>Wiki excerpt only</td>
+<td>Wiki excerpt only, no LLM</td>
 <td>None</td>
-<td>UI or <code>.env</code></td>
 </tr>
 <tr>
 <td><strong>claude</strong></td>
-<td>Anthropic API</td>
-<td><code>ANTHROPIC_API_KEY</code></td>
-<td>UI or <code>.env</code></td>
+<td>Anthropic Claude answer</td>
+<td>Anthropic</td>
 </tr>
 <tr>
 <td><strong>gpt4</strong></td>
-<td>OpenAI API</td>
-<td><code>OPENAI_API_KEY</code></td>
-<td>UI or <code>.env</code></td>
-</tr>
-<tr>
-<td><strong>bedrock</strong></td>
-<td>AWS Bedrock</td>
-<td>AWS credentials</td>
-<td><code>.env</code> only</td>
+<td>OpenAI GPT-4 answer</td>
+<td>OpenAI</td>
 </tr>
 </tbody>
 </table>
-<p>Claude Pro / ChatGPT Plus subscriptions are <strong>not</strong> API access. Embeddings for local index mode use <strong>sentence-transformers</strong> locally. Voice input defaults to <strong>OpenAI Whisper</strong> (<code>TRANSCRIBE_PROVIDER=openai</code>); production forces OpenAI because the Docker image does not bundle faster-whisper.</p>
-<h3>Retrieval mode env</h3>
-<table>
-<thead>
-<tr>
-<th><code>RETRIEVAL_MODE</code></th>
-<th>Behavior</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>live</strong> (default)</td>
-<td>Algorithm above; no Chroma required.</td>
-</tr>
-<tr>
-<td><strong>local</strong></td>
-<td>Hybrid dense + BM25 on ingested allowlist only.</td>
-</tr>
-<tr>
-<td><strong>hybrid</strong></td>
-<td>Local first, live supplement on weak scores.</td>
-</tr>
-</tbody>
-</table>
-<p>Key env vars: <code>LIVE_WIKI_MAX_PAGES</code>, <code>LIVE_WIKI_MAX_SEARCH_QUERIES</code>, <code>LIVE_WIKI_TITLE_PROBE</code>, <code>LIVE_WIKI_TITLE_OVERLAP_FILTER</code>, <code>LIVE_WIKI_CACHE_TTL_HOURS</code>, <code>RETRIEVAL_REFINE_ENABLED</code>.</p>
+<p>Claude Pro / ChatGPT Plus subscriptions are <strong>not</strong> API access. Voice input uses cloud transcription when enabled.</p>
 <hr />
 <h2>Quality metrics</h2>
-<p>Scores are <strong>for demonstration and debugging</strong>—they do <strong>not</strong> feed back into retrieval or generation. Default: click <strong>Score response</strong> after Ask (<code>POST /score</code>). Set <code>INLINE_EVAL=true</code> to judge every Ask automatically.</p>
+<p>Scores are <strong>for demonstration</strong>—they do <strong>not</strong> change retrieval or the answer. After Ask, click <strong>Score response</strong> to run quality checks.</p>
 <p><strong>Retrieval (2 metrics, 0–100% in UI)</strong></p>
 <ul>
 <li><strong>Context precision</strong> — How much of the retrieved wiki text actually matters for your question.</li>
@@ -286,67 +196,6 @@
 <li><strong>Relevance</strong> — Whether the answer addresses what you asked.</li>
 <li><strong>Prompt adherence</strong> — Whether the answer follows PoE 1 focus and excerpts-only rules given what was retrieved.</li>
 </ul>
-<hr />
-<h2>Judges (technical)</h2>
-<p>Five separate <strong>LLM-as-judge</strong> calls (RAGAS-inspired names; <strong>not</strong> the RAGAS library). Each judge receives the same excerpt formatting as the answer model: up to <strong>1200 characters per chunk</strong> via <a href="../src/poe_agent/evaluator/context.py"><code>format_evidence_context</code></a>. Prompt-adherence sees excerpts plus rules, not rules alone.</p>
-<table>
-<thead>
-<tr>
-<th>Judge key</th>
-<th>Backend prompt focus</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><code>context_precision</code></td>
-<td>Relevance of retrieved excerpts to the question</td>
-</tr>
-<tr>
-<td><code>context_recall</code></td>
-<td>Coverage of facts needed to answer</td>
-</tr>
-<tr>
-<td><code>faithfulness</code></td>
-<td>Answer claims vs excerpts</td>
-</tr>
-<tr>
-<td><code>relevance</code></td>
-<td>Answer vs user question</td>
-</tr>
-<tr>
-<td><code>prompt_adherence</code></td>
-<td>Rules + excerpts vs answer</td>
-</tr>
-</tbody>
-</table>
-<p><code>JUDGE_PROVIDER</code> selects <strong>claude</strong>, <strong>gpt4</strong>, or <strong>bedrock</strong> (default <strong>claude</strong>). The UI provider choice auto-aligns judges for the session. <strong><code>INLINE_EVAL=false</code></strong> (default, including production profile) keeps judges off the <code>/query</code> hot path; <strong><code>dev_ui_enabled=true</code></strong> (default) still shows timing, trace, and the Score button.</p>
-<p>Judges are <strong>not</strong> part of the agentic loop: they never change which pages are fetched or how the answer is drafted. Trace timing (<code>plan</code>, <code>retrieval</code>, <code>generation</code>, <code>evaluation</code>) is observability only.</p>
-<hr />
-<h2>Deployment and cost snapshot</h2>
-<table>
-<thead>
-<tr>
-<th>Piece</th>
-<th>Role</th>
-</tr>
-</thead>
-<tbody>
-<tr>
-<td><strong>Docker</strong></td>
-<td>Builds React UI + Python API; rerank model baked into the image</td>
-</tr>
-<tr>
-<td><strong>Railway</strong></td>
-<td>Deploys from GitHub <code>main</code>; env vars for keys and <code>DEPLOYMENT_PROFILE</code></td>
-</tr>
-<tr>
-<td><strong>GitHub Actions</strong></td>
-<td><code>ruff</code>, <code>pytest</code>, Docker build verify</td>
-</tr>
-</tbody>
-</table>
-<p>Rough cost: Railway Hobby ~<strong>$5/mo</strong> plus compute; <strong>Anthropic/OpenAI</strong> per Ask and per Score.</p>
-<p><strong>Latency:</strong> Dominated by poewiki fetch + rerank (+ five judge calls when scoring). Production skips automatic judges but keeps the full dev UI unless <code>DEV_UI_ENABLED=false</code>.</p>
 <hr />
 <h2>Further reading</h2>
 <ul>

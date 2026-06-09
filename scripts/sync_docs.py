@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-"""Sync docs/ARCHITECTURE.md and docs/CHANGELOG.md to README and HTML."""
+"""Sync architecture docs and changelog to README and HTML."""
 
 from __future__ import annotations
 
@@ -113,6 +113,7 @@ SHARED_STYLES = """
 """
 
 ARCH_EXTRA_STYLES = """
+    :root { --font-bump: 1pt; }
     body { max-width: 1100px; }
 """
 
@@ -354,8 +355,20 @@ def _render_interactive_pipeline() -> str:
 
 
 def sync_readme() -> None:
-    header = (DOCS / "README_HEADER.md").read_text(encoding="utf-8").strip()
-    (ROOT / "README.md").write_text(header + "\n", encoding="utf-8")
+    header = (DOCS / "README_HEADER.md").read_text(encoding="utf-8")
+    dev = (DOCS / "ARCHITECTURE_DEVELOPER.md").read_text(encoding="utf-8").strip()
+    if "## License" in header:
+        before, _, license_part = header.partition("## License")
+        text = (
+            before.rstrip()
+            + "\n\n---\n\n"
+            + dev
+            + "\n\n---\n\n## License"
+            + license_part
+        )
+    else:
+        text = header.rstrip() + "\n\n---\n\n" + dev
+    (ROOT / "README.md").write_text(text.rstrip() + "\n", encoding="utf-8")
     print("Wrote README.md")
 
 

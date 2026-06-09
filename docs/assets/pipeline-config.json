@@ -3,28 +3,28 @@
     {
       "id": "0.1",
       "title": "Ask",
-      "chosen": "React + FastAPI",
-      "summary": "Question, provider, optional voice.",
-      "detail": "<p><strong>What happens:</strong> The UI sends your question to <code>POST /query</code> with the selected provider (stub, Claude, or GPT-4).</p><p><strong>Also:</strong> <code>POST /settings/provider</code>, <code>POST /transcribe</code> (OpenAI Whisper by default), mic capture in the browser.</p>",
+      "chosen": "Web app",
+      "summary": "Your question and provider.",
+      "detail": "<p><strong>What happens:</strong> You type a question and choose stub, Claude, or GPT-4 in the UI. Optional voice input uses the mic button.</p><p>The app sends your question to the server with your provider choice.</p>",
       "alternatives": [
         {
           "label": "Streamlit UI",
           "opaque": true,
-          "detail": "<p>Early prototype UI — replaced by React + Vite in <code>web/dist/</code>.</p>"
+          "detail": "<p>Early prototype UI — replaced by the current React app.</p>"
         }
       ]
     },
     {
       "id": "0.2",
       "title": "Plan",
-      "chosen": "LangGraph optional",
+      "chosen": "LangGraph (Claude / GPT-4)",
       "summary": "Extra search terms when needed.",
-      "detail": "<p>For Claude/GPT-4, <strong>LangGraph</strong> may run a planner that emits one or more retrieve intents (compare questions are a common case).</p><p>All planner queries are merged into <strong>one</strong> live <code>wiki_search</code> with multi-query fusion — not separate fetches per subtask.</p><p><strong>Stub</strong> uses a single linear pass (<code>linear_rag</code> trace).</p>",
+      "detail": "<p>With <strong>Claude</strong> or <strong>GPT-4</strong>, the system runs a LangGraph planner that may add one or more search angles (comparison questions are a common case).</p><p>All planned queries are merged into <strong>one</strong> live wiki lookup — not separate fetches per subtask.</p><p><strong>Stub</strong> skips the planner and goes straight to a single lookup.</p>",
       "alternatives": [
         {
-          "label": "Linear only",
+          "label": "Stub — single pass",
           "opaque": false,
-          "detail": "<p>One retrieval pass with the user question — always available for stub or when the planner emits a single step.</p>"
+          "detail": "<p>Stub mode uses one retrieval pass from your question with no LLM planner.</p>"
         },
         {
           "label": "Rule-based planner",
@@ -38,36 +38,36 @@
       "title": "Retrieve",
       "chosen": "Live poewiki fusion",
       "summary": "Search, probe titles, fetch, rerank.",
-      "detail": "<p><strong>Default (<code>RETRIEVAL_MODE=live</code>):</strong></p><ul><li>Fused MediaWiki queries (mechanic entities + topic terms, full question last)</li><li>Up to four title probes + title-overlap ranking of hits</li><li>Fetch up to <code>LIVE_WIKI_MAX_PAGES</code> pages, chunk in memory</li><li>Cross-encoder rerank → top <code>RERANK_TOP_N</code> chunks</li></ul><p>Disk cache: <code>data/live_cache/</code>. Optional refine round if <code>RETRIEVAL_REFINE_ENABLED=true</code>.</p>",
+      "detail": "<p><strong>Live wiki (default):</strong></p><ul><li>Fused search queries (mechanic terms + topic terms, full question last)</li><li>Direct page-title probes + overlap ranking of hits</li><li>Fetch relevant pages, split into passages in memory</li><li>Cross-encoder rerank → top passages for the answer model</li></ul><p>Results are cached between asks. An optional second lookup may run if the first pass looks weak.</p>",
       "alternatives": [
         {
           "label": "Local 18-page index",
           "opaque": true,
-          "detail": "<p><code>RETRIEVAL_MODE=local</code>: Chroma dense + BM25 + RRF on the curated allowlist after <code>poe-ingest</code> — offline / regression use, not the live demo path.</p>"
+          "detail": "<p>Small offline index for development — not used on the public demo.</p>"
         },
         {
           "label": "Hybrid local + live",
           "opaque": true,
-          "detail": "<p><code>RETRIEVAL_MODE=hybrid</code>: try local index first; live fetch when local scores are weak.</p>"
+          "detail": "<p>Try a local index first; fall back to live wiki when scores are weak.</p>"
         },
         {
           "label": "No rerank",
           "opaque": true,
-          "detail": "<p>Skip cross-encoder second pass — not used; rerank runs when the model loads.</p>"
+          "detail": "<p>Skip cross-encoder second pass — not used in production.</p>"
         }
       ]
     },
     {
       "id": "0.4",
       "title": "Generate",
-      "chosen": "UI provider",
+      "chosen": "Your provider",
       "summary": "LLM or stub from excerpts only.",
-      "detail": "<p>The selected provider writes using <strong>only</strong> reranked wiki excerpts (PoE 1, excerpts-only system prompt).</p><p><strong>Stub:</strong> top chunk text, no LLM.</p><p>LangGraph records <code>timing_ms</code> for plan, retrieval, and generation.</p>",
+      "detail": "<p>The selected provider writes using <strong>only</strong> reranked wiki excerpts (PoE 1, excerpts-only rules).</p><p><strong>Stub:</strong> top chunk text, no LLM.</p><p><strong>Claude / GPT-4:</strong> full answer from the same excerpts.</p>",
       "alternatives": [
         {
           "label": "Bedrock",
           "opaque": true,
-          "detail": "<p>AWS Bedrock via <code>.env</code> — not in the UI provider dropdown.</p>"
+          "detail": "<p>AWS Bedrock — server-side configuration only; not in the UI provider dropdown.</p>"
         }
       ]
     },
@@ -75,22 +75,22 @@
       "id": "0.5",
       "title": "Score",
       "chosen": "On demand",
-      "summary": "Five judges optional.",
-      "detail": "<p><strong>Default:</strong> <code>INLINE_EVAL=false</code> — no judges on <code>/query</code>. Click <strong>Score response</strong> to run five LLM judges via <code>POST /score</code>.</p><p>Judges use the same 1200-char/chunk excerpts as generation. Scores do not change the answer or retrieval.</p>",
+      "summary": "Five quality checks.",
+      "detail": "<p><strong>Default:</strong> judges do not run automatically. Click <strong>Score response</strong> after Ask to run five quality checks.</p><p>Judges read the same wiki excerpts as the answer model. Scores do not change the answer or retrieval.</p>",
       "alternatives": [
         {
           "label": "Inline on every Ask",
           "opaque": true,
-          "detail": "<p>Set <code>INLINE_EVAL=true</code> to run all five judges automatically after each answer (slower).</p>"
+          "detail": "<p>Run all five judges automatically after each answer (slower; used in some dev setups).</p>"
         }
       ]
     },
     {
       "id": "0.6",
       "title": "Respond",
-      "chosen": "Answer + trace",
-      "summary": "Citations; dev panels when enabled.",
-      "detail": "<p><strong>Always:</strong> Answer markdown and wiki source links.</p><p><strong>With <code>dev_ui_enabled=true</code> (default):</strong> pipeline timing bars, Score button, quality metrics, agent trace, LLM call log.</p><p>Set <code>DEV_UI_ENABLED=false</code> for answer + sources only.</p>",
+      "chosen": "Answer + sources",
+      "summary": "Citations and optional detail panels.",
+      "detail": "<p><strong>Always:</strong> answer markdown and wiki source links.</p><p><strong>Full UI (default):</strong> pipeline timing bars, Score button, quality metrics, and optional trace panels.</p><p>A minimal booth mode can show answer and sources only.</p>",
       "alternatives": []
     }
   ]
