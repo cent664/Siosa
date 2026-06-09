@@ -2,36 +2,7 @@
 
 **Path of Exile 1** wiki Q&A — live [poewiki.net](https://www.poewiki.net) retrieval, cited answers, optional multi-step planning.
 
-**Demo** [poesiosa.net](https://www.poesiosa.net/) · **Docs** [Architecture](docs/architecture.html) · [Changelog](docs/changelog.html) · [Deploy](DEPLOY.md)
-
-## How it works
-
-```mermaid
-flowchart TB
-  subgraph agentic["Multi-step planning — when needed"]
-    PL[Planner adds short search terms]
-  end
-  subgraph pass["One live retrieval pass"]
-    Q[Your question]
-    F[Fuse queries]
-    S[Search poewiki]
-    T[Title probes]
-    O[Re-order hits by overlap]
-    DL[Download pages]
-    C[Chunk]
-    RR[Rerank]
-    FT[Optional tangential filter]
-    OUT[Top excerpts → LLM]
-  end
-  PL -.-> F
-  Q --> F --> S
-  F --> T
-  S --> O
-  T --> O
-  O --> DL --> C --> RR --> FT --> OUT
-```
-
-**Interactive pipeline** (hover steps, alternatives): [Architecture](docs/architecture.html#pipeline-overview).
+**Demo** [poesiosa.net](https://www.poesiosa.net/) · **Docs** [Architecture](docs/architecture.html) · [Changelog](docs/changelog.html)
 
 **Developer setup** → [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/LAPTOP_SETUP.md](docs/LAPTOP_SETUP.md).
 
@@ -43,7 +14,7 @@ Technical reference for contributors and operators. The visitor-facing summary l
 
 ## What this system is
 
-**Siosa's Library** is a wiki-grounded question-answering app for Path of Exile 1: you ask a mechanics question, the system searches [poewiki.net](https://www.poewiki.net) at Ask time, reranks the best passages, and an LLM writes a short answer with citations. Harder questions can use a **LangGraph** planner that adds extra search terms before a single fused retrieval pass—not a crawl of the entire wiki, but targeted MediaWiki lookups. The public demo runs at [poesiosa.net](https://www.poesiosa.net/). Operators configure keys and deploy via [DEPLOY.md](DEPLOY.md).
+**Siosa's Library** is a wiki-grounded question-answering app for Path of Exile 1: you ask a mechanics question, the system searches [poewiki.net](https://www.poewiki.net) at Ask time, reranks the best passages, and an LLM writes a short answer with citations. Harder questions can use a **LangGraph** planner that adds extra search terms before a single fused retrieval pass—not a crawl of the entire wiki, but targeted MediaWiki lookups. The agent runs at [poesiosa.net](https://www.poesiosa.net/).
 
 The LLM only sees **top reranked chunks** (typically five), not whole articles. Answer style is fixed by the system prompt; there is no per-user tone control.
 
@@ -119,11 +90,11 @@ Implementation: [`query_service.py`](src/poe_agent/harness/api/query_service.py)
 
 ---
 
-## Interactive pipeline (technical)
+## Interactive pipeline
 
 Source: [`docs/assets/pipeline-config-developer.json`](docs/assets/pipeline-config-developer.json). The public Architecture page uses a visitor-simplified copy in [`pipeline-config.json`](docs/assets/pipeline-config.json).
 
-| Step | Chosen path | Technical detail |
+| Step | Chosen path | Detail |
 |------|-------------|------------------|
 | **0.1 Ask** | React + FastAPI | `POST /query` with provider; `POST /settings/provider`, `POST /transcribe` (OpenAI Whisper default), browser mic capture. |
 | **0.2 Plan** | LangGraph (Claude / GPT-4) | LangGraph planner for cloud providers; merged into one `wiki_search`. Stub uses `linear_rag` (no planner). |
@@ -174,7 +145,7 @@ Scores are **for demonstration and debugging**—they do **not** feed back into 
 
 ---
 
-## Judges (technical)
+## Judges
 
 Five separate **LLM-as-judge** calls (RAGAS-inspired names; **not** the RAGAS library). Each judge receives the same excerpt formatting as the answer model: up to **1200 characters per chunk** via [`format_evidence_context`](src/poe_agent/evaluator/context.py). Prompt-adherence sees excerpts plus rules, not rules alone.
 
@@ -203,16 +174,6 @@ Judges are **not** part of the agentic loop: they never change which pages are f
 Rough cost: Railway Hobby ~**$5/mo** plus compute; **Anthropic/OpenAI** per Ask and per Score.
 
 **Latency:** Dominated by poewiki fetch + rerank (+ five judge calls when scoring). Production skips automatic judges but keeps the full dev UI unless `DEV_UI_ENABLED=false`.
-
----
-
-## Doc sync
-
-Edit [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) for the public Architecture page and [`docs/ARCHITECTURE_DEVELOPER.md`](docs/ARCHITECTURE_DEVELOPER.md) for this section in `README.md`, then run:
-
-```powershell
-python scripts/sync_docs.py
-```
 
 ---
 

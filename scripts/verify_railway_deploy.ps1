@@ -1,7 +1,7 @@
 # Usage:
 #   .\scripts\verify_railway_deploy.ps1 -BaseUrl "https://siosa-production.up.railway.app"
 #   .\scripts\verify_railway_deploy.ps1 -BaseUrl "https://www.poesiosa.net"
-# See DEPLOY.md "Custom domain" for DNS setup. Exit 0 = healthy; 2 = missing API keys.
+# Exit 0 = healthy; 2 = missing API keys.
 param(
     [Parameter(Mandatory = $true)]
     [string]$BaseUrl
@@ -75,6 +75,6 @@ if (-not $root) { exit 1 }
 if ($exitCode -eq 0) {
     Write-Host "Public deploy OK. Booth mode active. Cloud providers enabled. Run one Ask."
 } else {
-    Write-Host "Deploy reachable but production Variables need attention. See DEPLOY.md and railway.variables.example."
+    Write-Host "Deploy reachable but production Variables need attention. See railway.variables.example."
 }
 exit $exitCode

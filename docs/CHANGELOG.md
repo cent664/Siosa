@@ -1,6 +1,12 @@
 Newest first. Each entry uses the same format: a short title and a few bullets on what changed and why it mattered. Edit this file, then run `python scripts/sync_docs.py` for browser HTML.
 
-## 2026-06-02 — Visitor Architecture docs, pipeline copy, UI prompt
+## 2026-06-09 — README trim, CI test fix, remove DEPLOY.md
+
+- Docs — README drops “How it works” Mermaid; opens with developer architecture; “the agent runs at” wording; removed Doc sync section and DEPLOY.md.
+- Docs — Developer sections renamed: Interactive pipeline and Judges (no “technical” suffix).
+- Tests — Judge prompt-adherence test sets `JUDGE_PROVIDER=stub` so CI passes without `ANTHROPIC_API_KEY`.
+
+## 2026-06-09 — Visitor Architecture docs, pipeline copy, UI prompt
 
 - Docs — Split visitor Architecture (`docs/ARCHITECTURE.md` → `architecture.html`) from developer README (`docs/ARCHITECTURE_DEVELOPER.md` appended via `sync_docs.py`); no localhost in README header.
 - Docs — Visitor page: +1pt typography; interactive pipeline uses plain language (no `POST /query` / env vars); Plan shows LangGraph for Claude/GPT-4, not “optional.”

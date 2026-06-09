@@ -24,11 +24,15 @@ def test_format_evidence_context_includes_title_and_text():
     assert len(ctx) <= 1200 + 80
 
 
-def test_judge_prompt_adherence_user_prompt_includes_wiki_excerpts():
+def test_judge_prompt_adherence_user_prompt_includes_wiki_excerpts(monkeypatch):
     from unittest.mock import patch
 
     from poe_agent.harness.trace import LLMResult
 
+    from poe_agent.harness.config import get_settings
+
+    monkeypatch.setenv("JUDGE_PROVIDER", "stub")
+    get_settings.cache_clear()
     evidence = "[1] Scion (https://www.poewiki.net/wiki/Scion)\nFreedom achievement unlocks Scion."
     with patch("poe_agent.evaluator.judges.traced_generate") as mock_gen:
         mock_gen.return_value = LLMResult(

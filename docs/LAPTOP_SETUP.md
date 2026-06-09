@@ -64,7 +64,7 @@ Optional wiki index: `poe-ingest` (not required if `RETRIEVAL_MODE=live` in `.en
 
 ## 6. Production (unchanged)
 
-Railway Variables and https://www.poesiosa.net/ are configured in the Railway dashboard, not on the laptop. See [DEPLOY.md](../DEPLOY.md).
+Railway Variables and https://www.poesiosa.net/ are configured in the Railway dashboard, not on the laptop.
 
 ## Regenerate transfer bundle
 
