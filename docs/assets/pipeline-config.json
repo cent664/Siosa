@@ -5,7 +5,7 @@
       "title": "Ask",
       "chosen": "Web app",
       "summary": "Your question and provider.",
-      "detail": "<p><strong>What happens:</strong> You type a question and choose stub, Claude, or GPT-4 in the UI. Optional voice input uses the mic button.</p><p>The app sends your question to the server with your provider choice.</p>",
+      "detail": "<p><strong>What happens:</strong> You type a question and choose Claude or GPT-4 in the UI. Optional voice input uses the mic button.</p><p>The app sends your question to the server with your provider choice.</p>",
       "alternatives": [
         {
           "label": "Streamlit UI",
@@ -19,13 +19,8 @@
       "title": "Plan",
       "chosen": "LangGraph (Claude / GPT-4)",
       "summary": "Extra search terms when needed.",
-      "detail": "<p>With <strong>Claude</strong> or <strong>GPT-4</strong>, the system runs a LangGraph planner that may add one or more search angles (comparison questions are a common case).</p><p>All planned queries are merged into <strong>one</strong> live wiki lookup — not separate fetches per subtask.</p><p><strong>Stub</strong> skips the planner and goes straight to a single lookup.</p>",
+      "detail": "<p>The system runs a LangGraph planner that may add one or more short search terms (comparison questions are a common case).</p><p>All planned queries are merged into <strong>one</strong> live wiki lookup — not separate fetches per subtask, and not revised from retrieval results.</p>",
       "alternatives": [
-        {
-          "label": "Stub — single pass",
-          "opaque": false,
-          "detail": "<p>Stub mode uses one retrieval pass from your question with no LLM planner.</p>"
-        },
         {
           "label": "Rule-based planner",
           "opaque": true,
@@ -61,8 +56,8 @@
       "id": "0.4",
       "title": "Generate",
       "chosen": "Your provider",
-      "summary": "LLM or stub from excerpts only.",
-      "detail": "<p>The selected provider writes using <strong>only</strong> reranked wiki excerpts (PoE 1, excerpts-only rules).</p><p><strong>Stub:</strong> top chunk text, no LLM.</p><p><strong>Claude / GPT-4:</strong> full answer from the same excerpts.</p>",
+      "summary": "LLM from excerpts only.",
+      "detail": "<p>Claude or GPT-4 writes using <strong>only</strong> reranked wiki excerpts (PoE 1, excerpts-only rules).</p>",
       "alternatives": [
         {
           "label": "Bedrock",
@@ -76,7 +71,7 @@
       "title": "Score",
       "chosen": "On demand",
       "summary": "Five quality checks.",
-      "detail": "<p><strong>Default:</strong> judges do not run automatically. Click <strong>Score response</strong> after Ask to run five quality checks.</p><p>Judges read the same wiki excerpts as the answer model. Scores do not change the answer or retrieval.</p>",
+      "detail": "<p><strong>Default:</strong> judges do not run automatically. Click <strong>Score response</strong> after Ask to run five quality checks.</p><p>Judges read the same wiki excerpts as the answer model. Scores do not change the answer or retrieval (post-hoc only).</p>",
       "alternatives": [
         {
           "label": "Inline on every Ask",

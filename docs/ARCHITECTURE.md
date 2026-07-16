@@ -1,6 +1,19 @@
 # Siosa's Library — Architecture
 
-**Siosa's Library** answers Path of Exile 1 mechanics questions using the live [poewiki.net](https://www.poewiki.net) wiki. You type a question; the app finds relevant wiki pages, picks the best passages, and writes a short answer with links to the sources. Try it at [poesiosa.net](https://www.poesiosa.net/). For harder questions, the system can plan several search angles before answering—it does not search all ~16,000 wiki articles, only what is relevant to your question.
+```mermaid
+flowchart LR
+  U[User submits question]
+  H[Harness — Claude or GPT-4]
+  P[LangGraph planner — extra search terms]
+  R[Live retrieval — fusion search fetch chunk rerank]
+  G[LLM generation — top chunks to cited answer]
+  E[Evaluator on demand — post-hoc scores]
+  U --> H --> P --> R --> G --> E
+```
+
+*Figure: Each Ask is one request (no chat memory). The harness picks Claude or GPT-4; the planner may add short search terms that merge into one fused wiki lookup; generation uses the top passages; scoring is optional and does not loop back into retrieval or the answer.*
+
+**Siosa's Library** answers Path of Exile 1 mechanics questions using the live [poewiki.net](https://www.poewiki.net) wiki. You type a question; the app finds relevant wiki pages, picks the best passages, and writes a short answer with links to the sources. Try it at [poesiosa.net](https://www.poesiosa.net/). For harder questions, a planner can add short search terms before that single lookup.
 
 The LLM only sees **top reranked passages** (typically five), not whole articles. Answer style is fixed; there is no per-user tone control.
 
@@ -38,7 +51,7 @@ flowchart TB
 
 *Figure: **Multi-step planning** adds extra lookup strings for comparison-style questions. **One lookup** = everything in the lower box runs once per answer step—search, fetch, chunk, rerank—even when several search angles were planned.*
 
-**Planning vs single pass.** With Claude or GPT-4, a planner may emit several retrieve intents, but the executor merges them into **one** fused wiki lookup per step. The simple **stub** mode skips planning and runs a single lookup from your question. When enabled, an optional refinement step may trigger **one** extra lookup if the first results look weak.
+**Planning.** A planner may emit several retrieve intents (short search terms). The executor merges them into **one** fused wiki lookup; those terms are not revised from what was retrieved. When enabled, an optional refinement step may trigger **one** extra lookup if the first results look weak.
 
 The project also supports a small offline index for development; the public demo uses live wiki search only.
 
@@ -52,7 +65,6 @@ The project also supports a small offline index for development; the public demo
 
 | Mode | What you get | API key |
 |------|--------------|---------|
-| **stub** | Wiki excerpt only, no LLM | None |
 | **claude** | Anthropic Claude answer | Anthropic |
 | **gpt4** | OpenAI GPT-4 answer | OpenAI |
 
@@ -62,7 +74,7 @@ Claude Pro / ChatGPT Plus subscriptions are **not** API access. Voice input uses
 
 ## Quality metrics
 
-Scores are **for demonstration**—they do **not** change retrieval or the answer. After Ask, click **Score response** to run quality checks.
+Scores are **for demonstration**—they run **after** Ask (click **Score response**) and do **not** re-run retrieval or change the answer.
 
 **Retrieval (2 metrics, 0–100% in UI)**
 

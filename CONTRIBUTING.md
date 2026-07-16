@@ -27,9 +27,10 @@ Source of truth: `docs/CHANGELOG.md`. Do not edit `docs/changelog.html` by hand.
 ## Architecture docs
 
 - **Visitors** — [`docs/ARCHITECTURE.md`](docs/ARCHITECTURE.md) → `docs/architecture.html` (no env vars, deploy steps, or localhost).
+- **Planned** — [`docs/PLANNED.md`](docs/PLANNED.md) → `docs/planned.html` (open decisions / future work).
 - **Developers** — [`docs/ARCHITECTURE_DEVELOPER.md`](docs/ARCHITECTURE_DEVELOPER.md) → appended to `README.md` after [`docs/README_HEADER.md`](docs/README_HEADER.md).
 
-After editing either architecture file (or `README_HEADER.md`), run `python scripts/sync_docs.py`. Interactive pipeline: visitor copy in `docs/assets/pipeline-config.json`; technical copy in `docs/assets/pipeline-config-developer.json` (referenced from `ARCHITECTURE_DEVELOPER.md`).
+After editing architecture, planned, changelog, or `README_HEADER.md`, run `python scripts/sync_docs.py`. Interactive pipeline: visitor copy in `docs/assets/pipeline-config.json`; technical copy in `docs/assets/pipeline-config-developer.json` (referenced from `ARCHITECTURE_DEVELOPER.md`).
 
 ## Code conventions
 

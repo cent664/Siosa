@@ -2,7 +2,7 @@
 
 **Path of Exile 1** wiki Q&A — live [poewiki.net](https://www.poewiki.net) retrieval, cited answers, optional multi-step planning.
 
-**Demo** [poesiosa.net](https://www.poesiosa.net/) · **Docs** [Architecture](docs/architecture.html) · [Changelog](docs/changelog.html)
+**Demo** [poesiosa.net](https://www.poesiosa.net/) · **Docs** [Architecture](docs/architecture.html) · [Planned](docs/planned.html) · [Changelog](docs/changelog.html)
 
 **Developer setup** → [CONTRIBUTING.md](CONTRIBUTING.md) and [docs/LAPTOP_SETUP.md](docs/LAPTOP_SETUP.md).
 

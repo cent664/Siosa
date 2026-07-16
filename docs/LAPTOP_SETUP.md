@@ -2,6 +2,16 @@
 
 Use this after cloning [https://github.com/cent664/Siosa](https://github.com/cent664/Siosa). GitHub has code and docs; **secrets and Cursor chat context** do not.
 
+## Prerequisites
+
+- **Python 3.11+** and **Node.js LTS** (22+; matches CI/Docker). Install Node if `npm -v` fails:
+
+```powershell
+winget install OpenJS.NodeJS.LTS
+```
+
+Then close and reopen your terminal. Verify: `node -v` and `npm -v`.
+
 ## 1. Clone and install
 
 ```powershell

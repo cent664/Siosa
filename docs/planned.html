@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Siosa's Library — Planned changes</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cinzel:wght@400;600&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+
+    :root {
+      --font-display: "Cinzel Decorative", "Cinzel", Georgia, serif;
+      --font-heading: "Cinzel", Georgia, serif;
+      --font-body: "EB Garamond", Georgia, "Times New Roman", serif;
+      --font-bump: 0pt;
+      --poe-gold-light: #e8d48a;
+      --poe-panel-border: #4a4030;
+      --poe-text: #e8dcc4;
+      --poe-text-muted: #a89f8c;
+      --poe-link: #d4b86a;
+    }
+    body {
+      font-family: var(--font-body);
+      font-size: calc(1rem + var(--font-bump));
+      max-width: 960px;
+      margin: 2rem auto;
+      padding: 0 1rem 2rem;
+      line-height: 1.6;
+      color: var(--poe-text);
+      background: #0a0908;
+    }
+    h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--poe-gold-light); font-weight: 600; }
+    h1 { font-family: var(--font-display); font-size: calc(1.75rem + var(--font-bump)); }
+    p, li { color: var(--poe-text); }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { border: 1px solid var(--poe-panel-border); padding: 0.5rem 0.75rem; text-align: left; vertical-align: top; }
+    th { background: rgba(0, 0, 0, 0.4); color: var(--poe-gold-light); font-family: var(--font-heading); }
+    code { background: rgba(255, 255, 255, 0.08); color: var(--poe-gold-light); padding: 0.1em 0.3em; border-radius: 3px; }
+    pre { background: rgba(0, 0, 0, 0.45); color: var(--poe-text); padding: 1rem; overflow-x: auto; border: 1px solid var(--poe-panel-border); border-radius: 6px; }
+    nav.docs-nav {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.65rem 1rem;
+      margin-bottom: 1.5rem;
+      padding: 0.75rem 1rem;
+      background: rgba(10, 9, 8, 0.94);
+      border: 1px solid var(--poe-panel-border);
+      border-radius: 6px;
+    }
+    nav.docs-nav a:not(.nav-home-btn) {
+      font-family: var(--font-heading);
+      color: var(--poe-link);
+      text-decoration: none;
+    }
+    nav.docs-nav a:not(.nav-home-btn):hover {
+      color: var(--poe-gold-light);
+      text-decoration: underline;
+    }
+    a.nav-home-btn {
+      order: -1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.35rem;
+      height: 2.35rem;
+      margin-right: 0.15rem;
+      border: 1px solid var(--poe-panel-border);
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.4);
+      color: var(--poe-gold-light);
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+    a.nav-home-btn:hover {
+      border-color: var(--poe-gold-light);
+      color: var(--poe-gold-light);
+      text-decoration: none;
+      background: rgba(92, 74, 32, 0.35);
+    }
+    a.nav-home-btn svg {
+      width: 1.15rem;
+      height: 1.15rem;
+      fill: currentColor;
+    }
+    a { color: var(--poe-link); }
+    a:hover { color: var(--poe-gold-light); }
+    article { border-left: 4px solid #8b7028; padding-left: 1rem; margin-bottom: 2rem; }
+    time { color: var(--poe-text-muted); font-size: calc(0.9rem + var(--font-bump)); display: block; margin-bottom: 0.25rem; font-family: var(--font-heading); }
+    article h3 { margin-top: 0.25rem; }
+    article ul { margin: 0.5rem 0 0 1.1rem; padding: 0; }
+    article li { margin: 0.35rem 0; }
+    .changelog-label { font-family: var(--font-heading); font-weight: 600; color: var(--poe-gold-light); }
+    pre.mermaid { background: transparent; border: none; padding: 0.5rem 0; overflow-x: auto; text-align: center; }
+    .mermaid { margin: 1.5rem 0; }
+    .pipeline-interactive { margin-top: 0.35rem; }
+    em { color: var(--poe-text-muted); }
+    details { background: rgba(0, 0, 0, 0.35); border: 1px solid var(--poe-panel-border); border-radius: 6px; padding: 0.5rem 0.75rem; }
+    details summary { font-family: var(--font-heading); color: var(--poe-gold-light); cursor: pointer; }
+
+  </style>
+
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+  </script>
+</head>
+<body>
+  <nav class="docs-nav" aria-label="Documentation">
+    <a href="/" class="nav-home-btn" title="Back to Siosa's Library" aria-label="Back to app">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"/></svg>
+    </a>
+    <a href="/docs/architecture.html">Architecture</a>
+    <a href="/docs/planned.html">Planned</a>
+    <a href="/docs/changelog.html">Changelog</a>
+  </nav>
+<h1>Planned changes</h1>
+<p>Ideas we deliberately left open. Edit this file, then run <code>python scripts/sync_docs.py</code> for browser HTML.</p>
+<h2>Where we are today</h2>
+<p>The app is essentially <strong>one tool</strong>: live wiki fetch (<code>wiki_search</code>). LangGraph planning today is <strong>query expansion from the user question only</strong> — it invents short search terms before any pages are retrieved. There is no source selection, no multi-hop reasoning over page content, no chat memory, and no MCP. Evaluation scores are post-hoc and do not change retrieval or answers.</p>
+<p>The goal below is to grow this into a full <strong>agentic stack</strong> on a concrete Path of Exile use case: tools, orchestration, MCP, memory, evaluation feedback, and performance — not a toy chat wrapper.</p>
+<hr />
+<h2>Response format customization</h2>
+<p>Today every answer uses a fixed system prompt — length, tone, and layout are not user-configurable. We may add controls (for example brief vs detailed, bullets vs prose) so people can customize how answers are presented.</p>
+<h2>Optional retrieval refinement</h2>
+<p>The pipeline can run a second wiki lookup when the first pass looks weak (<code>RETRIEVAL_REFINE_ENABLED</code>, off by default). This is close to “mine better keywords after first pages,” but it uses retrieval heuristics today, not the five LLM-as-judge scores. We still need to decide whether to leave it as a developer-only env flag, document it on the Architecture page, productize it, or later gate it on evaluator thresholds.</p>
+<h2>Booth UI vs full UI</h2>
+<p>Full UI (timing, Score button, trace) is the default locally and on the public demo. Setting <code>DEV_UI_ENABLED=false</code> hides those panels and shows answer + sources only. We may later use that minimal “booth” layout on the cloud demo while keeping the full UI for local development.</p>
+<hr />
+<h2>Agentic roadmap</h2>
+<h3>Tools (expand beyond live wiki)</h3>
+<ul>
+<li>Treat <strong>live wiki fetch</strong> as the first tool in a small <strong>tool registry</strong> so the orchestrator can pick tools by intent.</li>
+<li><strong>PoE Ninja tool</strong> — live economy and character data (trade prices, account/character listings, skill links, build details). Likely different APIs or schemas than MediaWiki.</li>
+<li><strong>PoE DB / datamine tool</strong> — numeric skill and item values the wiki may not spell out (for example precise ignite scaling tables).</li>
+<li><strong>Source routing</strong> — simple mechanics Q&amp;A defaults to wiki; prices, builds, and characters lean toward Ninja; deep numeric mechanics lean toward datamine (or wiki plus datamine combined).</li>
+</ul>
+<h3>Multi-step planning (beyond search-term expansion)</h3>
+<ul>
+<li>Upgrade the planner from “extra search strings for one wiki pass” to <strong>decide which tools to call</strong>, in what order, and when to stop.</li>
+<li>Keep simple questions on a <strong>single lookup path</strong>; reserve multi-tool and multi-hop flows for harder intents.</li>
+<li><strong>Iterative keyword mining</strong> — after the first retrieval, use retrieved chunks to propose better queries when quality is weak. Builds on the existing heuristic refine path; later may also use evaluator scores as a gate.</li>
+</ul>
+<h3>MCP</h3>
+<ul>
+<li>Add at least one <strong>MCP server</strong> for learning and demo value: wrap an existing server or <strong>author a small MCP</strong> whose tools mirror wiki / Ninja / datamine (names, JSON schemas, call/response boilerplate).</li>
+<li>MCP is the <strong>protocol surface</strong> for tools; LangGraph remains the <strong>orchestrator</strong> that invokes them.</li>
+</ul>
+<h3>Memory (multi-turn)</h3>
+<ul>
+<li><strong>Session memory</strong> — include prior turns in later Asks (move from stateless to conversational).</li>
+<li><strong>Memory summarization</strong> — compress older turns when context grows so follow-ups stay coherent without blowing the context window.</li>
+<li>Define what is remembered (questions, answers, citations, tools used) and what is not (full wiki page dumps).</li>
+</ul>
+<h3>Performance and scale</h3>
+<ul>
+<li>Profile end-to-end latency (wiki fetch, rerank, and LLM calls dominate today).</li>
+<li>Optimize before stacking more tools: caching, parallel tool calls where safe, keep judges off the hot path, smaller or faster generation models.</li>
+<li>If agent loops multiply LLM calls, evaluate <strong>high-throughput local serving (e.g. vLLM)</strong> or lighter cloud models.</li>
+</ul>
+</body>
+</html>

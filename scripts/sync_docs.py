@@ -144,6 +144,7 @@ HTML_HEAD_BASE = """<!DOCTYPE html>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"/></svg>
     </a>
     <a href="/docs/architecture.html">Architecture</a>
+    <a href="/docs/planned.html">Planned</a>
     <a href="/docs/changelog.html">Changelog</a>
   </nav>
 """
@@ -386,6 +387,14 @@ def sync_architecture_html() -> None:
     print("Wrote docs/architecture.html")
 
 
+def sync_planned_html() -> None:
+    planned = (DOCS / "PLANNED.md").read_text(encoding="utf-8")
+    body = md_to_html_body(planned)
+    page = _head("Siosa's Library — Planned changes") + body + HTML_FOOT
+    (DOCS / "planned.html").write_text(page, encoding="utf-8")
+    print("Wrote docs/planned.html")
+
+
 def sync_changelog_html() -> None:
     cl = (DOCS / "CHANGELOG.md").read_text(encoding="utf-8")
     articles: list[str] = []
@@ -417,6 +426,7 @@ def sync_changelog_html() -> None:
 def main() -> None:
     sync_readme()
     sync_architecture_html()
+    sync_planned_html()
     sync_changelog_html()
     print("Done.")
 

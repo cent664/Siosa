@@ -1,5 +1,31 @@
 Newest first. Each entry uses the same format: a short title and a few bullets on what changed and why it mattered. Edit this file, then run `python scripts/sync_docs.py` for browser HTML.
 
+## 2026-07-16 — Planned page: agentic roadmap
+
+- Docs — Expanded Planned page with current-state summary and roadmap: multi-source tools (wiki, PoE Ninja, datamine), richer planning, MCP, session memory, performance.
+- Docs — Clarified iterative keyword mining vs existing heuristic refine; portfolio goal for full agent stack on PoE use case.
+
+## 2026-07-15 — Planned changes page and horizontal overview
+
+- Docs — New Planned page (`docs/PLANNED.md` → `planned.html`): response-format customization, optional retrieval refine, booth vs full UI.
+- Docs — Architecture overview flowchart is left-to-right; nav/footer link to Planned.
+
+## 2026-07-15 — Architecture overview and stub-free docs
+
+- Docs — App-level overview flowchart under the Architecture title (Harness → planner → live retrieval → generation → on-demand evaluator).
+- Docs — Stub removed from visitor provider table and interactive pipeline copy; Claude and GPT-4 only.
+- Docs — Clarified one-shot search-term planning, no chat memory, and post-hoc scoring that does not loop back.
+- Docs — Dropped the “full wiki” disclaimer; planning copy starts with “A planner” (no provider preface).
+
+## 2026-07-15 — Node.js prerequisite and npm path fallbacks
+
+- Tooling — `start.bat` / `start.ps1` probe common Windows Node install paths before failing; clearer install message (`winget`, nodejs.org).
+- Docs — Node.js LTS listed as prerequisite in `LAPTOP_SETUP.md` and `web/README.md`.
+
+## 2026-07-15 — Always rebuild UI on start
+
+- Tooling — `start.bat` / `start.ps1` always run `npm install` and `npm run build` before launching the API, so `web/dist` matches `web/src` after a `git pull`.
+
 ## 2026-06-09 — README trim, CI test fix, remove DEPLOY.md
 
 - Docs — README drops “How it works” Mermaid; opens with developer architecture; “the agent runs at” wording; removed Doc sync section and DEPLOY.md.

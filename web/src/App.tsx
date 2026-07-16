@@ -268,6 +268,7 @@ export default function App() {
       <footer className="app-footer">
         <nav className="footer-docs" aria-label="Documentation">
           <a href={docsUrl("architecture.html")}>Architecture</a>
+          <a href={docsUrl("planned.html")}>Planned</a>
           <a href={docsUrl("changelog.html")}>Changelog</a>
         </nav>
         <p className="footer-disclaimer">
