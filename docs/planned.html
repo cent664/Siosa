@@ -119,48 +119,49 @@
     <a href="/docs/changelog.html">Changelog</a>
   </nav>
 <h1>Planned changes</h1>
-<p>Ideas we deliberately left open. Edit this file, then run <code>python scripts/sync_docs.py</code> for browser HTML.</p>
-<h2>Where we are today</h2>
-<p>The app is essentially <strong>one tool</strong>: live wiki fetch (<code>wiki_search</code>). LangGraph planning today is <strong>query expansion from the user question only</strong> — it invents short search terms before any pages are retrieved. There is no source selection, no multi-hop reasoning over page content, no chat memory, and no MCP. Evaluation scores are post-hoc and do not change retrieval or answers.</p>
-<p>The goal below is to grow this into a full <strong>agentic stack</strong> on a concrete Path of Exile use case: tools, orchestration, MCP, memory, evaluation feedback, and performance — not a toy chat wrapper.</p>
-<hr />
-<h2>Response format customization</h2>
-<p>Today every answer uses a fixed system prompt — length, tone, and layout are not user-configurable. We may add controls (for example brief vs detailed, bullets vs prose) so people can customize how answers are presented.</p>
-<h2>Optional retrieval refinement</h2>
-<p>The pipeline can run a second wiki lookup when the first pass looks weak (<code>RETRIEVAL_REFINE_ENABLED</code>, off by default). This is close to “mine better keywords after first pages,” but it uses retrieval heuristics today, not the five LLM-as-judge scores. We still need to decide whether to leave it as a developer-only env flag, document it on the Architecture page, productize it, or later gate it on evaluator thresholds.</p>
-<h2>Booth UI vs full UI</h2>
-<p>Full UI (timing, Score button, trace) is the default locally and on the public demo. Setting <code>DEV_UI_ENABLED=false</code> hides those panels and shows answer + sources only. We may later use that minimal “booth” layout on the cloud demo while keeping the full UI for local development.</p>
-<hr />
-<h2>Agentic roadmap</h2>
-<h3>Tools (expand beyond live wiki)</h3>
+<p>Siosa roadmap for a full <strong>agentic stack</strong> on a Path of Exile use case: tools, orchestration, MCP, memory, and user-gated evaluation — without expensive automatic multi-LLM loops. Self-hosted inference, quantization, and post-training live in a <strong>separate project</strong>, not here.</p>
+<p>Edit this file, then run <code>python scripts/sync_docs.py</code> for browser HTML.</p>
+<h2>Already in the app</h2>
 <ul>
-<li>Treat <strong>live wiki fetch</strong> as the first tool in a small <strong>tool registry</strong> so the orchestrator can pick tools by intent.</li>
-<li><strong>PoE Ninja tool</strong> — live economy and character data (trade prices, account/character listings, skill links, build details). Likely different APIs or schemas than MediaWiki.</li>
-<li><strong>PoE DB / datamine tool</strong> — numeric skill and item values the wiki may not spell out (for example precise ignite scaling tables).</li>
-<li><strong>Source routing</strong> — simple mechanics Q&amp;A defaults to wiki; prices, builds, and characters lean toward Ninja; deep numeric mechanics lean toward datamine (or wiki plus datamine combined).</li>
+<li><strong>RAG</strong> — live poewiki fetch, chunking, citations.</li>
+<li><strong>Hybrid retrieval + rerank</strong> — dense + BM25 (local mode), cross-encoder top passages; live / local / hybrid retrieval modes.</li>
+<li><strong>LangGraph (narrow)</strong> — planner invents short search terms from the user question only, then one fused wiki lookup.</li>
+<li><strong>Score (LLM-as-judge)</strong> — faithfulness, relevance, prompt adherence, context precision/recall; on-demand; post-hoc only (does not change the answer today).</li>
+<li><strong>Deploy</strong> — FastAPI + React, Docker, GitHub Actions CI, Railway, OpenAI and Anthropic APIs.</li>
+<li><strong>Observability</strong> — traces, timing, retrieval debug.</li>
+<li><strong>Optional retrieval refine</strong> — second wiki lookup when the first pass looks weak (<code>RETRIEVAL_REFINE_ENABLED</code>, <strong>off by default</strong>); heuristic gate today, not judge-driven.</li>
 </ul>
-<h3>Multi-step planning (beyond search-term expansion)</h3>
+<h2>Planned</h2>
+<h3>Tools and routing</h3>
 <ul>
-<li>Upgrade the planner from “extra search strings for one wiki pass” to <strong>decide which tools to call</strong>, in what order, and when to stop.</li>
-<li>Keep simple questions on a <strong>single lookup path</strong>; reserve multi-tool and multi-hop flows for harder intents.</li>
-<li><strong>Iterative keyword mining</strong> — after the first retrieval, use retrieved chunks to propose better queries when quality is weak. Builds on the existing heuristic refine path; later may also use evaluator scores as a gate.</li>
+<li><strong>Tool registry</strong> — treat live wiki fetch as the first tool; add <strong>PoE Ninja</strong> (prices, characters, builds, skill links) and <strong>PoE DB / datamine</strong> (numeric skill/item values the wiki may omit).</li>
+<li><strong>Source routing</strong> — LangGraph chooses which tool(s), in what order, and when to stop. Simple mechanics Q&amp;A stays a single wiki lookup; harder intents may call multiple tools then synthesize.</li>
+<li><strong>MCP</strong> — expose the same tools behind an MCP server (names, JSON schemas, call/response). MCP is the protocol surface; LangGraph remains the orchestrator.</li>
 </ul>
-<h3>MCP</h3>
+<h3>Memory</h3>
 <ul>
-<li>Add at least one <strong>MCP server</strong> for learning and demo value: wrap an existing server or <strong>author a small MCP</strong> whose tools mirror wiki / Ninja / datamine (names, JSON schemas, call/response boilerplate).</li>
-<li>MCP is the <strong>protocol surface</strong> for tools; LangGraph remains the <strong>orchestrator</strong> that invokes them.</li>
+<li><strong>Session memory</strong> — persist prior turns (e.g. SQLite) and include them in later Asks.</li>
+<li><strong>Memory summarization</strong> — when context grows, compress older turns instead of truncating blindly.</li>
+<li>Remember questions, answers, citations, and tools used — not full wiki page dumps.</li>
 </ul>
-<h3>Memory (multi-turn)</h3>
+<h3>Evaluation without auto-loops</h3>
 <ul>
-<li><strong>Session memory</strong> — include prior turns in later Asks (move from stateless to conversational).</li>
-<li><strong>Memory summarization</strong> — compress older turns when context grows so follow-ups stay coherent without blowing the context window.</li>
-<li>Define what is remembered (questions, answers, citations, tools used) and what is not (full wiki page dumps).</li>
+<li><strong>Score + Revise</strong> — keep on-demand Score; add a <strong>Revise</strong> action that uses those scores to improve the answer (for example rewrite for faithfulness, or re-retrieve then rewrite). Rate-limit revises per query (e.g. 1–5) so quality feedback stays user-gated and cheap.</li>
+<li><strong>Gold regression + MLflow (local)</strong> — actually run the labeled gold set, note failure cases, and log metrics across versions with local MLflow (no cloud MLOps required).</li>
+<li><strong>Productize optional retrieval refine</strong> — keep the weak-retrieval second lookup available (default off or only when retrieval looks weak); may later use evaluator signals as a gate.</li>
 </ul>
-<h3>Performance and scale</h3>
+<h3>Product and cost controls</h3>
 <ul>
-<li>Profile end-to-end latency (wiki fetch, rerank, and LLM calls dominate today).</li>
-<li>Optimize before stacking more tools: caching, parallel tool calls where safe, keep judges off the hot path, smaller or faster generation models.</li>
-<li>If agent loops multiply LLM calls, evaluate <strong>high-throughput local serving (e.g. vLLM)</strong> or lighter cloud models.</li>
+<li><strong>Rate limits</strong> — daily caps on Asks / tool calls so demo usage stays affordable.</li>
+<li><strong>Response format customization</strong> — user controls for brief vs detailed, bullets vs prose (today the system prompt is fixed).</li>
+<li><strong>Booth UI vs full UI</strong> — optional <code>DEV_UI_ENABLED=false</code> for answer + sources only; full timing, Score, and trace remain the default for development.</li>
+</ul>
+<h2>Bonus</h2>
+<ul>
+<li><strong>Context budgeting</strong> — under a token budget, drop lowest-ranked chunks first; optional light compression of retrieved text before generate.</li>
+<li><strong>Non-retrieval compute tool</strong> — e.g. a DPS calculator (structured stats in → number out) so the planner can combine retrieve + compute.</li>
+<li><strong>Smarter Revise policies</strong> — faithfulness-only rewrite vs re-retrieve-then-rewrite depending on which scores are weak.</li>
+<li><strong>OOD / empty-retrieval refusals</strong> — graceful “I don’t know” when the query is out of domain or retrieval returns nothing useful, without requiring a full judge pass.</li>
 </ul>
 </body>
 </html>

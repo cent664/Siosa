@@ -1,5 +1,13 @@
 Newest first. Each entry uses the same format: a short title and a few bullets on what changed and why it mattered. Edit this file, then run `python scripts/sync_docs.py` for browser HTML.
 
+## 2026-07-16 — Planned page aligned to List 1 roadmap
+
+- Docs — Rewrote Planned page as Already / Planned / Bonus: multi-tool routing, memory, Score+Revise, gold+MLflow, rate limits; removed Siosa vLLM/performance deferred items.
+
+## 2026-07-16 — Planned page aligned to List 1 roadmap
+
+- Docs — Rewrote Planned page as Already / Planned / Bonus: multi-tool routing, memory, Score+Revise, gold+MLflow, rate limits; removed Siosa vLLM/performance deferred items.
+
 ## 2026-07-16 — Planned page: agentic roadmap
 
 - Docs — Expanded Planned page with current-state summary and roadmap: multi-source tools (wiki, PoE Ninja, datamine), richer planning, MCP, session memory, performance.
