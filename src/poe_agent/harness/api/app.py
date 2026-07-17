@@ -2,12 +2,15 @@
 
 from __future__ import annotations
 
+import secrets
 from pathlib import Path
 
 import uvicorn
-from fastapi import FastAPI, File, HTTPException, UploadFile
+from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import HTMLResponse
 from fastapi.staticfiles import StaticFiles
+from starlette.middleware.base import BaseHTTPMiddleware
 
 from poe_agent.harness.api.settings_routes import router as settings_router
 from poe_agent.harness.config import get_effective_provider_mode
@@ -26,8 +29,19 @@ from poe_agent.harness.api.schemas import (
     ScoreResponse,
     TranscribeResponse,
 )
-from poe_agent.harness.config import get_effective_judge_provider, get_settings, deployment_hint
+from poe_agent.harness.config import (
+    deployment_hint,
+    get_effective_judge_provider,
+    get_settings,
+    operator_analytics_active,
+)
 from poe_agent.harness.logging import configure_logging
+from poe_agent.harness.operator_analytics import (
+    fetch_recent_events,
+    log_event,
+    render_analytics_dashboard_html,
+)
+from poe_agent.harness.rate_limit import check_and_increment_ask
 from poe_agent.harness.speech.transcribe import TranscriptionError, transcribe_wav
 from poe_agent.retriever.store import get_chunk_count, is_index_ready
 
@@ -45,6 +59,44 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+
+def _client_ip(request: Request) -> str:
+    forwarded = request.headers.get("x-forwarded-for") or ""
+    if forwarded.strip():
+        return forwarded.split(",")[0].strip()
+    if request.client and request.client.host:
+        return request.client.host
+    return "unknown"
+
+
+def _country(request: Request) -> str:
+    return (
+        request.headers.get("cf-ipcountry")
+        or request.headers.get("x-country-code")
+        or ""
+    ).strip()
+
+
+class OperatorAnalyticsMiddleware(BaseHTTPMiddleware):
+    async def dispatch(self, request: Request, call_next):
+        response = await call_next(request)
+        path = request.url.path or "/"
+        if path.startswith("/health") or path.startswith("/operator"):
+            return response
+        try:
+            log_event(
+                path=path,
+                action=f"{request.method} {path}",
+                client_ip=_client_ip(request),
+                country=_country(request),
+            )
+        except Exception:
+            pass
+        return response
+
+
+app.add_middleware(OperatorAnalyticsMiddleware)
 
 _project_root = Path(__file__).resolve().parents[4]
 _docs_dir = _project_root / "docs"
@@ -82,20 +134,39 @@ def health() -> HealthResponse:
         retrieval_mode=settings.retrieval_mode.lower(),
         live_retrieval_hint=_live_retrieval_hint(settings),
         inline_eval=settings.inline_eval,
-        dev_ui_enabled=settings.dev_ui_enabled,
         deployment_profile=settings.deployment_profile,
         deployment_hint=deployment_hint(settings),
         judge_provider=get_effective_judge_provider(),
         judge_reachable=judge_provider_reachable(settings),
         judge_hint=judge_provider_hint(settings),
+        rate_limit_enabled=settings.rate_limit_enabled,
+        rate_limit_asks_per_day=settings.rate_limit_asks_per_day,
+        operator_analytics_active=operator_analytics_active(settings),
     )
 
 
 @app.post("/query", response_model=QueryResponse)
-def query(body: QueryRequest) -> QueryResponse:
+def query(body: QueryRequest, request: Request) -> QueryResponse:
     from poe_agent.harness.api.query_service import handle_query
 
+    decision = check_and_increment_ask(_client_ip(request))
+    if not decision.allowed:
+        raise HTTPException(
+            status_code=429,
+            detail=(
+                f"Daily Ask limit reached ({decision.limit} per UTC day). "
+                "Try again after the next UTC midnight."
+            ),
+            headers={"Retry-After": str(decision.retry_after_seconds)},
+        )
+
     try:
+        log_event(
+            path="/query",
+            action="ask",
+            client_ip=_client_ip(request),
+            country=_country(request),
+        )
         return handle_query(body.question)
     except Exception as exc:
         raise map_query_exception(exc) from exc
@@ -109,10 +180,16 @@ def evaluate(body: EvaluateRequest) -> EvaluateResponse:
 
 
 @app.post("/score", response_model=ScoreResponse)
-def score(body: ScoreRequest) -> ScoreResponse:
+def score(body: ScoreRequest, request: Request) -> ScoreResponse:
     from poe_agent.harness.api.score_service import handle_score
 
     try:
+        log_event(
+            path="/score",
+            action="score",
+            client_ip=_client_ip(request),
+            country=_country(request),
+        )
         return handle_score(body)
     except Exception as exc:
         raise map_query_exception(exc) from exc
@@ -128,6 +205,26 @@ async def transcribe(audio: UploadFile = File(...)) -> TranscribeResponse:
     except TranscriptionError as exc:
         raise HTTPException(status_code=400, detail=str(exc)) from exc
     return TranscribeResponse(text=text)
+
+
+@app.get("/operator/analytics", response_class=HTMLResponse)
+def operator_analytics_dashboard(
+    key: str = Query(default="", description="OPERATOR_DASHBOARD_KEY from .env"),
+) -> HTMLResponse:
+    """Private HTML table of recent analytics events. Local / non-production only."""
+    settings = get_settings()
+    if not operator_analytics_active(settings):
+        raise HTTPException(status_code=404, detail="Not found")
+    expected = (settings.operator_dashboard_key or "").strip()
+    if not expected:
+        raise HTTPException(
+            status_code=401,
+            detail="Set OPERATOR_DASHBOARD_KEY in .env to enable this page.",
+        )
+    if not secrets.compare_digest(key.strip(), expected):
+        raise HTTPException(status_code=401, detail="Invalid key")
+    events = fetch_recent_events(limit=200, settings=settings)
+    return HTMLResponse(content=render_analytics_dashboard_html(events))
 
 
 # SPA static UI — register after API routes so /query, /health, etc. are not shadowed.

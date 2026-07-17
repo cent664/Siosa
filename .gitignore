@@ -9,6 +9,8 @@ data/raw/
 data/chunks/
 data/chroma/
 data/live_cache/
+data/rate_limit.sqlite
+data/operator_analytics.sqlite
 *.egg-info/
 dist/
 build/
@@ -18,3 +20,7 @@ web/dist/
 
 # Laptop handoff bundle (secrets + chat transcripts) — copy manually, never commit
 transfer/
+
+# Local-only duplicates / stale handoff notes — do not commit
+/art assets/
+docs/HANDOFF.md

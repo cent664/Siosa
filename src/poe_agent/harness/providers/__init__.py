@@ -8,14 +8,6 @@ from poe_agent.harness.config import Settings, get_effective_provider_mode, get_
 from poe_agent.harness.providers.base import EmbeddingProvider, LLMProvider
 
 
-class StubLLMProvider(LLMProvider):
-    def generate(self, system: str, user: str) -> tuple[str, dict[str, int]]:
-        return (
-            "Pipeline is in stub mode.",
-            {"prompt_tokens": 0, "completion_tokens": 0},
-        )
-
-
 class BedrockLLMProvider(LLMProvider):
     def __init__(self, settings: Settings | None = None) -> None:
         self.settings = settings or get_settings()
@@ -91,16 +83,26 @@ class BedrockEmbeddingProvider(EmbeddingProvider):
 
 def _resolve_provider(mode: str, settings: Settings) -> LLMProvider:
     if mode == "claude":
+        if not settings.anthropic_api_key:
+            raise ValueError(
+                "ANTHROPIC_API_KEY not set. Add it to .env (console.anthropic.com)."
+            )
         from poe_agent.harness.providers.anthropic_provider import AnthropicLLMProvider
 
         return AnthropicLLMProvider(settings)
     if mode == "gpt4":
+        if not settings.openai_api_key:
+            raise ValueError(
+                "OPENAI_API_KEY not set. Add it to .env (platform.openai.com)."
+            )
         from poe_agent.harness.providers.openai_provider import OpenAILLMProvider
 
         return OpenAILLMProvider(settings)
     if mode == "bedrock":
         return BedrockLLMProvider(settings)
-    return StubLLMProvider()
+    raise ValueError(
+        f"Unknown provider mode {mode!r}. Use claude or gpt4 (UI) or bedrock (.env)."
+    )
 
 
 def get_provider_model_id(mode: str | None = None) -> str:
@@ -112,7 +114,7 @@ def get_provider_model_id(mode: str | None = None) -> str:
         return s.openai_model
     if mode == "bedrock":
         return s.bedrock_model_id
-    return "stub"
+    return mode
 
 
 def get_llm_provider(settings: Settings | None = None) -> LLMProvider:

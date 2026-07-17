@@ -42,6 +42,26 @@ copy .env.example .env
 
 Never commit `.env`.
 
+### Secrets & local-only data
+
+Keep these **off GitHub** (already gitignored):
+
+| Path / env | Why |
+|------------|-----|
+| `.env` | Real API keys and `OPERATOR_DASHBOARD_KEY` |
+| `transfer/` | Laptop handoff with secrets |
+| `data/*.sqlite` | Rate-limit and operator-analytics DBs (hashed IPs, not full addresses) |
+| `data/chroma/`, live cache | Runtime indexes/caches |
+| `.venv/`, `web/node_modules/`, `web/dist/` | Local install / build output |
+
+Before every push: `git status` — if `.env` or a SQLite file appears, stop.
+
+**Operator analytics page (local only):** set a long random `OPERATOR_DASHBOARD_KEY` in `.env`, run the app, then bookmark:
+
+`http://127.0.0.1:8000/operator/analytics?key=YOUR_KEY`
+
+Empty key = page disabled. Production profile forces analytics off (page 404s). Do not put this link on public docs.
+
 ## 3. Transfer bundle (optional but recommended)
 
 On your **main PC**, regenerate the handoff folder:

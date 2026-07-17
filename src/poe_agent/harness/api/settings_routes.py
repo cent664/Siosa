@@ -72,9 +72,6 @@ def set_provider(body: ProviderSettingsRequest) -> ProviderSettingsResponse:
         )
 
     set_runtime_provider_mode(mode)
-    if mode in ("claude", "gpt4"):
-        set_runtime_judge_provider(default_judge_for_answer_mode(mode))
-    else:
-        set_runtime_judge_provider(None)
+    set_runtime_judge_provider(default_judge_for_answer_mode(mode))
 
     return _build_provider_response(mode, "runtime")

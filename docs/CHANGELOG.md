@@ -1,5 +1,25 @@
 Newest first. Each entry uses the same format: a short title and a few bullets on what changed and why it mattered. Edit this file, then run `python scripts/sync_docs.py` for browser HTML.
 
+## 2026-07-17 — Repo hygiene cleanup
+
+- Repo — Removed unreferenced `AI_tech_stack.docx` (personal copy can stay offline).
+- Deploy — Dockerfile default `POE_PROVIDER_MODE=claude` (was misleading `stub`); verify script no longer checks removed `dev_ui_enabled`.
+- Docs — Trimmed stale stub/booth/Ollama notes in `PROJECT_OVERVIEW.txt`; gitignore root `art assets/` and `docs/HANDOFF.md` so they are not committed by mistake.
+
+## 2026-07-17 — Private operator analytics page
+
+- Harness — `GET /operator/analytics?key=...` HTML table of recent events; gated by `OPERATOR_DASHBOARD_KEY`; 404 when analytics inactive; 401 on bad/missing key.
+- Providers — Removed unused `StubLLMProvider` leftover.
+- Docs — Secrets & local-only data + dashboard bookmark in `LAPTOP_SETUP.md` / developer Architecture (not visitor Architecture).
+
+## 2026-07-17 — Stub/booth removed; rate limits; local analytics
+
+- Providers — Removed Stub answer mode; UI is Claude / GPT-4 only; default `POE_PROVIDER_MODE=claude`; missing keys return a clear error.
+- Web — Removed `DEV_UI_ENABLED` / booth branching; timing, Score, and trace are always shown.
+- Harness — Optional UTC daily Ask rate limit (`RATE_LIMIT_ENABLED`, default off; 20/day when on) via `data/rate_limit.sqlite`.
+- Harness — Operator analytics SQLite log (hashed IP); on by default locally; forced off under `DEPLOYMENT_PROFILE=production`.
+- Docs — Architecture rate-limits + privacy note; Planned updated; footer privacy disclosure.
+
 ## 2026-07-16 — Planned page aligned to List 1 roadmap
 
 - Docs — Rewrote Planned page as Already / Planned / Bonus: multi-tool routing, memory, Score+Revise, gold+MLflow, rate limits; removed Siosa vLLM/performance deferred items.

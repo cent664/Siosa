@@ -12,9 +12,9 @@ def test_claude_gpt4_unavailable_without_keys():
     settings = Settings(anthropic_api_key="", openai_api_key="")
     with patch("poe_agent.harness.config.get_settings", return_value=settings):
         modes = {m["id"]: m["available"] for m in list_available_provider_modes()}
-    assert modes["stub"] == "true"
     assert modes["claude"] == "false"
     assert modes["gpt4"] == "false"
+    assert "stub" not in modes
     assert "ollama" not in modes
 
 
@@ -26,36 +26,37 @@ def test_claude_available_with_anthropic_key():
     assert modes["gpt4"] == "false"
 
 
-def test_provider_modes_stub_claude_gpt4_only():
+def test_provider_modes_claude_gpt4_only():
     settings = Settings(anthropic_api_key="sk-ant-test", openai_api_key="sk-test")
     with patch("poe_agent.harness.config.get_settings", return_value=settings):
         ids = [m["id"] for m in list_available_provider_modes()]
-    assert ids == ["stub", "claude", "gpt4"]
+    assert ids == ["claude", "gpt4"]
 
 
-def test_deployment_profile_applies_booth_defaults():
+def test_deployment_profile_applies_production_defaults():
     settings = Settings(
         deployment_profile="production",
         anthropic_api_key="sk-ant-test",
+        operator_analytics_enabled=True,
     )
     assert settings.inline_eval is False
-    assert settings.dev_ui_enabled is True
+    assert settings.operator_analytics_enabled is False
     assert settings.transcribe_provider == "openai"
     assert settings.judge_provider == "claude"
     assert settings.poe_provider_mode == "claude"
 
 
-def test_deployment_profile_keeps_stub_without_api_key():
+def test_deployment_profile_normalizes_invalid_provider():
     settings = Settings(
         deployment_profile="production",
         poe_provider_mode="stub",
         anthropic_api_key="",
     )
     assert settings.inline_eval is False
-    assert settings.poe_provider_mode == "stub"
+    assert settings.poe_provider_mode == "claude"
 
 
-def test_deployment_hint_when_booth_inactive_on_deployed_host():
+def test_deployment_hint_when_inline_eval_on_deployed_host():
     settings = Settings(
         inline_eval=True,
         poe_api_host="0.0.0.0",

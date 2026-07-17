@@ -45,7 +45,7 @@ COPY --from=web-build /web/dist ./web/dist
 
 
 
-ENV POE_PROVIDER_MODE=stub
+ENV POE_PROVIDER_MODE=claude
 ENV POE_API_HOST=0.0.0.0
 ENV POE_API_PORT=8000
 ENV POE_DATA_DIR=/app/data

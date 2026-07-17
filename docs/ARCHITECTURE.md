@@ -68,7 +68,28 @@ The project also supports a small offline index for development; the public demo
 | **claude** | Anthropic Claude answer | Anthropic |
 | **gpt4** | OpenAI GPT-4 answer | OpenAI |
 
-Claude Pro / ChatGPT Plus subscriptions are **not** API access. Voice input uses cloud transcription when enabled.
+Claude Pro / ChatGPT Plus subscriptions are **not** API access. Voice input uses cloud transcription when enabled. Missing API keys return a clear error (there is no stub answer mode).
+
+---
+
+## Rate limits
+
+The app is in active development. Optional daily caps protect API cost if the public demo is used by others.
+
+- **Unit today:** one **Ask** (`POST /query`). Score and page views are not counted yet; the same module can later count LLM or tool calls.
+- **Cap:** `RATE_LIMIT_ASKS_PER_DAY` (default **20**) per client IP per **UTC** calendar day.
+- **Default locally:** `RATE_LIMIT_ENABLED=false` (unlimited for you). Set `true` when you want enforcement (e.g. on Railway later).
+- Over quota returns HTTP **429** until the next UTC midnight.
+
+### Operator analytics (local)
+
+When enabled (default on non-production), the server may append coarse events to `data/operator_analytics.sqlite`: UTC time, path/action, **hashed** IP, and country code if a proxy header provides one. Under `DEPLOYMENT_PROFILE=production`, analytics are **forced off**. Inspect rows locally, for example:
+
+```powershell
+python -c "import sqlite3; c=sqlite3.connect('data/operator_analytics.sqlite'); print(c.execute('select ts_utc,action,country,ip_hash from events order by id desc limit 20').fetchall())"
+```
+
+Operator analytics (when enabled) stores hashed IP, UTC timestamp, path/action, and coarse country if available; full raw IP is not retained in the analytics table (rate limiting may use IP only in its own SQLite file).
 
 ---
 

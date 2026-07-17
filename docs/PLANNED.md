@@ -11,8 +11,10 @@ Edit this file, then run `python scripts/sync_docs.py` for browser HTML.
 - **LangGraph (narrow)** — planner invents short search terms from the user question only, then one fused wiki lookup.
 - **Score (LLM-as-judge)** — faithfulness, relevance, prompt adherence, context precision/recall; on-demand; post-hoc only (does not change the answer today).
 - **Deploy** — FastAPI + React, Docker, GitHub Actions CI, Railway, OpenAI and Anthropic APIs.
-- **Observability** — traces, timing, retrieval debug.
+- **Observability** — traces, timing, retrieval debug (always on in the UI).
 - **Optional retrieval refine** — second wiki lookup when the first pass looks weak (`RETRIEVAL_REFINE_ENABLED`, **off by default**); heuristic gate today, not judge-driven.
+- **Rate limits (scaffold)** — optional UTC daily Ask cap per IP (`RATE_LIMIT_ENABLED`, default off; 20/day when on).
+- **Operator analytics (local)** — optional SQLite event log (hashed IP); forced off under `DEPLOYMENT_PROFILE=production`.
 
 ## Planned
 
@@ -36,9 +38,9 @@ Edit this file, then run `python scripts/sync_docs.py` for browser HTML.
 
 ### Product and cost controls
 
-- **Rate limits** — daily caps on Asks / tool calls so demo usage stays affordable.
+- **Tighten rate limits** — extend Ask caps to LLM/tool cost units when multi-tool and Revise land.
 - **Response format customization** — user controls for brief vs detailed, bullets vs prose (today the system prompt is fixed).
-- **Booth UI vs full UI** — optional `DEV_UI_ENABLED=false` for answer + sources only; full timing, Score, and trace remain the default for development.
+- **Operator-only panels** — richer local views of analytics / private debug without a separate booth mode.
 
 ## Bonus
 

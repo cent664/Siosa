@@ -10,13 +10,14 @@ from pydantic_settings import BaseSettings, SettingsConfigDict
 _runtime_provider_mode: str | None = None
 _runtime_judge_provider: str | None = None
 
-_VALID_PROVIDER_MODES = frozenset({"stub", "claude", "gpt4", "bedrock"})
+_VALID_ANSWER_MODES = frozenset({"claude", "gpt4", "bedrock"})
+_VALID_JUDGE_MODES = frozenset({"claude", "gpt4", "bedrock"})
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    poe_provider_mode: str = "stub"  # stub | claude | gpt4 | bedrock
+    poe_provider_mode: str = "claude"  # claude | gpt4 | bedrock
     poe_api_host: str = "127.0.0.1"
     poe_api_port: int = 8000
     poe_api_base_url: str = "http://127.0.0.1:8000"
@@ -24,10 +25,9 @@ class Settings(BaseSettings):
     anthropic_model: str = "claude-sonnet-4-6"
     openai_api_key: str = ""
     openai_model: str = "gpt-4o"
-    judge_provider: str = "claude"  # claude | gpt4 | stub | bedrock
+    judge_provider: str = "claude"  # claude | gpt4 | bedrock
     inline_eval: bool = False
-    dev_ui_enabled: bool = True  # trace, timing, score button; set DEV_UI_ENABLED=false for booth-only UI
-    deployment_profile: str = ""  # set DEPLOYMENT_PROFILE=production on Railway for booth defaults
+    deployment_profile: str = ""  # set DEPLOYMENT_PROFILE=production on Railway
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     retrieval_top_k: int = 8
     hybrid_rrf_k: int = 60
@@ -45,6 +45,10 @@ class Settings(BaseSettings):
     retrieval_refine_enabled: bool = False
     retrieval_refine_min_score: float = -1.0
     retrieval_max_refine_rounds: int = 1
+    rate_limit_enabled: bool = False
+    rate_limit_asks_per_day: int = 20
+    operator_analytics_enabled: bool = True
+    operator_dashboard_key: str = ""
     poe_data_dir: Path = Path("data")
     poe_chroma_dir: Path = Path("data/chroma")
     aws_region: str = "us-east-1"
@@ -72,15 +76,24 @@ class Settings(BaseSettings):
     def eval_dir(self) -> Path:
         return self.poe_data_dir / "eval"
 
+    @property
+    def rate_limit_db_path(self) -> Path:
+        return self.poe_data_dir / "rate_limit.sqlite"
+
+    @property
+    def operator_analytics_db_path(self) -> Path:
+        return self.poe_data_dir / "operator_analytics.sqlite"
+
     @model_validator(mode="after")
     def apply_deployment_profile(self) -> Self:
         if self.deployment_profile.lower().strip() != "production":
             return self
-        if self.judge_provider.lower() not in ("claude", "gpt4", "stub"):
+        if self.judge_provider.lower() not in ("claude", "gpt4"):
             object.__setattr__(self, "judge_provider", "claude")
-        if self.poe_provider_mode.lower() == "stub" and self.anthropic_api_key:
+        if self.poe_provider_mode.lower() not in ("claude", "gpt4", "bedrock"):
             object.__setattr__(self, "poe_provider_mode", "claude")
         object.__setattr__(self, "inline_eval", False)
+        object.__setattr__(self, "operator_analytics_enabled", False)
         # Docker image has no faster-whisper; voice uses OpenAI when keys are set.
         object.__setattr__(self, "transcribe_provider", "openai")
         return self
@@ -104,7 +117,7 @@ def set_runtime_provider_mode(mode: str | None) -> None:
         _runtime_provider_mode = None
         return
     normalized = mode.lower().strip()
-    if normalized not in _VALID_PROVIDER_MODES:
+    if normalized not in _VALID_ANSWER_MODES:
         raise ValueError(f"Invalid provider mode: {mode}")
     _runtime_provider_mode = normalized
 
@@ -126,7 +139,7 @@ def set_runtime_judge_provider(mode: str | None) -> None:
         _runtime_judge_provider = None
         return
     normalized = mode.lower().strip()
-    if normalized not in _VALID_PROVIDER_MODES:
+    if normalized not in _VALID_JUDGE_MODES:
         raise ValueError(f"Invalid judge provider: {mode}")
     _runtime_judge_provider = normalized
 
@@ -144,7 +157,7 @@ def short_model_label(model_id: str) -> str:
     """Short display name for provider dropdown (e.g. claude-sonnet-4-6 → Sonnet 4.6)."""
     mid = (model_id or "").strip()
     if not mid:
-        return "Stub"
+        return "Claude"
     low = mid.lower()
     if low.startswith("claude-"):
         tail = mid[7:]
@@ -166,7 +179,6 @@ def list_available_provider_modes() -> list[dict[str, str]]:
     """Modes the UI may offer, with availability hints."""
     s = get_settings()
     return [
-        {"id": "stub", "label": "Stub", "available": "true"},
         {
             "id": "claude",
             "label": short_model_label(s.anthropic_model),
@@ -180,6 +192,19 @@ def list_available_provider_modes() -> list[dict[str, str]]:
     ]
 
 
+def provider_missing_key_message(mode: str | None = None) -> str:
+    """Human-readable error when the selected provider has no API key."""
+    m = (mode or get_effective_provider_mode()).lower()
+    s = get_settings()
+    if m == "claude" and not s.anthropic_api_key:
+        return "ANTHROPIC_API_KEY not set. Add it to .env (console.anthropic.com)."
+    if m == "gpt4" and not s.openai_api_key:
+        return "OPENAI_API_KEY not set. Add it to .env (platform.openai.com)."
+    if m == "bedrock":
+        return ""
+    return ""
+
+
 def _is_local_deployment(settings: Settings) -> bool:
     host = settings.poe_api_host.lower().strip()
     if host in ("127.0.0.1", "localhost", "::1"):
@@ -189,7 +214,7 @@ def _is_local_deployment(settings: Settings) -> bool:
 
 
 def deployment_hint(settings: Settings | None = None) -> str:
-    """Actionable hint when production booth defaults are not active (deployed hosts only)."""
+    """Actionable hint when production defaults are not active (deployed hosts only)."""
     s = settings or get_settings()
     if s.deployment_profile.lower().strip() == "production":
         return ""
@@ -197,8 +222,16 @@ def deployment_hint(settings: Settings | None = None) -> str:
         return ""
     if s.inline_eval:
         return (
-            "Booth mode not active. On Railway set DEPLOYMENT_PROFILE=production "
+            "On Railway set DEPLOYMENT_PROFILE=production "
             "(or INLINE_EVAL=false). "
             "Add ANTHROPIC_API_KEY and POE_PROVIDER_MODE=claude for cloud answers."
         )
     return ""
+
+
+def operator_analytics_active(settings: Settings | None = None) -> bool:
+    """Local operator logging; forced off under DEPLOYMENT_PROFILE=production."""
+    s = settings or get_settings()
+    if s.deployment_profile.lower().strip() == "production":
+        return False
+    return bool(s.operator_analytics_enabled)

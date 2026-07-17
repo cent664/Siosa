@@ -26,13 +26,13 @@ def clear_runtime_provider():
 
 def test_runtime_override():
     get_settings.cache_clear()
-    set_runtime_provider_mode("stub")
-    assert get_effective_provider_mode() == "stub"
+    set_runtime_provider_mode("claude")
+    assert get_effective_provider_mode() == "claude"
 
 
 def test_invalid_runtime_mode():
     with pytest.raises(ValueError):
-        set_runtime_provider_mode("invalid")
+        set_runtime_provider_mode("stub")
 
 
 def test_get_provider_endpoint():
@@ -43,7 +43,8 @@ def test_get_provider_endpoint():
     assert "mode" in data
     assert "source" in data
     assert "available_modes" in data
-    assert any(m["id"] == "stub" for m in data["available_modes"])
+    ids = {m["id"] for m in data["available_modes"]}
+    assert ids == {"claude", "gpt4"}
 
 
 def test_set_provider_invalid_via_api():

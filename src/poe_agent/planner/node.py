@@ -36,19 +36,15 @@ def _ensure_verbatim_first(question: str, subtasks: list[dict]) -> list[dict]:
 
 
 def plan_subtasks(question: str) -> list[dict]:
-    """Rule-based fallback if LLM unavailable; else LLM JSON plan."""
-    from poe_agent.harness.config import get_effective_provider_mode
-
-    settings_mode = get_effective_provider_mode()
-
-    if settings_mode == "stub":
+    """LLM JSON plan with heuristic fallback on parse/API failure."""
+    try:
+        llm = get_llm_provider()
+        raw, _ = llm.generate(
+            PLANNER_SYSTEM,
+            f"Question: {question}\nReturn JSON plan only.",
+        )
+    except Exception:
         return _heuristic_plan(question)
-
-    llm = get_llm_provider()
-    raw, _ = llm.generate(
-        PLANNER_SYSTEM,
-        f"Question: {question}\nReturn JSON plan only.",
-    )
     try:
         match = re.search(r"\{.*\}", raw, re.DOTALL)
         if match:

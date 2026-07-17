@@ -4,4 +4,4 @@ Phase 4 moves multi-step reasoning here. The graph is:
 
 `plan` → `execute` → `generate` → END
 
-Linear RAG in Phase 2–3 lives in `harness/api/query_service.py` until the corpus is indexed and provider mode is not `stub`/`linear`.
+Linear RAG remains as a fallback path in `harness/api/query_service.py`; typical Claude/GPT-4 Asks use LangGraph.

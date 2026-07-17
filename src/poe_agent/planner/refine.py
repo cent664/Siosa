@@ -21,23 +21,20 @@ def refine_search_queries(
     user_question: str,
     chunks: list[RetrievedChunk],
 ) -> list[str]:
-    from poe_agent.harness.config import get_effective_provider_mode
-
-    if get_effective_provider_mode() == "stub":
-        from poe_agent.retriever.query_fusion import extract_topic_terms
-
-        terms = extract_topic_terms(user_question)
-        return terms[:2]
-
     titles = [str(c.metadata.get("page_title", "")) for c in chunks[:8]]
     scores = [c.score for c in chunks[:8]]
     summary = "\n".join(f"- {t} (score {s:.2f})" for t, s in zip(titles, scores) if t)
 
-    llm = get_llm_provider()
-    raw, _ = llm.generate(
-        REFINE_SYSTEM,
-        f"User question: {user_question}\n\nRetrieved pages:\n{summary or '(none)'}\n\nReturn JSON only.",
-    )
+    try:
+        llm = get_llm_provider()
+        raw, _ = llm.generate(
+            REFINE_SYSTEM,
+            f"User question: {user_question}\n\nRetrieved pages:\n{summary or '(none)'}\n\nReturn JSON only.",
+        )
+    except Exception:
+        from poe_agent.retriever.query_fusion import extract_topic_terms
+
+        return extract_topic_terms(user_question)[:2]
     try:
         match = re.search(r"\{.*\}", raw, re.DOTALL)
         if match:

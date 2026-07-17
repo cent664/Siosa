@@ -44,7 +44,7 @@ flowchart TB
 
 **Agentic vs one fetch.** Older LangGraph builds called `wiki_search` **once per planner subtask** (several full retrieval round-trips). We kept **planner flexibility** (multiple retrieve intents in the plan JSON) but changed the executor to fold those strings into **one** fused pass (figure). That is what the “merged into one fusion pass” row in the table below means—not “we removed the planner.”
 
-**Linear / stub** (`linear_rag` trace) skips the LLM planner; fusion still runs from heuristics on your question only. Optional **refine** (when enabled) is a second **agentic** LLM step that may trigger **one** extra `wiki_search`, not one fetch per subtask.
+Optional **refine** (when enabled) is a second **agentic** LLM step that may trigger **one** extra `wiki_search`, not one fetch per subtask. A fallback `linear_rag` path remains in code for edge cases; typical Claude/GPT-4 Asks use LangGraph.
 
 ### Algorithm (one `wiki_search` pass)
 
@@ -73,8 +73,8 @@ Planner sub-queries are **inputs to step 1** (fusion), not separate passes—see
 
 | Pipeline trace | When | What is agentic |
 |----------------|------|-----------------|
-| **`langgraph`** | Non-stub cloud providers (typical Claude / GPT-4 Ask) | **Plan** (LLM JSON; heuristic fallback). Optional **refine** queries when enabled. Then **one** fused live retrieval (see [Live retrieval](#live-retrieval)). |
-| **`linear_rag`** | Provider **`stub`** or explicit linear path | No LLM plan—single `wiki_search` from the user question. |
+| **`langgraph`** | Typical Claude / GPT-4 Ask | **Plan** (LLM JSON; heuristic fallback). Optional **refine** queries when enabled. Then **one** fused live retrieval (see [Live retrieval](#live-retrieval)). |
+| **`linear_rag`** | Fallback path | Single `wiki_search` then generate (no planner). |
 
 Implementation: [`query_service.py`](src/poe_agent/harness/api/query_service.py), [`graph.py`](src/poe_agent/orchestrator/graph.py), [`executor/node.py`](src/poe_agent/executor/node.py) (`_collect_plan_search_extras` → `extra_search_queries` on one `wiki_search`).
 
@@ -87,11 +87,11 @@ Source: [`docs/assets/pipeline-config-developer.json`](docs/assets/pipeline-conf
 | Step | Chosen path | Detail |
 |------|-------------|------------------|
 | **0.1 Ask** | React + FastAPI | `POST /query` with provider; `POST /settings/provider`, `POST /transcribe` (OpenAI Whisper default), browser mic capture. |
-| **0.2 Plan** | LangGraph (Claude / GPT-4) | LangGraph planner for cloud providers; merged into one `wiki_search`. Stub uses `linear_rag` (no planner). |
+| **0.2 Plan** | LangGraph (Claude / GPT-4) | LangGraph planner; merged into one `wiki_search`. |
 | **0.3 Retrieve** | Live poewiki fusion | `RETRIEVAL_MODE=live`: fused queries, title probes, fetch up to `LIVE_WIKI_MAX_PAGES`, rerank top `RERANK_TOP_N`. Cache: `data/live_cache/`. Optional refine via `RETRIEVAL_REFINE_ENABLED`. |
-| **0.4 Generate** | UI provider | Excerpts-only generation; stub = top chunk. LangGraph `timing_ms` for plan, retrieval, generation. |
+| **0.4 Generate** | UI provider | Excerpts-only generation. LangGraph `timing_ms` for plan, retrieval, generation. |
 | **0.5 Score** | On demand | Default `INLINE_EVAL=false`; `POST /score` runs five judges. Inline option: `INLINE_EVAL=true`. |
-| **0.6 Respond** | Answer + trace | Answer + sources always; with `dev_ui_enabled=true`: timing, Score, metrics, trace, LLM log. `DEV_UI_ENABLED=false` for booth mode. |
+| **0.6 Respond** | Answer + trace | Answer, sources, timing, Score, metrics, trace, LLM log. |
 
 ---
 
@@ -99,12 +99,25 @@ Source: [`docs/assets/pipeline-config-developer.json`](docs/assets/pipeline-conf
 
 | Mode | Generation | API key | Set via |
 |------|------------|---------|---------|
-| **stub** | Wiki excerpt only | None | UI or `.env` |
 | **claude** | Anthropic API | `ANTHROPIC_API_KEY` | UI or `.env` |
 | **gpt4** | OpenAI API | `OPENAI_API_KEY` | UI or `.env` |
 | **bedrock** | AWS Bedrock | AWS credentials | `.env` only |
 
-Claude Pro / ChatGPT Plus subscriptions are **not** API access. Embeddings for local index mode use **sentence-transformers** locally. Voice input defaults to **OpenAI Whisper** (`TRANSCRIBE_PROVIDER=openai`); production forces OpenAI because the Docker image does not bundle faster-whisper.
+Claude Pro / ChatGPT Plus subscriptions are **not** API access. Embeddings for local index mode use **sentence-transformers** locally. Voice input defaults to **OpenAI Whisper** (`TRANSCRIBE_PROVIDER=openai`); production forces OpenAI because the Docker image does not bundle faster-whisper. Missing keys return a clear error (no stub answer mode).
+
+### Rate limits and operator analytics
+
+| Env | Default | Role |
+|-----|---------|------|
+| `RATE_LIMIT_ENABLED` | `false` | When true, cap Asks per client IP |
+| `RATE_LIMIT_ASKS_PER_DAY` | `20` | UTC calendar day |
+| `OPERATOR_ANALYTICS_ENABLED` | `true` | Local SQLite event log; **forced off** if `DEPLOYMENT_PROFILE=production` |
+| `OPERATOR_DASHBOARD_KEY` | *(empty)* | Gate for private HTML page `GET /operator/analytics?key=...`; empty disables the page even if logging is on |
+
+SQLite files: `data/rate_limit.sqlite`, `data/operator_analytics.sqlite` (gitignored). See visitor Architecture **Rate limits** section.
+
+**Local bookmark (not on the public Architecture page):** with the API running and a key in `.env`, open  
+`http://127.0.0.1:8000/operator/analytics?key=YOUR_KEY` — HTML table of recent events (hashed IP, no raw addresses). Returns 404 when analytics is inactive (e.g. production profile).
 
 ### Retrieval mode env
 
@@ -147,7 +160,7 @@ Five separate **LLM-as-judge** calls (RAGAS-inspired names; **not** the RAGAS li
 | `relevance` | Answer vs user question |
 | `prompt_adherence` | Rules + excerpts vs answer |
 
-`JUDGE_PROVIDER` selects **claude**, **gpt4**, or **bedrock** (default **claude**). The UI provider choice auto-aligns judges for the session. **`INLINE_EVAL=false`** (default, including production profile) keeps judges off the `/query` hot path; **`dev_ui_enabled=true`** (default) still shows timing, trace, and the Score button.
+`JUDGE_PROVIDER` selects **claude**, **gpt4**, or **bedrock** (default **claude**). The UI provider choice auto-aligns judges for the session. **`INLINE_EVAL=false`** (default, including production profile) keeps judges off the `/query` hot path. Timing, Score, and trace are always available in the UI.
 
 Judges are **not** part of the agentic loop: they never change which pages are fetched or how the answer is drafted. Trace timing (`plan`, `retrieval`, `generation`, `evaluation`) is observability only.
 
@@ -163,5 +176,5 @@ Judges are **not** part of the agentic loop: they never change which pages are f
 
 Rough cost: Railway Hobby ~**$5/mo** plus compute; **Anthropic/OpenAI** per Ask and per Score.
 
-**Latency:** Dominated by poewiki fetch + rerank (+ five judge calls when scoring). Production skips automatic judges but keeps the full dev UI unless `DEV_UI_ENABLED=false`.
+**Latency:** Dominated by poewiki fetch + rerank (+ five judge calls when scoring). Production skips automatic judges; full timing/Score/trace UI remains.
 

@@ -128,8 +128,10 @@
 <li><strong>LangGraph (narrow)</strong> — planner invents short search terms from the user question only, then one fused wiki lookup.</li>
 <li><strong>Score (LLM-as-judge)</strong> — faithfulness, relevance, prompt adherence, context precision/recall; on-demand; post-hoc only (does not change the answer today).</li>
 <li><strong>Deploy</strong> — FastAPI + React, Docker, GitHub Actions CI, Railway, OpenAI and Anthropic APIs.</li>
-<li><strong>Observability</strong> — traces, timing, retrieval debug.</li>
+<li><strong>Observability</strong> — traces, timing, retrieval debug (always on in the UI).</li>
 <li><strong>Optional retrieval refine</strong> — second wiki lookup when the first pass looks weak (<code>RETRIEVAL_REFINE_ENABLED</code>, <strong>off by default</strong>); heuristic gate today, not judge-driven.</li>
+<li><strong>Rate limits (scaffold)</strong> — optional UTC daily Ask cap per IP (<code>RATE_LIMIT_ENABLED</code>, default off; 20/day when on).</li>
+<li><strong>Operator analytics (local)</strong> — optional SQLite event log (hashed IP); forced off under <code>DEPLOYMENT_PROFILE=production</code>.</li>
 </ul>
 <h2>Planned</h2>
 <h3>Tools and routing</h3>
@@ -152,9 +154,9 @@
 </ul>
 <h3>Product and cost controls</h3>
 <ul>
-<li><strong>Rate limits</strong> — daily caps on Asks / tool calls so demo usage stays affordable.</li>
+<li><strong>Tighten rate limits</strong> — extend Ask caps to LLM/tool cost units when multi-tool and Revise land.</li>
 <li><strong>Response format customization</strong> — user controls for brief vs detailed, bullets vs prose (today the system prompt is fixed).</li>
-<li><strong>Booth UI vs full UI</strong> — optional <code>DEV_UI_ENABLED=false</code> for answer + sources only; full timing, Score, and trace remain the default for development.</li>
+<li><strong>Operator-only panels</strong> — richer local views of analytics / private debug without a separate booth mode.</li>
 </ul>
 <h2>Bonus</h2>
 <ul>

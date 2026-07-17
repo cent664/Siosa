@@ -5,7 +5,7 @@
       "title": "Ask",
       "chosen": "React + FastAPI",
       "summary": "Question, provider, optional voice.",
-      "detail": "<p><strong>What happens:</strong> The UI sends your question to <code>POST /query</code> with the selected provider (stub, Claude, or GPT-4).</p><p><strong>Also:</strong> <code>POST /settings/provider</code>, <code>POST /transcribe</code> (OpenAI Whisper by default), mic capture in the browser.</p>",
+      "detail": "<p><strong>What happens:</strong> The UI sends your question to <code>POST /query</code> with the selected provider (Claude or GPT-4).</p><p><strong>Also:</strong> <code>POST /settings/provider</code>, <code>POST /transcribe</code> (OpenAI Whisper by default), mic capture in the browser. Optional Ask rate limits and local operator analytics.</p>",
       "alternatives": [
         {
           "label": "Streamlit UI",
@@ -19,12 +19,12 @@
       "title": "Plan",
       "chosen": "LangGraph (Claude / GPT-4)",
       "summary": "Extra search terms when needed.",
-      "detail": "<p>For Claude/GPT-4, <strong>LangGraph</strong> runs a planner that emits one or more retrieve intents (compare questions are a common case).</p><p>All planner queries are merged into <strong>one</strong> live <code>wiki_search</code> with multi-query fusion — not separate fetches per subtask.</p><p><strong>Stub</strong> uses <code>linear_rag</code> (single pass, no planner).</p>",
+      "detail": "<p>For Claude/GPT-4, <strong>LangGraph</strong> runs a planner that emits one or more retrieve intents (compare questions are a common case).</p><p>All planner queries are merged into <strong>one</strong> live <code>wiki_search</code> with multi-query fusion — not separate fetches per subtask.</p>",
       "alternatives": [
         {
           "label": "Linear only",
           "opaque": false,
-          "detail": "<p>One retrieval pass with the user question — stub path or when the planner emits a single step.</p>"
+          "detail": "<p>One retrieval pass with the user question — fallback path or when the planner emits a single step.</p>"
         },
         {
           "label": "Rule-based planner",
@@ -61,8 +61,8 @@
       "id": "0.4",
       "title": "Generate",
       "chosen": "UI provider",
-      "summary": "LLM or stub from excerpts only.",
-      "detail": "<p>The selected provider writes using <strong>only</strong> reranked wiki excerpts (PoE 1, excerpts-only system prompt).</p><p><strong>Stub:</strong> top chunk text, no LLM.</p><p>LangGraph records <code>timing_ms</code> for plan, retrieval, and generation.</p>",
+      "summary": "LLM from excerpts only.",
+      "detail": "<p>The selected provider writes using <strong>only</strong> reranked wiki excerpts (PoE 1, excerpts-only system prompt).</p><p>LangGraph records <code>timing_ms</code> for plan, retrieval, and generation.</p>",
       "alternatives": [
         {
           "label": "Bedrock",
@@ -89,8 +89,8 @@
       "id": "0.6",
       "title": "Respond",
       "chosen": "Answer + trace",
-      "summary": "Citations; dev panels when enabled.",
-      "detail": "<p><strong>Always:</strong> Answer markdown and wiki source links.</p><p><strong>With <code>dev_ui_enabled=true</code> (default):</strong> pipeline timing bars, Score button, quality metrics, agent trace, LLM call log.</p><p>Set <code>DEV_UI_ENABLED=false</code> for answer + sources only.</p>",
+      "summary": "Citations, timing, Score, trace.",
+      "detail": "<p><strong>Always:</strong> Answer markdown, wiki source links, pipeline timing, Score button, quality metrics, agent trace, and LLM call log.</p>",
       "alternatives": []
     }
   ]

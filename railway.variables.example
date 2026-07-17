@@ -1,7 +1,7 @@
 # Copy these into Railway → Service → Variables (replace ... with real secrets).
 # Do not commit real API keys. After saving, Railway redeploys automatically.
 
-# One-line booth mode: sets INLINE_EVAL=false, JUDGE_PROVIDER=claude, POE_PROVIDER_MODE=claude
+# Production profile: INLINE_EVAL=false, operator analytics forced off, OpenAI transcribe
 DEPLOYMENT_PROFILE=production
 
 POE_PROVIDER_MODE=claude
@@ -11,10 +11,16 @@ OPENAI_API_KEY=sk-...
 OPENAI_MODEL=gpt-4o
 TRANSCRIBE_PROVIDER=openai
 TRANSCRIBE_MODEL=
-DEV_UI_ENABLED=true
 JUDGE_PROVIDER=claude
 INLINE_EVAL=false
 RETRIEVAL_MODE=live
 POE_DATA_DIR=/app/data
 
-# Remove if present: OLLAMA_*, POE_ENABLE_OLLAMA, custom PORT
+# Optional public Ask cap (UTC day, per IP). Leave false until you want enforcement.
+RATE_LIMIT_ENABLED=false
+RATE_LIMIT_ASKS_PER_DAY=20
+
+# Operator analytics stays off under DEPLOYMENT_PROFILE=production even if set true.
+OPERATOR_ANALYTICS_ENABLED=false
+
+# Remove if present: OLLAMA_*, POE_ENABLE_OLLAMA, DEV_UI_ENABLED, custom PORT

@@ -8,7 +8,7 @@ Path of Exile 1 mechanics Q&A grounded in poewiki.net excerpts with citations.
 This document is for anyone continuing the project (including on a second machine).
 For machine-to-machine transfer steps, see Section 10 at the end.
 
-Last aligned with architecture docs: 2026-06-02
+Last aligned with architecture docs: 2026-07-17
 
 
 ================================================================================
@@ -17,11 +17,10 @@ Last aligned with architecture docs: 2026-06-02
 
 A retrieval-augmented generation (RAG) web app: the user asks a PoE 1 mechanics
 question; the backend searches and fetches relevant poewiki.net pages (by default
-at Ask time), reranks text chunks, then Claude or GPT-4 (or stub/Ollama locally)
-writes a short grounded answer with wiki citations. For non-stub cloud providers,
-LangGraph may plan multiple wiki lookups before synthesis. A public conference
-demo runs on Railway; local development uses the same codebase with fuller UI and
-optional quality judges.
+at Ask time), reranks text chunks, then Claude or GPT-4 writes a short grounded
+answer with wiki citations. LangGraph may plan multiple wiki lookups before
+synthesis. A public demo runs on Railway; local development uses the same
+codebase with timing, Score, and trace UI always available.
 
 
 ================================================================================
@@ -29,8 +28,8 @@ optional quality judges.
 ================================================================================
 
 - Phase 1: Curated 18-page wiki corpus, ingest pipeline, Chroma + BM25 hybrid index.
-- Phase 2: Ollama local LLM, stub mode, FastAPI harness.
-- Phase 3: Multi-provider (Claude, GPT-4), inline LLM-as-judge metrics, trace UI.
+- Phase 2: FastAPI harness and multi-provider LLM adapters.
+- Phase 3: Claude / GPT-4 providers, LLM-as-judge metrics, trace UI.
 - Phase 4: LangGraph orchestrator for multi-step retrieval (compare questions).
 - Phase 5: Gold eval set (10 questions), POST /evaluate endpoint.
 - Phase 6: Docker, GitHub Actions CI, optional AWS Bedrock adapters (not primary path).
@@ -38,9 +37,11 @@ optional quality judges.
 - Live retrieval quality: Multi-query fusion, title probe, title overlap filter.
 - React UI replaced Streamlit; single process serves API + static web/dist.
 - Voice: Browser mic -> POST /transcribe (faster-whisper local or OpenAI Whisper API).
-- Railway deploy: Dockerfile, custom domain poesiosa.net, booth mode (no inline judges on prod).
-- DEPLOYMENT_PROFILE=production: One env flag applies booth defaults on Railway.
+- Railway deploy: Dockerfile, custom domain poesiosa.net; production skips inline judges.
+- DEPLOYMENT_PROFILE=production: One env flag applies production defaults on Railway
+  (no inline judges, operator analytics off, OpenAI transcribe).
 - Laptop sync: transfer/ bundle + export_transfer.ps1 (gitignored handoff folder).
+- Stub answer mode and DEV_UI / booth branching removed; Claude / GPT-4 only in UI.
 
 
 ================================================================================
@@ -112,7 +113,7 @@ LOCAL / HYBRID MODE (when RETRIEVAL_MODE=local or hybrid):
 LANGGRAPH (agentic retrieval, not full-agent product):
 - When provider is Claude/GPT-4 and retrieval available, pipeline trace may be "langgraph".
 - Planner emits 1-4 retrieve subtasks (PLANNER_MAX_RETRIEVE_SUBTASKS); each runs wiki_search with fusion inside.
-- Linear path: single retrieve_for_query for stub/linear or when graph not used.
+- Linear path: single retrieve_for_query when graph not used.
 
 WHAT WE DID NOT DO:
 - RAGAS library: Custom LLM-as-judge prompts inspired by RAGAS metric names, not the RAGAS package.
@@ -125,11 +126,10 @@ WHAT WE DID NOT DO:
 ================================================================================
 
 PROVIDER MODES (UI + .env POE_PROVIDER_MODE):
-- stub: Top wiki excerpt only, no LLM call (debug retrieval).
-- ollama: Local llama3.2 via Ollama (local dev only; POE_ENABLE_OLLAMA=false on production).
 - claude: Anthropic API (default model claude-sonnet-4-6).
 - gpt4: OpenAI API (default gpt-4o).
 - bedrock: AWS Bedrock in .env only, not in UI dropdown.
+Missing API keys return a clear error (no stub answer mode).
 
 WHAT WE DID:
 - Grounded answers: system prompt enforces PoE 1, excerpts-only, citations.
@@ -137,8 +137,8 @@ WHAT WE DID:
 - Cloud provider errors mapped to HTTP 502 with readable detail.
 
 WHAT WE DID NOT DO — vLLM / self-hosted inference at scale:
-- vLLM not used. Reason: conference demo needs reliable cloud APIs (Claude/GPT-4), minimal
-  GPU ops burden on Railway; local Ollama is optional for dev only.
+- vLLM not used. Reason: demo needs reliable cloud APIs (Claude/GPT-4), minimal
+  GPU ops burden on Railway.
 - No fine-tuned domain model: General-purpose LLMs + retrieval grounding.
 
 WHAT WE DID NOT DO — MLOps platforms:
@@ -160,7 +160,7 @@ WHAT WE DID:
   context precision, context recall, faithfulness, relevance, prompt adherence.
 - POST /evaluate: exact retrieval precision/recall vs expected_pages; generation judges; optional extraction vs gold_answer.
 - Trace on every /query: plan, tool_calls, retrieval_debug (fused queries, pages fetched), llm_calls, timing_ms.
-- React UI: QualityScores, TracePanels (hidden on production when inline_eval=false).
+- React UI: QualityScores, TracePanels, timing (always shown; Score is on-demand via POST /score).
 
 WHAT WE DID NOT DO:
 - Agentic revise loop using low scores to re-retrieve or rewrite (planned future; scores display-only today).
@@ -168,8 +168,9 @@ WHAT WE DID NOT DO:
 - Verbosity judge on inline /query (removed from UI; code may still reference elsewhere).
 
 PRODUCTION (poesiosa.net):
-- INLINE_EVAL=false: no judge LLM calls; faster/cheaper booth experience.
-- UI shows Answer + Sources only (booth mode driven by /health inline_eval flag).
+- INLINE_EVAL=false: no judge LLM calls on every Ask (use Score response when needed).
+- Operator analytics forced off under DEPLOYMENT_PROFILE=production.
+- Timing, sources, Score, and trace remain available in the UI.
 
 
 ================================================================================
@@ -194,7 +195,7 @@ VOICE:
 - Optional pip install -e ".[speech]".
 
 LAUNCHER:
-- start.bat / start.ps1: build web if needed, uvicorn on 8000 locally.
+- start.bat / start.ps1: always npm install + build web, then uvicorn on 8000 locally.
 - scripts/start_api.sh: Railway uses PORT env, host 0.0.0.0.
 
 
@@ -214,9 +215,9 @@ RECOMMENDED RAILWAY VARIABLES (see railway.variables.example):
 - DEPLOYMENT_PROFILE=production
 - POE_PROVIDER_MODE=claude
 - ANTHROPIC_API_KEY, OPENAI_API_KEY (optional GPT-4 toggle)
-- INLINE_EVAL=false, POE_ENABLE_OLLAMA=false
+- INLINE_EVAL=false, OPERATOR_ANALYTICS_ENABLED=false
 - RETRIEVAL_MODE=live, POE_DATA_DIR=/app/data
-- Remove: OLLAMA_*, JUDGE_PROVIDER=ollama, POE_API_HOST/PORT (local-only), custom PORT
+- Remove if leftover: OLLAMA_*, DEV_UI_ENABLED, POE_API_HOST/PORT (local-only), custom PORT
 
 WHAT WE DID NOT DO:
 - Kubernetes / Terraform: Railway PaaS is enough for demo.
@@ -234,7 +235,7 @@ COST (ROUGH):
 
 | Topic              | Not used / not done          | Why                                      |
 |--------------------|------------------------------|------------------------------------------|
-| vLLM               | No                           | Cloud APIs + optional local Ollama       |
+| vLLM               | No                           | Cloud APIs (Claude/GPT-4) on Railway     |
 | MLOps (MLflow/W&B) | No                           | Gold set + traces enough for scope       |
 | RAGAS library      | No                           | Custom judges, similar metric names      |
 | Full wiki index    | No                           | 18-page seed + live search               |
@@ -261,7 +262,7 @@ web/                React SPA
 docs/               ARCHITECTURE.md, CHANGELOG.md, LAPTOP_SETUP.md (source of truth)
 scripts/            sync_docs.py, export_transfer.ps1, verify_railway_deploy.ps1
 transfer/           GITIGNORED handoff bundle (see Section 12)
-DEPLOY.md           Railway and production checklist
+railway.variables.example  Railway Variables checklist (no real secrets)
 .env.example        Local env template (secrets in .env only)
 
 
@@ -335,7 +336,7 @@ history, or the transfer/ folder.
    - If you filled user-rules.md on the main PC, paste into Cursor Settings -> Rules.
 
 9. Production (poesiosa.net) is unchanged on Railway; edit Variables in Railway
-   dashboard, not only on laptop. See DEPLOY.md and transfer/railway/.
+   dashboard, not only on laptop. See railway.variables.example and transfer/railway/.
 
 --- STEP C: Keeping machines in sync later ---
 
@@ -347,11 +348,11 @@ history, or the transfer/ folder.
 
 .\scripts\verify_railway_deploy.ps1 -BaseUrl "https://www.poesiosa.net"
 
-Expect inline_eval=false, enable_ollama=false after correct Railway Variables.
+Expect inline_eval=false and operator_analytics_active=false after correct Railway Variables.
 
 
 ================================================================================
-13. BOOTH PITCH (30 SECONDS)
+13. DEMO PITCH (30 SECONDS)
 ================================================================================
 
 This is wiki-grounded RAG for Path of Exile 1: we search poewiki live, rerank the best

@@ -51,16 +51,6 @@ def generate_answer_with_meta(
         return (msg, [], {"prompt_tokens": 0, "completion_tokens": 0})
 
     mode = get_effective_provider_mode()
-    if mode == "stub":
-        top = chunks[0]
-        title = top.metadata.get("page_title", "Wiki")
-        excerpt = top.text[:500].strip()
-        answer = (
-            f"(Stub mode — excerpt from **{title}**) {excerpt}… "
-            "Switch to Claude or GPT-4 for full LLM answers."
-        )
-        return answer, _chunks_to_citations(chunks), {"prompt_tokens": 0, "completion_tokens": 0}
-
     context = format_evidence_context(chunks)
     user_prompt = f"""Question: {question}
 

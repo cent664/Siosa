@@ -49,12 +49,6 @@ def run_inline_quality(
     chunks: list[RetrievedChunk],
 ) -> tuple[QualityScores, dict[str, float]]:
     """Run five judges; return scores and per-judge latency_ms."""
-    if get_effective_provider_mode_stub_skip(answer):
-        return (
-            QualityScores(notes={"skipped": "stub mode — no LLM answer to judge"}),
-            {},
-        )
-
     evidence = truncate_for_judge(format_evidence_context(chunks))
     judge_latencies: dict[str, float] = {}
 
@@ -90,16 +84,6 @@ def run_inline_quality(
         ),
         judge_latencies,
     )
-
-
-def get_effective_provider_mode_stub_skip(answer: str) -> bool:
-    from poe_agent.harness.config import get_effective_provider_mode
-
-    if get_effective_provider_mode() == "stub":
-        return True
-    if answer.startswith("(Stub mode"):
-        return True
-    return False
 
 
 def should_run_inline_eval() -> bool:

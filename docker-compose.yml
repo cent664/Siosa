@@ -1,20 +1,12 @@
 services:
-
   api:
-
     build: .
-
     ports:
-
       - "8000:8000"
-
     environment:
-
-      - POE_PROVIDER_MODE=stub
-
+      - POE_PROVIDER_MODE=claude
       - POE_API_BASE_URL=http://api:8000
-
+      - RATE_LIMIT_ENABLED=false
+      - OPERATOR_ANALYTICS_ENABLED=true
     volumes:
-
       - ./data:/app/data
-

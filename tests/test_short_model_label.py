@@ -13,8 +13,8 @@ def test_short_model_label_gpt():
     assert short_model_label("gpt-4o") == "GPT-4o"
 
 
-def test_short_model_label_stub():
-    assert short_model_label("") == "Stub"
+def test_short_model_label_empty():
+    assert short_model_label("") == "Claude"
 
 
 def test_list_available_provider_modes_uses_model_names(monkeypatch):
@@ -26,7 +26,7 @@ def test_list_available_provider_modes_uses_model_names(monkeypatch):
 
     get_settings.cache_clear()
     modes = {m["id"]: m["label"] for m in list_available_provider_modes()}
-    assert modes["stub"] == "Stub"
+    assert "stub" not in modes
     assert modes["claude"] == "Sonnet 4.6"
     assert modes["gpt4"] == "GPT-4o"
     get_settings.cache_clear()

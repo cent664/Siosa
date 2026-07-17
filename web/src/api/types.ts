@@ -102,12 +102,14 @@ export interface HealthResponse {
   retrieval_mode?: string;
   live_retrieval_hint?: string;
   inline_eval?: boolean;
-  dev_ui_enabled?: boolean;
   deployment_profile?: string;
   deployment_hint?: string;
   judge_provider?: string;
   judge_reachable?: boolean;
   judge_hint?: string;
+  rate_limit_enabled?: boolean;
+  rate_limit_asks_per_day?: number;
+  operator_analytics_active?: boolean;
 }
 
 export interface ProviderModeInfo {

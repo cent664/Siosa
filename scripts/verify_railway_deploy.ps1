@@ -38,8 +38,8 @@ if ($health.inline_eval -eq $true) {
     Write-Host "WARN inline_eval is true - judges run on every Ask. Set INLINE_EVAL=false or DEPLOYMENT_PROFILE=production."
     $exitCode = 2
 }
-if ($health.dev_ui_enabled -eq $false) {
-    Write-Host "WARN dev_ui_enabled is false - timing/trace/score hidden. Set DEV_UI_ENABLED=true in Railway Variables."
+if ($health.operator_analytics_active -eq $true) {
+    Write-Host "WARN operator_analytics_active is true - expected off under DEPLOYMENT_PROFILE=production."
     $exitCode = 2
 }
 if ($health.deployment_hint) {
@@ -50,8 +50,8 @@ if ($health.judge_provider -notin @("claude", "gpt4")) {
     Write-Host "WARN judge_provider is $($health.judge_provider) - set JUDGE_PROVIDER=claude or DEPLOYMENT_PROFILE=production"
     $exitCode = 2
 }
-if ($health.provider_mode -eq "stub") {
-    Write-Host "WARN provider_mode is stub - set POE_PROVIDER_MODE=claude and ANTHROPIC_API_KEY in Railway"
+if ($health.provider_mode -notin @("claude", "gpt4", "bedrock")) {
+    Write-Host "WARN provider_mode is $($health.provider_mode) - set POE_PROVIDER_MODE=claude and ANTHROPIC_API_KEY in Railway"
     $exitCode = 2
 }
 
@@ -64,8 +64,8 @@ if (-not $claudeOk -and -not $gpt4Ok) {
     Write-Host "      See railway.variables.example in the repo."
     $exitCode = 2
 }
-if ($provider.mode -eq "stub") {
-    Write-Host "WARN Active provider is stub - set POE_PROVIDER_MODE=claude (or pick Claude in the UI after keys are set)."
+if ($provider.mode -notin @("claude", "gpt4", "bedrock")) {
+    Write-Host "WARN Active provider is $($provider.mode) - set POE_PROVIDER_MODE=claude (or pick Claude in the UI after keys are set)."
     $exitCode = 2
 }
 
@@ -73,7 +73,7 @@ $root = Test-Endpoint "/" $false
 if (-not $root) { exit 1 }
 
 if ($exitCode -eq 0) {
-    Write-Host "Public deploy OK. Booth mode active. Cloud providers enabled. Run one Ask."
+    Write-Host "Public deploy OK. Production profile healthy. Cloud providers enabled. Run one Ask."
 } else {
     Write-Host "Deploy reachable but production Variables need attention. See railway.variables.example."
 }

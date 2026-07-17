@@ -55,7 +55,7 @@ class QueryResponse(BaseModel):
     answer: str
     citations: list[Citation]
     run_id: str
-    mode: str = "stub"
+    mode: str = "claude"
     retrieved_count: int = 0
     trace: QueryTrace = Field(default_factory=QueryTrace)
     quality_scores: QualityScores = Field(default_factory=QualityScores)
@@ -69,12 +69,14 @@ class HealthResponse(BaseModel):
     retrieval_mode: str = "local"
     live_retrieval_hint: str = ""
     inline_eval: bool = False
-    dev_ui_enabled: bool = True
     deployment_profile: str = ""
     deployment_hint: str = ""
     judge_provider: str = "claude"
     judge_reachable: bool = True
     judge_hint: str = ""
+    rate_limit_enabled: bool = False
+    rate_limit_asks_per_day: int = 20
+    operator_analytics_active: bool = False
 
 
 class ScoreChunkInput(BaseModel):
@@ -125,7 +127,7 @@ class ProviderSettingsResponse(BaseModel):
 
 
 class ProviderSettingsRequest(BaseModel):
-    mode: str = Field(..., pattern="^(stub|claude|gpt4)$")
+    mode: str = Field(..., pattern="^(claude|gpt4)$")
 
 
 class TranscribeResponse(BaseModel):

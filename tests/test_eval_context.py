@@ -4,7 +4,7 @@ from __future__ import annotations
 
 from poe_agent.evaluator.context import format_evidence_context
 from poe_agent.evaluator.judges import judge_prompt_adherence
-from poe_agent.evaluator.inline import chunks_from_score_payload, run_inline_quality
+from poe_agent.evaluator.inline import chunks_from_score_payload
 from poe_agent.generator.answer import get_answer_system_prompt
 from poe_agent.retriever.models import RetrievedChunk
 
@@ -31,15 +31,15 @@ def test_judge_prompt_adherence_user_prompt_includes_wiki_excerpts(monkeypatch):
 
     from poe_agent.harness.config import get_settings
 
-    monkeypatch.setenv("JUDGE_PROVIDER", "stub")
+    monkeypatch.setenv("JUDGE_PROVIDER", "claude")
     get_settings.cache_clear()
     evidence = "[1] Scion (https://www.poewiki.net/wiki/Scion)\nFreedom achievement unlocks Scion."
     with patch("poe_agent.evaluator.judges.traced_generate") as mock_gen:
         mock_gen.return_value = LLMResult(
             call_id="t",
             purpose="judge_prompt_adherence",
-            provider_name="stub",
-            model_id="stub",
+            provider_name="claude",
+            model_id="claude-sonnet-4-6",
             system_prompt="",
             user_prompt="",
             text='{"score": 5, "reason": "ok"}',
@@ -57,9 +57,3 @@ def test_chunks_from_score_payload():
     chunks = chunks_from_score_payload(rows)
     assert len(chunks) == 1
     assert chunks[0].metadata["page_title"] == "Scion"
-
-
-def test_run_inline_quality_stub_skips():
-    scores, latencies = run_inline_quality("q", "(Stub mode — x)", [])
-    assert scores.notes.get("skipped")
-    assert latencies == {}

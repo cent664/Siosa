@@ -85,7 +85,7 @@
       "title": "Respond",
       "chosen": "Answer + sources",
       "summary": "Citations and optional detail panels.",
-      "detail": "<p><strong>Always:</strong> answer markdown and wiki source links.</p><p><strong>Full UI (default):</strong> pipeline timing bars, Score button, quality metrics, and optional trace panels.</p><p>A minimal booth mode can show answer and sources only.</p>",
+      "detail": "<p><strong>Always:</strong> answer markdown and wiki source links.</p><p><strong>Also:</strong> pipeline timing bars, Score button, quality metrics, and optional trace panels.</p>",
       "alternatives": []
     }
   ]

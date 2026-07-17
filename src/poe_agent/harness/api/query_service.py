@@ -36,8 +36,7 @@ def _retrieval_available() -> bool:
 
 
 def _use_langgraph() -> bool:
-    mode = get_effective_provider_mode()
-    return _retrieval_available() and mode not in ("stub", "linear")
+    return _retrieval_available()
 
 
 def _retrieval_config_snapshot() -> dict:
@@ -109,10 +108,9 @@ def _finalize_response(
     plan: list | None = None,
     retrieval_source: str = "",
 ) -> QueryResponse:
-    settings = get_settings()
-    run.retrieved_chunks = _chunk_dicts(chunks, include_text=settings.dev_ui_enabled)
+    run.retrieved_chunks = _chunk_dicts(chunks, include_text=True)
     quality = QualityScores()
-    if should_run_inline_eval() and answer and not answer.startswith("(Stub mode"):
+    if should_run_inline_eval() and answer:
         t0 = time.perf_counter()
         try:
             quality, _ = run_inline_quality(question, answer, chunks)
@@ -145,17 +143,22 @@ def handle_query(question: str) -> QueryResponse:
     mode = get_effective_provider_mode()
     timing: dict[str, float] = {}
 
+    from poe_agent.harness.config import provider_missing_key_message
+
+    missing = provider_missing_key_message(mode)
+    if missing:
+        raise ValueError(missing)
+
     with agent_run(question) as run:
-        if mode == "stub" and not _retrieval_available():
+        if not _retrieval_available():
             run.output_answer = (
-                "Pipeline not connected yet. Run `poe-ingest` or set RETRIEVAL_MODE=live, "
-                "then pick a provider. See docs/changelog.html."
+                "Retrieval not available. Set RETRIEVAL_MODE=live or run `poe-ingest` for local index."
             )
             return QueryResponse(
                 answer=run.output_answer,
                 citations=[],
                 run_id=run.run_id,
-                mode="stub",
+                mode=mode,
                 trace=QueryTrace(pipeline="none", timing_ms=timing),
             )
 
@@ -249,7 +252,7 @@ def _linear_rag(question: str, run: RunLog, timing: dict[str, float]) -> QueryRe
     run.output_answer = answer
     run.citations = citations
     run.token_counts = tokens
-    pipeline = "linear_rag" if get_effective_provider_mode() != "stub" else "linear_rag_stub"
+    pipeline = "linear_rag"
     return _finalize_response(
         question,
         answer,

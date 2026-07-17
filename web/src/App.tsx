@@ -99,8 +99,7 @@ export default function App() {
   };
 
   const modes = providerInfo?.available_modes ?? [];
-  const currentMode = providerInfo?.mode ?? health?.provider_mode ?? "stub";
-  const showDevUi = health?.dev_ui_enabled !== false;
+  const currentMode = providerInfo?.mode ?? health?.provider_mode ?? "claude";
   const inlineEval = health?.inline_eval === true;
 
   const handleScore = async () => {
@@ -157,7 +156,10 @@ export default function App() {
               onChange={(ev) => void handleProviderChange(ev.target.value)}
               disabled={modes.length === 0 || !!apiError}
             >
-              {(modes.length > 0 ? modes : [{ id: "stub", label: "Stub", available: true }]).map(
+              {(modes.length > 0
+                ? modes
+                : [{ id: "claude", label: "Claude", available: false }]
+              ).map(
                 (m) => (
                   <option key={m.id} value={m.id} disabled={!m.available}>
                     {m.label}
@@ -210,14 +212,14 @@ export default function App() {
               <ReactMarkdown>{result.answer}</ReactMarkdown>
             </div>
 
-            {showDevUi && pipelineTiming && (
+            {pipelineTiming && (
               <TimingSection
                 title="Pipeline timing"
                 entries={orderedPipelineEntries(pipelineTiming)}
               />
             )}
 
-            {showDevUi && !inlineEval && (
+            {!inlineEval && (
               <p className="score-actions">
                 <button
                   type="button"
@@ -231,7 +233,7 @@ export default function App() {
               </p>
             )}
 
-            {showDevUi && scoringTiming && (
+            {scoringTiming && (
               <TimingSection
                 title={`Scoring Timing${
                   scoringTiming.evaluation != null
@@ -242,7 +244,7 @@ export default function App() {
               />
             )}
 
-            <QualityScores scores={showDevUi ? qualityScores ?? result.quality_scores : undefined} />
+            <QualityScores scores={qualityScores ?? result.quality_scores} />
 
             {result.citations && result.citations.length > 0 && (
               <div className="citations">
@@ -259,7 +261,7 @@ export default function App() {
               </div>
             )}
 
-            {showDevUi && <TracePanels data={result} />}
+            <TracePanels data={result} />
           </div>
         )}
         </main>
@@ -278,6 +280,12 @@ export default function App() {
             poewiki.net
           </a>{" "}
           (CC BY-NC-SA 3.0 where applicable).
+        </p>
+        <p className="footer-disclaimer footer-privacy">
+          <strong>Privacy:</strong> This demo may log coarse request metadata for the operator
+          (time, approximate region from IP, and which pages or Asks were used) to understand usage
+          while the app is in development. No account is required. Data is not sold. Contact the
+          site operator to request deletion of logs.
         </p>
       </footer>
     </div>
