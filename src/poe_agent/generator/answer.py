@@ -40,7 +40,10 @@ def _chunks_to_citations(chunks: list[RetrievedChunk]) -> list[dict]:
 
 
 def generate_answer_with_meta(
-    question: str, chunks: list[RetrievedChunk]
+    question: str,
+    chunks: list[RetrievedChunk],
+    history: list[dict[str, str]] | None = None,
+    summary: str = "",
 ) -> tuple[str, list[dict], dict[str, int]]:
     if not chunks:
         mode = get_settings().retrieval_mode.lower()
@@ -52,7 +55,23 @@ def generate_answer_with_meta(
 
     mode = get_effective_provider_mode()
     context = format_evidence_context(chunks)
-    user_prompt = f"""Question: {question}
+    history_block = ""
+    if summary or history:
+        from poe_agent.harness.session_memory import format_generation_context
+
+        history_block = format_generation_context(summary or "", history or [])
+    if history_block:
+        user_prompt = f"""Prior conversation (for follow-up context; still answer from wiki excerpts):
+{history_block}
+
+Current question: {question}
+
+Wiki excerpts:
+{context}
+
+Answer the current question using only the excerpts above. Use prior conversation only to resolve references (e.g. \"it\", \"that skill\")."""
+    else:
+        user_prompt = f"""Question: {question}
 
 Wiki excerpts:
 {context}
@@ -71,6 +90,13 @@ Answer the question using only the excerpts above."""
     return result.text, _chunks_to_citations(chunks), result.token_counts
 
 
-def generate_answer(question: str, chunks: list[RetrievedChunk]) -> tuple[str, list[dict]]:
-    answer, citations, _ = generate_answer_with_meta(question, chunks)
+def generate_answer(
+    question: str,
+    chunks: list[RetrievedChunk],
+    history: list[dict[str, str]] | None = None,
+    summary: str = "",
+) -> tuple[str, list[dict]]:
+    answer, citations, _ = generate_answer_with_meta(
+        question, chunks, history=history, summary=summary
+    )
     return answer, citations

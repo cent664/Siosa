@@ -193,7 +193,6 @@
 <ul>
 <li><strong>Unit today:</strong> one <strong>Ask</strong> (<code>POST /query</code>). Score and page views are not counted yet; the same module can later count LLM or tool calls.</li>
 <li><strong>Cap:</strong> <code>RATE_LIMIT_ASKS_PER_DAY</code> (default <strong>20</strong>) per client IP per <strong>UTC</strong> calendar day.</li>
-<li><strong>Default locally:</strong> <code>RATE_LIMIT_ENABLED=false</code> (unlimited for you). Set <code>true</code> when you want enforcement (e.g. on Railway later).</li>
 <li>Over quota returns HTTP <strong>429</strong> until the next UTC midnight.</li>
 </ul>
 <h3>Operator analytics</h3>
@@ -205,6 +204,9 @@
 <p>Each row stores UTC time, action, <strong>hashed</strong> IP, and country code if a proxy header provides one (e.g. Cloudflare). Raw IPs are not stored in this table.</p>
 <p>Private HTML dashboard (requires <code>OPERATOR_DASHBOARD_KEY</code>): <code>/operator/analytics?key=...</code> — summary of unique visitors, visits, and Asks. Local and production each have their <strong>own</strong> database; open the matching host. On Railway, mount a <strong>volume</strong> at <code>/app/data</code> so data survives redeploys.</p>
 <p>Rate limiting may still use IP in its own SQLite file when enabled.</p>
+<h3>Session memory</h3>
+<p>When <code>SESSION_MEMORY_ENABLED=true</code> (default), each Ask may include conversation context from the same browser session (<code>session_id</code> UUID). The UI keeps the id in local storage, shows the thread, and offers <strong>New conversation</strong>. Click a prior turn to expand sources, timing, Score, and traces.</p>
+<p>The server stores <strong>all</strong> turns in <code>data/session_memory.sqlite</code>. For the model prompt it keeps the last <code>SESSION_MEMORY_RECENT_TURNS</code> (default 8) verbatim and, when enabled, a rolling <strong>summary</strong> of older turns (<code>SESSION_MEMORY_SUMMARY_ENABLED</code>). Prior topics are also fed into wiki search planning so follow-ups like “does that apply?” still retrieve the right pages.</p>
 <hr />
 <h2>Quality metrics</h2>
 <p>Scores are <strong>for demonstration</strong>—they run <strong>after</strong> Ask (click <strong>Score response</strong>) and do <strong>not</strong> re-run retrieval or change the answer.</p>

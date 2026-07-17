@@ -49,6 +49,10 @@ class QueryTrace(BaseModel):
 
 class QueryRequest(BaseModel):
     question: str = Field(..., min_length=1, max_length=2000)
+    session_id: str | None = Field(
+        default=None,
+        description="Optional conversation session UUID; omit or empty to start a new session.",
+    )
 
 
 class QueryResponse(BaseModel):
@@ -57,6 +61,7 @@ class QueryResponse(BaseModel):
     run_id: str
     mode: str = "claude"
     retrieved_count: int = 0
+    session_id: str = ""
     trace: QueryTrace = Field(default_factory=QueryTrace)
     quality_scores: QualityScores = Field(default_factory=QualityScores)
 

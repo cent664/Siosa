@@ -148,7 +148,7 @@ def query(body: QueryRequest, request: Request) -> QueryResponse:
             client_ip=_client_ip(request),
             country=_country(request),
         )
-        return handle_query(body.question)
+        return handle_query(body.question, session_id=body.session_id)
     except Exception as exc:
         raise map_query_exception(exc) from exc
 

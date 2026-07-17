@@ -35,16 +35,33 @@ def _ensure_verbatim_first(question: str, subtasks: list[dict]) -> list[dict]:
     return retrieve_tasks + others
 
 
-def plan_subtasks(question: str) -> list[dict]:
+def plan_subtasks(
+    question: str,
+    history: list[dict[str, str]] | None = None,
+    summary: str = "",
+) -> list[dict]:
     """LLM JSON plan with heuristic fallback on parse/API failure."""
+    from poe_agent.harness.session_memory import format_generation_context, history_search_hints
+
+    context = format_generation_context(summary or "", history or [])
+    hints = history_search_hints(history or [])
+    hint_line = ""
+    if hints:
+        hint_line = "Known topics from prior turns (use as short retrieve queries if relevant): " + ", ".join(
+            hints
+        )
+    user_parts = []
+    if context:
+        user_parts.append(f"Prior conversation:\n{context}")
+    if hint_line:
+        user_parts.append(hint_line)
+    user_parts.append(f"Question: {question}\nReturn JSON plan only.")
+    user_msg = "\n\n".join(user_parts)
     try:
         llm = get_llm_provider()
-        raw, _ = llm.generate(
-            PLANNER_SYSTEM,
-            f"Question: {question}\nReturn JSON plan only.",
-        )
+        raw, _ = llm.generate(PLANNER_SYSTEM, user_msg)
     except Exception:
-        return _heuristic_plan(question)
+        return _heuristic_plan(question, hints=hints)
     try:
         match = re.search(r"\{.*\}", raw, re.DOTALL)
         if match:
@@ -54,10 +71,10 @@ def plan_subtasks(question: str) -> list[dict]:
                 return _ensure_verbatim_first(question, subtasks)
     except json.JSONDecodeError:
         pass
-    return _heuristic_plan(question)
+    return _heuristic_plan(question, hints=hints)
 
 
-def _heuristic_plan(question: str) -> list[dict]:
+def _heuristic_plan(question: str, hints: list[str] | None = None) -> list[dict]:
     q = question.lower()
     subtasks: list[dict] = [{"action": "retrieve", "query": question}]
 
@@ -97,6 +114,9 @@ def _heuristic_plan(question: str) -> list[dict]:
             {"action": "retrieve", "query": "poison"},
             {"action": "retrieve", "query": "ignite"},
         ]
+
+    for hint in hints or []:
+        subtasks.append({"action": "retrieve", "query": hint})
 
     subtasks.append({"action": "synthesize", "query": question})
     return _ensure_verbatim_first(question, subtasks)

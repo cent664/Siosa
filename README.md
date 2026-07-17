@@ -123,6 +123,9 @@ Claude Pro / ChatGPT Plus subscriptions are **not** API access. Embeddings for l
 | `RATE_LIMIT_ASKS_PER_DAY` | `20` | UTC calendar day |
 | `OPERATOR_ANALYTICS_ENABLED` | `true` | Visit (1/IP/UTC day) + Ask logging to SQLite |
 | `OPERATOR_DASHBOARD_KEY` | *(empty)* | Gate for private HTML page `GET /operator/analytics?key=...`; empty disables the page even if logging is on |
+| `SESSION_MEMORY_ENABLED` | `true` | Persist conversation turns for follow-up Asks |
+| `SESSION_MEMORY_RECENT_TURNS` | `8` | Verbatim turns in the model prompt |
+| `SESSION_MEMORY_SUMMARY_ENABLED` | `true` | Roll older turns into a running summary |
 
 SQLite files: `data/rate_limit.sqlite`, `data/operator_analytics.sqlite` (gitignored). See visitor Architecture **Rate limits** section. On Railway, mount a volume at `/app/data` so analytics survive redeploys. Country needs a proxy header (e.g. Cloudflare).
 

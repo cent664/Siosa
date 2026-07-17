@@ -130,21 +130,21 @@
 <li><strong>Deploy</strong> — FastAPI + React, Docker, GitHub Actions CI, Railway, OpenAI and Anthropic APIs.</li>
 <li><strong>Observability</strong> — traces, timing, retrieval debug (always on in the UI).</li>
 <li><strong>Optional retrieval refine</strong> — second wiki lookup when the first pass looks weak (<code>RETRIEVAL_REFINE_ENABLED</code>, <strong>off by default</strong>); heuristic gate today, not judge-driven.</li>
+<li><strong>Session memory</strong> — SQLite turns + UI thread / New conversation; expandable prior turns; history-aware wiki search; rolling summary for long chats (recent window verbatim).</li>
 <li><strong>Rate limits (scaffold)</strong> — optional UTC daily Ask cap per IP (<code>RATE_LIMIT_ENABLED</code>, default off; 20/day when on).</li>
-<li><strong>Operator analytics (local)</strong> — optional SQLite event log (hashed IP); forced off under <code>DEPLOYMENT_PROFILE=production</code>.</li>
+<li><strong>Operator analytics</strong> — visit (1/IP/UTC day) + Asks to SQLite; private <code>/operator/analytics</code> dashboard (local and Railway when enabled + dashboard key).</li>
 </ul>
 <h2>Planned</h2>
-<h3>Tools and routing</h3>
-<ul>
-<li><strong>Tool registry</strong> — treat live wiki fetch as the first tool; add <strong>PoE Ninja</strong> (prices, characters, builds, skill links) and <strong>PoE DB / datamine</strong> (numeric skill/item values the wiki may omit).</li>
-<li><strong>Source routing</strong> — LangGraph chooses which tool(s), in what order, and when to stop. Simple mechanics Q&amp;A stays a single wiki lookup; harder intents may call multiple tools then synthesize.</li>
-<li><strong>MCP</strong> — expose the same tools behind an MCP server (names, JSON schemas, call/response). MCP is the protocol surface; LangGraph remains the orchestrator.</li>
-</ul>
 <h3>Memory</h3>
 <ul>
-<li><strong>Session memory</strong> — persist prior turns (e.g. SQLite) and include them in later Asks.</li>
-<li><strong>Memory summarization</strong> — when context grows, compress older turns instead of truncating blindly.</li>
-<li>Remember questions, answers, citations, and tools used — not full wiki page dumps.</li>
+<li><strong>Memory summarization polish</strong> — tune summary length/triggers for very long sessions (knobs adjustable).</li>
+<li>Remember citations/tools used in summary — not full wiki page dumps.</li>
+</ul>
+<h3>Tools and routing</h3>
+<ul>
+<li><strong>Source routing</strong> — LangGraph chooses which tool(s), in what order, and when to stop. Simple mechanics Q&amp;A stays a single wiki lookup; harder intents may call multiple tools then synthesize.</li>
+<li><strong>Tool registry</strong> — treat live wiki fetch as the first tool; add <strong>PoE Ninja</strong> (prices, characters, builds, skill links) and <strong>PoE DB / datamine</strong> (numeric skill/item values the wiki may omit).</li>
+<li><strong>MCP</strong> — expose the same tools behind an MCP server (names, JSON schemas, call/response). MCP is the protocol surface; LangGraph remains the orchestrator.</li>
 </ul>
 <h3>Evaluation without auto-loops</h3>
 <ul>

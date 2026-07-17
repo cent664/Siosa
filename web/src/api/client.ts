@@ -42,11 +42,17 @@ export function setProvider(mode: string): Promise<ProviderSettingsResponse> {
   });
 }
 
-export function postQuery(question: string): Promise<QueryResponse> {
+export function postQuery(
+  question: string,
+  sessionId?: string | null,
+): Promise<QueryResponse> {
   return request<QueryResponse>("/query", {
     method: "POST",
     headers: { "Content-Type": "application/json" },
-    body: JSON.stringify({ question }),
+    body: JSON.stringify({
+      question,
+      ...(sessionId ? { session_id: sessionId } : {}),
+    }),
   });
 }
 

@@ -21,6 +21,128 @@ import TracePanels from "./components/TracePanels";
 import { partitionTiming } from "./components/timingFormat";
 import VoiceRecordButton from "./components/VoiceRecordButton";
 
+const SESSION_KEY = "siosa_session_id";
+
+type ConversationTurn = {
+  question: string;
+  response: QueryResponse;
+};
+
+function TurnDetails({
+  turn,
+  expanded,
+  onToggle,
+  isLatest,
+  inlineEval,
+  scoreBusy,
+  scoreError,
+  qualityScores,
+  scoringTiming,
+  pipelineTiming,
+  onScore,
+}: {
+  turn: ConversationTurn;
+  expanded: boolean;
+  onToggle: () => void;
+  isLatest: boolean;
+  inlineEval: boolean;
+  scoreBusy: boolean;
+  scoreError: string | null;
+  qualityScores?: Qs;
+  scoringTiming?: Record<string, number>;
+  pipelineTiming?: Record<string, number>;
+  onScore: () => void;
+}) {
+  const response = turn.response;
+  const showDetails = isLatest || expanded;
+  const scores = isLatest ? qualityScores ?? response.quality_scores : response.quality_scores;
+  const timing =
+    isLatest && pipelineTiming
+      ? pipelineTiming
+      : partitionTiming(response.trace?.timing_ms).pipeline;
+  const scoring =
+    isLatest && scoringTiming
+      ? scoringTiming
+      : partitionTiming(response.trace?.timing_ms).scoring;
+
+  return (
+    <div className={`conversation-turn ${isLatest ? "turn-latest" : ""} ${expanded ? "expanded" : ""}`}>
+      <button
+        type="button"
+        className="turn-header"
+        onClick={onToggle}
+        aria-expanded={showDetails}
+      >
+        <span className="turn-question">{turn.question}</span>
+        {!isLatest && (
+          <span className="turn-toggle">{expanded ? "Collapse" : "Expand"}</span>
+        )}
+      </button>
+      {showDetails && (
+        <div className={`answer-block ${isLatest ? "answer-panel" : "turn-panel"}`}>
+          <div className="answer-display">
+            <ReactMarkdown>{response.answer}</ReactMarkdown>
+          </div>
+
+          {Object.keys(timing).length > 0 && (
+            <TimingSection title="Pipeline timing" entries={orderedPipelineEntries(timing)} />
+          )}
+
+          {!inlineEval && (
+            <p className="score-actions">
+              <button
+                type="button"
+                className="btn"
+                onClick={(e) => {
+                  e.stopPropagation();
+                  onScore();
+                }}
+                disabled={scoreBusy}
+              >
+                {scoreBusy ? "Scoring…" : "Score response"}
+              </button>
+              {scoreError && <span className="status-err score-error">{scoreError}</span>}
+            </p>
+          )}
+
+          {Object.keys(scoring).length > 0 && (
+            <TimingSection
+              title={`Scoring Timing${
+                scoring.evaluation != null ? ` - ${formatSeconds(scoring.evaluation)}` : ""
+              }`}
+              entries={orderedJudgeEntries(scoring)}
+            />
+          )}
+
+          <QualityScores scores={scores} />
+
+          {response.citations && response.citations.length > 0 && (
+            <div className="citations">
+              <h3>Sources</h3>
+              <ul>
+                {response.citations.map((cite, i) => (
+                  <li key={`${cite.url}-${i}`}>
+                    <a href={cite.url} target="_blank" rel="noreferrer">
+                      {cite.title}
+                    </a>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
+
+          <TracePanels data={response} />
+        </div>
+      )}
+      {!showDetails && (
+        <div className="turn-answer-preview">
+          <ReactMarkdown>{response.answer}</ReactMarkdown>
+        </div>
+      )}
+    </div>
+  );
+}
+
 export default function App() {
   const [health, setHealth] = useState<Awaited<ReturnType<typeof getHealth>> | null>(null);
   const [providerInfo, setProviderInfo] = useState<ProviderSettingsResponse | null>(null);
@@ -28,8 +150,15 @@ export default function App() {
   const [question, setQuestion] = useState("");
   const [loading, setLoading] = useState(false);
   const [queryError, setQueryError] = useState<string | null>(null);
-  const [result, setResult] = useState<QueryResponse | null>(null);
-  const [lastQuestion, setLastQuestion] = useState("");
+  const [sessionId, setSessionId] = useState<string | null>(() => {
+    try {
+      return localStorage.getItem(SESSION_KEY);
+    } catch {
+      return null;
+    }
+  });
+  const [turns, setTurns] = useState<ConversationTurn[]>([]);
+  const [expandedIds, setExpandedIds] = useState<Set<number>>(new Set());
   const [qualityScores, setQualityScores] = useState<Qs | undefined>(undefined);
   const [pipelineTiming, setPipelineTiming] = useState<Record<string, number> | undefined>(
     undefined,
@@ -37,6 +166,7 @@ export default function App() {
   const [scoringTiming, setScoringTiming] = useState<Record<string, number> | undefined>(
     undefined,
   );
+  const [scoringTurnIndex, setScoringTurnIndex] = useState<number | null>(null);
   const [scoreBusy, setScoreBusy] = useState(false);
   const [scoreError, setScoreError] = useState<string | null>(null);
 
@@ -67,6 +197,24 @@ export default function App() {
     }
   };
 
+  const handleNewConversation = () => {
+    try {
+      localStorage.removeItem(SESSION_KEY);
+    } catch {
+      /* ignore */
+    }
+    setSessionId(null);
+    setTurns([]);
+    setExpandedIds(new Set());
+    setQuestion("");
+    setQualityScores(undefined);
+    setPipelineTiming(undefined);
+    setScoringTiming(undefined);
+    setScoringTurnIndex(null);
+    setScoreError(null);
+    setQueryError(null);
+  };
+
   const handleAsk = async (e?: FormEvent) => {
     e?.preventDefault();
     const q = question.trim();
@@ -76,15 +224,23 @@ export default function App() {
     }
     setQueryError(null);
     setLoading(true);
-    setResult(null);
     setQualityScores(undefined);
     setPipelineTiming(undefined);
     setScoringTiming(undefined);
+    setScoringTurnIndex(null);
     setScoreError(null);
     try {
-      const data = await postQuery(q);
-      setResult(data);
-      setLastQuestion(q);
+      const data = await postQuery(q, sessionId);
+      if (data.session_id) {
+        setSessionId(data.session_id);
+        try {
+          localStorage.setItem(SESSION_KEY, data.session_id);
+        } catch {
+          /* ignore */
+        }
+      }
+      setTurns((prev) => [...prev, { question: q, response: data }]);
+      setQuestion("");
       const { pipeline, scoring } = partitionTiming(data.trace?.timing_ms);
       setPipelineTiming(Object.keys(pipeline).length > 0 ? pipeline : undefined);
       if (health?.inline_eval) {
@@ -101,10 +257,12 @@ export default function App() {
   const modes = providerInfo?.available_modes ?? [];
   const currentMode = providerInfo?.mode ?? health?.provider_mode ?? "claude";
   const inlineEval = health?.inline_eval === true;
+  const latestIndex = turns.length - 1;
 
-  const handleScore = async () => {
-    if (!result || !lastQuestion) return;
-    const chunks = (result.trace?.retrieved_chunks ?? [])
+  const handleScore = async (turnIndex: number) => {
+    const turn = turns[turnIndex];
+    if (!turn) return;
+    const chunks = (turn.response.trace?.retrieved_chunks ?? [])
       .filter((ch) => ch.text && ch.text.trim().length > 0)
       .map((ch) => ({
         page_title: ch.page_title ?? "",
@@ -115,23 +273,57 @@ export default function App() {
       }));
     if (chunks.length === 0) {
       setScoreError("No chunk text in trace — restart API after update.");
+      setScoringTurnIndex(turnIndex);
       return;
     }
     setScoreBusy(true);
+    setScoringTurnIndex(turnIndex);
     setScoreError(null);
     try {
       const res = await postScore({
-        question: lastQuestion,
-        answer: result.answer,
+        question: turn.question,
+        answer: turn.response.answer,
         chunks,
       });
-      setQualityScores(res.quality_scores);
-      setScoringTiming(res.timing_ms);
+      setTurns((prev) =>
+        prev.map((t, i) =>
+          i === turnIndex
+            ? {
+                ...t,
+                response: {
+                  ...t.response,
+                  quality_scores: res.quality_scores,
+                  trace: {
+                    ...t.response.trace,
+                    timing_ms: {
+                      ...(t.response.trace?.timing_ms ?? {}),
+                      ...(res.timing_ms ?? {}),
+                    },
+                  },
+                },
+              }
+            : t,
+        ),
+      );
+      if (turnIndex === latestIndex) {
+        setQualityScores(res.quality_scores);
+        setScoringTiming(res.timing_ms);
+      }
     } catch (e) {
       setScoreError(e instanceof Error ? e.message : "Scoring failed");
     } finally {
       setScoreBusy(false);
     }
+  };
+
+  const toggleExpand = (index: number) => {
+    if (index === latestIndex) return;
+    setExpandedIds((prev) => {
+      const next = new Set(prev);
+      if (next.has(index)) next.delete(index);
+      else next.add(index);
+      return next;
+    });
   };
 
   return (
@@ -202,66 +394,43 @@ export default function App() {
               </button>
             </div>
           </form>
+          {(turns.length > 0 || sessionId) && (
+            <p className="session-actions">
+              <button
+                type="button"
+                className="btn"
+                onClick={handleNewConversation}
+                disabled={loading}
+              >
+                New conversation
+              </button>
+            </p>
+          )}
 
           {queryError && <div className="error-banner">{queryError}</div>}
         </section>
 
-        {result && (
-          <div className="answer-block answer-panel">
-            <div className="answer-display">
-              <ReactMarkdown>{result.answer}</ReactMarkdown>
-            </div>
-
-            {pipelineTiming && (
-              <TimingSection
-                title="Pipeline timing"
-                entries={orderedPipelineEntries(pipelineTiming)}
-              />
-            )}
-
-            {!inlineEval && (
-              <p className="score-actions">
-                <button
-                  type="button"
-                  className="btn"
-                  onClick={() => void handleScore()}
-                  disabled={scoreBusy}
-                >
-                  {scoreBusy ? "Scoring…" : "Score response"}
-                </button>
-                {scoreError && <span className="status-err score-error">{scoreError}</span>}
-              </p>
-            )}
-
-            {scoringTiming && (
-              <TimingSection
-                title={`Scoring Timing${
-                  scoringTiming.evaluation != null
-                    ? ` - ${formatSeconds(scoringTiming.evaluation)}`
-                    : ""
-                }`}
-                entries={orderedJudgeEntries(scoringTiming)}
-              />
-            )}
-
-            <QualityScores scores={qualityScores ?? result.quality_scores} />
-
-            {result.citations && result.citations.length > 0 && (
-              <div className="citations">
-                <h3>Sources</h3>
-                <ul>
-                  {result.citations.map((cite, i) => (
-                    <li key={`${cite.url}-${i}`}>
-                      <a href={cite.url} target="_blank" rel="noreferrer">
-                        {cite.title}
-                      </a>
-                    </li>
-                  ))}
-                </ul>
-              </div>
-            )}
-
-            <TracePanels data={result} />
+        {turns.length > 0 && (
+          <div className="conversation-thread" aria-label="Conversation">
+            {turns.map((turn, i) => {
+              const isLatest = i === latestIndex;
+              return (
+                <TurnDetails
+                  key={`turn-${i}-${turn.response.run_id}`}
+                  turn={turn}
+                  isLatest={isLatest}
+                  expanded={isLatest || expandedIds.has(i)}
+                  onToggle={() => toggleExpand(i)}
+                  inlineEval={inlineEval}
+                  scoreBusy={scoreBusy && scoringTurnIndex === i}
+                  scoreError={scoringTurnIndex === i ? scoreError : null}
+                  qualityScores={isLatest ? qualityScores : undefined}
+                  scoringTiming={isLatest ? scoringTiming : undefined}
+                  pipelineTiming={isLatest ? pipelineTiming : undefined}
+                  onScore={() => void handleScore(i)}
+                />
+              );
+            })}
           </div>
         )}
         </main>

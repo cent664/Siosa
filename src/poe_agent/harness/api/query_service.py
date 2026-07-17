@@ -107,6 +107,7 @@ def _finalize_response(
     timing_ms: dict[str, float],
     plan: list | None = None,
     retrieval_source: str = "",
+    session_id: str = "",
 ) -> QueryResponse:
     run.retrieved_chunks = _chunk_dicts(chunks, include_text=True)
     quality = QualityScores()
@@ -133,21 +134,36 @@ def _finalize_response(
         run_id=run.run_id,
         mode=mode,
         retrieved_count=len(chunks),
+        session_id=session_id,
         trace=trace,
         quality_scores=quality,
     )
 
 
-def handle_query(question: str) -> QueryResponse:
+def handle_query(question: str, session_id: str | None = None) -> QueryResponse:
     reset_llm_calls()
     mode = get_effective_provider_mode()
     timing: dict[str, float] = {}
+    settings = get_settings()
 
     from poe_agent.harness.config import provider_missing_key_message
+    from poe_agent.harness.session_memory import (
+        append_turn,
+        ensure_session,
+        history_search_hints,
+        load_prompt_history,
+    )
 
     missing = provider_missing_key_message(mode)
     if missing:
         raise ValueError(missing)
+
+    active_session = ""
+    history: list[dict[str, str]] = []
+    summary = ""
+    if settings.session_memory_enabled:
+        active_session = ensure_session(session_id, settings=settings)
+        summary, history = load_prompt_history(active_session, settings=settings)
 
     with agent_run(question) as run:
         if not _retrieval_available():
@@ -159,15 +175,18 @@ def handle_query(question: str) -> QueryResponse:
                 citations=[],
                 run_id=run.run_id,
                 mode=mode,
+                session_id=active_session,
                 trace=QueryTrace(pipeline="none", timing_ms=timing),
             )
 
         if _use_langgraph():
-            result = run_agent_graph(question, run)
+            result = run_agent_graph(
+                question, run, history=history, summary=summary
+            )
             graph_timing = dict(result.get("timing_ms", {}))
             timing.update(graph_timing)
             chunks = run.extra.get("raw_chunks", [])
-            return _finalize_response(
+            resp = _finalize_response(
                 question,
                 result["answer"],
                 result["citations"],
@@ -178,9 +197,21 @@ def handle_query(question: str) -> QueryResponse:
                 timing,
                 plan=run.extra.get("plan"),
                 retrieval_source=run.extra.get("retrieval_source", ""),
+                session_id=active_session,
+            )
+        else:
+            resp = _linear_rag(
+                question,
+                run,
+                timing,
+                history=history,
+                summary=summary,
+                session_id=active_session,
             )
 
-        return _linear_rag(question, run, timing)
+        if settings.session_memory_enabled and active_session and resp.answer:
+            append_turn(active_session, question, resp.answer, settings=settings)
+        return resp
 
 
 def _maybe_refine_retrieval(
@@ -217,14 +248,27 @@ def _maybe_refine_retrieval(
     return merged
 
 
-def _linear_rag(question: str, run: RunLog, timing: dict[str, float]) -> QueryResponse:
+def _linear_rag(
+    question: str,
+    run: RunLog,
+    timing: dict[str, float],
+    history: list[dict[str, str]] | None = None,
+    summary: str = "",
+    session_id: str = "",
+) -> QueryResponse:
     from poe_agent.generator.answer import generate_answer_with_meta
+    from poe_agent.harness.session_memory import history_search_hints
 
     run.extra["retrieval_mode"] = get_settings().retrieval_mode.lower()
     run.extra["retrieval_config"] = _retrieval_config_snapshot()
 
+    hints = history_search_hints(history or [])
     t0 = time.perf_counter()
-    chunks, retrieval_source, debug = retrieve_for_query(question, user_question=question)
+    chunks, retrieval_source, debug = retrieve_for_query(
+        question,
+        user_question=question,
+        extra_search_queries=hints or None,
+    )
     timing["retrieval"] = round((time.perf_counter() - t0) * 1000, 2)
 
     t_ref = time.perf_counter()
@@ -239,6 +283,8 @@ def _linear_rag(question: str, run: RunLog, timing: dict[str, float]) -> QueryRe
             "result_count": len(chunks),
             "retrieval_source": retrieval_source,
         }
+        if hints:
+            entry["history_hints"] = hints
         if debug is not None:
             entry["retrieval_debug"] = debug.to_dict()
         run.tool_calls.append(entry)
@@ -246,7 +292,9 @@ def _linear_rag(question: str, run: RunLog, timing: dict[str, float]) -> QueryRe
     run.extra["retrieval_source"] = retrieval_source
 
     t1 = time.perf_counter()
-    answer, citations, tokens = generate_answer_with_meta(question, chunks)
+    answer, citations, tokens = generate_answer_with_meta(
+        question, chunks, history=history or [], summary=summary
+    )
     timing["generation"] = round((time.perf_counter() - t1) * 1000, 2)
 
     run.output_answer = answer
@@ -263,4 +311,5 @@ def _linear_rag(question: str, run: RunLog, timing: dict[str, float]) -> QueryRe
         chunks,
         timing,
         retrieval_source=retrieval_source,
+        session_id=session_id,
     )

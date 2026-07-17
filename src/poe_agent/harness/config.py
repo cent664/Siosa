@@ -49,6 +49,11 @@ class Settings(BaseSettings):
     rate_limit_asks_per_day: int = 20
     operator_analytics_enabled: bool = True
     operator_dashboard_key: str = ""
+    session_memory_enabled: bool = True
+    session_memory_recent_turns: int = 8
+    session_memory_summary_enabled: bool = True
+    # Deprecated alias — prefer session_memory_recent_turns
+    session_memory_max_turns: int = 8
     poe_data_dir: Path = Path("data")
     poe_chroma_dir: Path = Path("data/chroma")
     aws_region: str = "us-east-1"
@@ -83,6 +88,10 @@ class Settings(BaseSettings):
     @property
     def operator_analytics_db_path(self) -> Path:
         return self.poe_data_dir / "operator_analytics.sqlite"
+
+    @property
+    def session_memory_db_path(self) -> Path:
+        return self.poe_data_dir / "session_memory.sqlite"
 
     @model_validator(mode="after")
     def apply_deployment_profile(self) -> Self:

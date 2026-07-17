@@ -1,5 +1,18 @@
 Newest first. Each entry uses the same format: a short title and a few bullets on what changed and why it mattered. Edit this file, then run `python scripts/sync_docs.py` for browser HTML.
 
+## 2026-07-17 — Follow-up retrieval, expandable turns, memory summary
+
+- Web — Prior conversation turns expand to show sources, timing, Score, and traces (latest stays open).
+- Harness — Wiki planning/search uses topic hints from prior questions so follow-ups keep context (e.g. Pantheon).
+- Harness — Session memory stores all turns; rolling LLM summary for older turns; recent window stays verbatim (no hard conversation length cap).
+- Docs — Architecture/Planned updated for session memory behavior.
+
+## 2026-07-17 — Session memory for follow-up Asks
+
+- Harness — SQLite session turns (`session_id`); last-N history injected into answer generation; summarization deferred.
+- Web — Conversation thread UI, localStorage session id, **New conversation** button.
+- Docs — Removed Architecture “Default locally” rate-limit bullet; Planned order: routing before tool registry; session memory marked done.
+
 ## 2026-07-17 — Useful visit/Ask analytics + drop start.ps1
 
 - Harness — Analytics logs one visit per IP per UTC day plus every Ask; dashboard shows unique visitors / visits / Asks; removed noisy per-request middleware.

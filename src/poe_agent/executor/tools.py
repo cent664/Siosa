@@ -21,5 +21,12 @@ def wiki_search(
     return chunks, debug
 
 
-def synthesize_answer(question: str, chunks: list[RetrievedChunk]) -> tuple[str, list[dict], dict]:
-    return generate_answer_with_meta(question, chunks)
+def synthesize_answer(
+    question: str,
+    chunks: list[RetrievedChunk],
+    history: list[dict[str, str]] | None = None,
+    summary: str = "",
+) -> tuple[str, list[dict], dict]:
+    return generate_answer_with_meta(
+        question, chunks, history=history, summary=summary
+    )

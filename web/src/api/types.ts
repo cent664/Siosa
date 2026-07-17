@@ -90,6 +90,7 @@ export interface QueryResponse {
   run_id: string;
   mode: string;
   retrieved_count: number;
+  session_id?: string;
   trace?: QueryTrace;
   quality_scores?: QualityScores;
 }

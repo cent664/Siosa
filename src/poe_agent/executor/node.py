@@ -64,8 +64,18 @@ def _collect_plan_search_extras(question: str, subtasks: list[dict]) -> list[str
 def execute_subtasks(
     question: str,
     subtasks: list[dict],
+    extra_search_queries: list[str] | None = None,
 ) -> tuple[list[RetrievedChunk], list[dict]]:
     extras = _collect_plan_search_extras(question, subtasks)
+    if extra_search_queries:
+        seen = {e.casefold() for e in extras}
+        q_norm = question.strip().casefold()
+        for eq in extra_search_queries:
+            key = eq.strip().casefold()
+            if not key or key == q_norm or key in seen:
+                continue
+            seen.add(key)
+            extras.append(eq.strip())
     results, debug = wiki_search(
         question,
         user_question=question,

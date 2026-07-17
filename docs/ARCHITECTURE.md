@@ -78,7 +78,6 @@ The app is in active development. Optional daily caps protect API cost if the pu
 
 - **Unit today:** one **Ask** (`POST /query`). Score and page views are not counted yet; the same module can later count LLM or tool calls.
 - **Cap:** `RATE_LIMIT_ASKS_PER_DAY` (default **20**) per client IP per **UTC** calendar day.
-- **Default locally:** `RATE_LIMIT_ENABLED=false` (unlimited for you). Set `true` when you want enforcement (e.g. on Railway later).
 - Over quota returns HTTP **429** until the next UTC midnight.
 
 ### Operator analytics
@@ -93,6 +92,12 @@ Each row stores UTC time, action, **hashed** IP, and country code if a proxy hea
 Private HTML dashboard (requires `OPERATOR_DASHBOARD_KEY`): `/operator/analytics?key=...` — summary of unique visitors, visits, and Asks. Local and production each have their **own** database; open the matching host. On Railway, mount a **volume** at `/app/data` so data survives redeploys.
 
 Rate limiting may still use IP in its own SQLite file when enabled.
+
+### Session memory
+
+When `SESSION_MEMORY_ENABLED=true` (default), each Ask may include conversation context from the same browser session (`session_id` UUID). The UI keeps the id in local storage, shows the thread, and offers **New conversation**. Click a prior turn to expand sources, timing, Score, and traces.
+
+The server stores **all** turns in `data/session_memory.sqlite`. For the model prompt it keeps the last `SESSION_MEMORY_RECENT_TURNS` (default 8) verbatim and, when enabled, a rolling **summary** of older turns (`SESSION_MEMORY_SUMMARY_ENABLED`). Prior topics are also fed into wiki search planning so follow-ups like “does that apply?” still retrieve the right pages.
 
 ---
 

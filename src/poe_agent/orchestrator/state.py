@@ -9,6 +9,8 @@ from langgraph.graph.message import add_messages
 
 class AgentState(TypedDict, total=False):
     query: str
+    history: list[dict]
+    summary: str
     plan: list[dict]
     messages: Annotated[list, add_messages]
     retrieved_chunks: list

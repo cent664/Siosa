@@ -50,7 +50,7 @@ Keep these **off GitHub** (already gitignored):
 |------------|-----|
 | `.env` | Real API keys and `OPERATOR_DASHBOARD_KEY` |
 | `transfer/` | Laptop handoff with secrets |
-| `data/*.sqlite` | Rate-limit and operator-analytics DBs (hashed IPs, not full addresses) |
+| `data/*.sqlite` | Rate-limit, analytics, and session-memory DBs |
 | `data/chroma/`, live cache | Runtime indexes/caches |
 | `.venv/`, `web/node_modules/`, `web/dist/` | Local install / build output |
 
