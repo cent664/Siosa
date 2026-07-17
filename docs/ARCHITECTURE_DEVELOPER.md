@@ -111,13 +111,17 @@ Claude Pro / ChatGPT Plus subscriptions are **not** API access. Embeddings for l
 |-----|---------|------|
 | `RATE_LIMIT_ENABLED` | `false` | When true, cap Asks per client IP |
 | `RATE_LIMIT_ASKS_PER_DAY` | `20` | UTC calendar day |
-| `OPERATOR_ANALYTICS_ENABLED` | `true` | Local SQLite event log; **forced off** if `DEPLOYMENT_PROFILE=production` |
+| `OPERATOR_ANALYTICS_ENABLED` | `true` | Visit (1/IP/UTC day) + Ask logging to SQLite |
 | `OPERATOR_DASHBOARD_KEY` | *(empty)* | Gate for private HTML page `GET /operator/analytics?key=...`; empty disables the page even if logging is on |
 
-SQLite files: `data/rate_limit.sqlite`, `data/operator_analytics.sqlite` (gitignored). See visitor Architecture **Rate limits** section.
+SQLite files: `data/rate_limit.sqlite`, `data/operator_analytics.sqlite` (gitignored). See visitor Architecture **Rate limits** section. On Railway, mount a volume at `/app/data` so analytics survive redeploys. Country needs a proxy header (e.g. Cloudflare).
 
-**Local bookmark (not on the public Architecture page):** with the API running and a key in `.env`, open  
-`http://127.0.0.1:8000/operator/analytics?key=YOUR_KEY` — HTML table of recent events (hashed IP, no raw addresses). Returns 404 when analytics is inactive (e.g. production profile).
+**Bookmarks (not on the public visitor Architecture page):**
+
+- Local: `http://127.0.0.1:8000/operator/analytics?key=YOUR_KEY`
+- Production: `https://www.poesiosa.net/operator/analytics?key=YOUR_KEY` (same key in Railway Variables)
+
+Local and production databases are separate — no sync. Returns 404 when `OPERATOR_ANALYTICS_ENABLED=false`; 401 if the key is missing/wrong.
 
 ### Retrieval mode env
 

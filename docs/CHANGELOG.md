@@ -1,5 +1,12 @@
 Newest first. Each entry uses the same format: a short title and a few bullets on what changed and why it mattered. Edit this file, then run `python scripts/sync_docs.py` for browser HTML.
 
+## 2026-07-17 — Useful visit/Ask analytics + drop start.ps1
+
+- Harness — Analytics logs one visit per IP per UTC day plus every Ask; dashboard shows unique visitors / visits / Asks; removed noisy per-request middleware.
+- Deploy — Analytics allowed under production when enabled; set `OPERATOR_DASHBOARD_KEY` on Railway and mount a volume at `/app/data`.
+- Tooling — Removed redundant `start.ps1` (use `start.bat`).
+- Tests — Expanded query-fusion coverage (vs, compare, how-does, short queries).
+
 ## 2026-07-17 — Repo hygiene cleanup
 
 - Repo — Removed unreferenced `AI_tech_stack.docx` (personal copy can stay offline).

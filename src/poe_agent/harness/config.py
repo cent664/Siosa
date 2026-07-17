@@ -93,7 +93,6 @@ class Settings(BaseSettings):
         if self.poe_provider_mode.lower() not in ("claude", "gpt4", "bedrock"):
             object.__setattr__(self, "poe_provider_mode", "claude")
         object.__setattr__(self, "inline_eval", False)
-        object.__setattr__(self, "operator_analytics_enabled", False)
         # Docker image has no faster-whisper; voice uses OpenAI when keys are set.
         object.__setattr__(self, "transcribe_provider", "openai")
         return self
@@ -230,8 +229,6 @@ def deployment_hint(settings: Settings | None = None) -> str:
 
 
 def operator_analytics_active(settings: Settings | None = None) -> bool:
-    """Local operator logging; forced off under DEPLOYMENT_PROFILE=production."""
+    """Operator visit/Ask logging; controlled by OPERATOR_ANALYTICS_ENABLED."""
     s = settings or get_settings()
-    if s.deployment_profile.lower().strip() == "production":
-        return False
     return bool(s.operator_analytics_enabled)

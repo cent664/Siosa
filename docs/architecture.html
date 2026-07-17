@@ -196,11 +196,15 @@
 <li><strong>Default locally:</strong> <code>RATE_LIMIT_ENABLED=false</code> (unlimited for you). Set <code>true</code> when you want enforcement (e.g. on Railway later).</li>
 <li>Over quota returns HTTP <strong>429</strong> until the next UTC midnight.</li>
 </ul>
-<h3>Operator analytics (local)</h3>
-<p>When enabled (default on non-production), the server may append coarse events to <code>data/operator_analytics.sqlite</code>: UTC time, path/action, <strong>hashed</strong> IP, and country code if a proxy header provides one. Under <code>DEPLOYMENT_PROFILE=production</code>, analytics are <strong>forced off</strong>. Inspect rows locally, for example:</p>
-<pre><code class="language-powershell">python -c &quot;import sqlite3; c=sqlite3.connect('data/operator_analytics.sqlite'); print(c.execute('select ts_utc,action,country,ip_hash from events order by id desc limit 20').fetchall())&quot;
-</code></pre>
-<p>Operator analytics (when enabled) stores hashed IP, UTC timestamp, path/action, and coarse country if available; full raw IP is not retained in the analytics table (rate limiting may use IP only in its own SQLite file).</p>
+<h3>Operator analytics</h3>
+<p>When <code>OPERATOR_ANALYTICS_ENABLED=true</code>, the server logs coarse events to <code>data/operator_analytics.sqlite</code>:</p>
+<ul>
+<li><strong>visit</strong> — at most one per hashed IP per UTC day when someone opens the app (<code>GET /</code>)</li>
+<li><strong>ask</strong> — every <code>POST /query</code></li>
+</ul>
+<p>Each row stores UTC time, action, <strong>hashed</strong> IP, and country code if a proxy header provides one (e.g. Cloudflare). Raw IPs are not stored in this table.</p>
+<p>Private HTML dashboard (requires <code>OPERATOR_DASHBOARD_KEY</code>): <code>/operator/analytics?key=...</code> — summary of unique visitors, visits, and Asks. Local and production each have their <strong>own</strong> database; open the matching host. On Railway, mount a <strong>volume</strong> at <code>/app/data</code> so data survives redeploys.</p>
+<p>Rate limiting may still use IP in its own SQLite file when enabled.</p>
 <hr />
 <h2>Quality metrics</h2>
 <p>Scores are <strong>for demonstration</strong>—they run <strong>after</strong> Ask (click <strong>Score response</strong>) and do <strong>not</strong> re-run retrieval or change the answer.</p>

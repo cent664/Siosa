@@ -38,10 +38,6 @@ if ($health.inline_eval -eq $true) {
     Write-Host "WARN inline_eval is true - judges run on every Ask. Set INLINE_EVAL=false or DEPLOYMENT_PROFILE=production."
     $exitCode = 2
 }
-if ($health.operator_analytics_active -eq $true) {
-    Write-Host "WARN operator_analytics_active is true - expected off under DEPLOYMENT_PROFILE=production."
-    $exitCode = 2
-}
 if ($health.deployment_hint) {
     Write-Host "WARN deployment_hint: $($health.deployment_hint)"
     $exitCode = 2

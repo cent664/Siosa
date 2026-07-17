@@ -1,7 +1,7 @@
 # Copy these into Railway → Service → Variables (replace ... with real secrets).
 # Do not commit real API keys. After saving, Railway redeploys automatically.
 
-# Production profile: INLINE_EVAL=false, operator analytics forced off, OpenAI transcribe
+# Production profile: INLINE_EVAL=false, OpenAI transcribe
 DEPLOYMENT_PROFILE=production
 
 POE_PROVIDER_MODE=claude
@@ -20,7 +20,9 @@ POE_DATA_DIR=/app/data
 RATE_LIMIT_ENABLED=false
 RATE_LIMIT_ASKS_PER_DAY=20
 
-# Operator analytics stays off under DEPLOYMENT_PROFILE=production even if set true.
-OPERATOR_ANALYTICS_ENABLED=false
+# Operator analytics (visit once/IP/UTC day + every Ask). Dashboard needs a long random key.
+# Attach a Railway volume mounted at /app/data so SQLite survives redeploys.
+OPERATOR_ANALYTICS_ENABLED=true
+OPERATOR_DASHBOARD_KEY=
 
 # Remove if present: OLLAMA_*, POE_ENABLE_OLLAMA, DEV_UI_ENABLED, custom PORT

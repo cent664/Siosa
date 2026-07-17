@@ -8,9 +8,8 @@ from pathlib import Path
 import uvicorn
 from fastapi import FastAPI, File, HTTPException, Query, Request, UploadFile
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import HTMLResponse
+from fastapi.responses import FileResponse, HTMLResponse
 from fastapi.staticfiles import StaticFiles
-from starlette.middleware.base import BaseHTTPMiddleware
 
 from poe_agent.harness.api.settings_routes import router as settings_router
 from poe_agent.harness.config import get_effective_provider_mode
@@ -38,7 +37,9 @@ from poe_agent.harness.config import (
 from poe_agent.harness.logging import configure_logging
 from poe_agent.harness.operator_analytics import (
     fetch_recent_events,
+    fetch_summary,
     log_event,
+    log_visit_once_per_day,
     render_analytics_dashboard_html,
 )
 from poe_agent.harness.rate_limit import check_and_increment_ask
@@ -77,26 +78,6 @@ def _country(request: Request) -> str:
         or ""
     ).strip()
 
-
-class OperatorAnalyticsMiddleware(BaseHTTPMiddleware):
-    async def dispatch(self, request: Request, call_next):
-        response = await call_next(request)
-        path = request.url.path or "/"
-        if path.startswith("/health") or path.startswith("/operator"):
-            return response
-        try:
-            log_event(
-                path=path,
-                action=f"{request.method} {path}",
-                client_ip=_client_ip(request),
-                country=_country(request),
-            )
-        except Exception:
-            pass
-        return response
-
-
-app.add_middleware(OperatorAnalyticsMiddleware)
 
 _project_root = Path(__file__).resolve().parents[4]
 _docs_dir = _project_root / "docs"
@@ -184,12 +165,6 @@ def score(body: ScoreRequest, request: Request) -> ScoreResponse:
     from poe_agent.harness.api.score_service import handle_score
 
     try:
-        log_event(
-            path="/score",
-            action="score",
-            client_ip=_client_ip(request),
-            country=_country(request),
-        )
         return handle_score(body)
     except Exception as exc:
         raise map_query_exception(exc) from exc
@@ -211,7 +186,7 @@ async def transcribe(audio: UploadFile = File(...)) -> TranscribeResponse:
 def operator_analytics_dashboard(
     key: str = Query(default="", description="OPERATOR_DASHBOARD_KEY from .env"),
 ) -> HTMLResponse:
-    """Private HTML table of recent analytics events. Local / non-production only."""
+    """Private HTML summary of visits and Asks. Gated by OPERATOR_DASHBOARD_KEY."""
     settings = get_settings()
     if not operator_analytics_active(settings):
         raise HTTPException(status_code=404, detail="Not found")
@@ -219,16 +194,30 @@ def operator_analytics_dashboard(
     if not expected:
         raise HTTPException(
             status_code=401,
-            detail="Set OPERATOR_DASHBOARD_KEY in .env to enable this page.",
+            detail="Set OPERATOR_DASHBOARD_KEY in .env (or Railway Variables) to enable this page.",
         )
     if not secrets.compare_digest(key.strip(), expected):
         raise HTTPException(status_code=401, detail="Invalid key")
+    summary = fetch_summary(settings=settings)
     events = fetch_recent_events(limit=200, settings=settings)
-    return HTMLResponse(content=render_analytics_dashboard_html(events))
+    return HTMLResponse(content=render_analytics_dashboard_html(events, summary))
 
 
 # SPA static UI — register after API routes so /query, /health, etc. are not shadowed.
-if (_web_dist / "index.html").is_file():
+_spa_index = _web_dist / "index.html"
+if _spa_index.is_file():
+
+    @app.get("/")
+    def spa_root(request: Request) -> FileResponse:
+        try:
+            log_visit_once_per_day(
+                client_ip=_client_ip(request),
+                country=_country(request),
+            )
+        except Exception:
+            pass
+        return FileResponse(_spa_index)
+
     app.mount(
         "/",
         StaticFiles(directory=str(_web_dist), html=True),

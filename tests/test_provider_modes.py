@@ -40,7 +40,7 @@ def test_deployment_profile_applies_production_defaults():
         operator_analytics_enabled=True,
     )
     assert settings.inline_eval is False
-    assert settings.operator_analytics_enabled is False
+    assert settings.operator_analytics_enabled is True
     assert settings.transcribe_provider == "openai"
     assert settings.judge_provider == "claude"
     assert settings.poe_provider_mode == "claude"

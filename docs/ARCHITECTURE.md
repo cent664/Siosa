@@ -81,15 +81,18 @@ The app is in active development. Optional daily caps protect API cost if the pu
 - **Default locally:** `RATE_LIMIT_ENABLED=false` (unlimited for you). Set `true` when you want enforcement (e.g. on Railway later).
 - Over quota returns HTTP **429** until the next UTC midnight.
 
-### Operator analytics (local)
+### Operator analytics
 
-When enabled (default on non-production), the server may append coarse events to `data/operator_analytics.sqlite`: UTC time, path/action, **hashed** IP, and country code if a proxy header provides one. Under `DEPLOYMENT_PROFILE=production`, analytics are **forced off**. Inspect rows locally, for example:
+When `OPERATOR_ANALYTICS_ENABLED=true`, the server logs coarse events to `data/operator_analytics.sqlite`:
 
-```powershell
-python -c "import sqlite3; c=sqlite3.connect('data/operator_analytics.sqlite'); print(c.execute('select ts_utc,action,country,ip_hash from events order by id desc limit 20').fetchall())"
-```
+- **visit** — at most one per hashed IP per UTC day when someone opens the app (`GET /`)
+- **ask** — every `POST /query`
 
-Operator analytics (when enabled) stores hashed IP, UTC timestamp, path/action, and coarse country if available; full raw IP is not retained in the analytics table (rate limiting may use IP only in its own SQLite file).
+Each row stores UTC time, action, **hashed** IP, and country code if a proxy header provides one (e.g. Cloudflare). Raw IPs are not stored in this table.
+
+Private HTML dashboard (requires `OPERATOR_DASHBOARD_KEY`): `/operator/analytics?key=...` — summary of unique visitors, visits, and Asks. Local and production each have their **own** database; open the matching host. On Railway, mount a **volume** at `/app/data` so data survives redeploys.
+
+Rate limiting may still use IP in its own SQLite file when enabled.
 
 ---
 

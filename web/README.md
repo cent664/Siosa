@@ -26,4 +26,4 @@ Open http://localhost:5173 (API calls are proxied to :8000).
 npm run build
 ```
 
-Output: `dist/` (gitignored). `start.bat` / `start.ps1` always run `npm install` and `npm run build` before starting the API.
+Output: `dist/` (gitignored). `start.bat` always runs `npm install` and `npm run build` before starting the API.

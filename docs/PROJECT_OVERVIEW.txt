@@ -39,7 +39,7 @@ codebase with timing, Score, and trace UI always available.
 - Voice: Browser mic -> POST /transcribe (faster-whisper local or OpenAI Whisper API).
 - Railway deploy: Dockerfile, custom domain poesiosa.net; production skips inline judges.
 - DEPLOYMENT_PROFILE=production: One env flag applies production defaults on Railway
-  (no inline judges, operator analytics off, OpenAI transcribe).
+  (no inline judges, OpenAI transcribe; analytics still controlled by OPERATOR_ANALYTICS_ENABLED).
 - Laptop sync: transfer/ bundle + export_transfer.ps1 (gitignored handoff folder).
 - Stub answer mode and DEV_UI / booth branching removed; Claude / GPT-4 only in UI.
 
@@ -169,7 +169,8 @@ WHAT WE DID NOT DO:
 
 PRODUCTION (poesiosa.net):
 - INLINE_EVAL=false: no judge LLM calls on every Ask (use Score response when needed).
-- Operator analytics forced off under DEPLOYMENT_PROFILE=production.
+- Operator analytics: visit (1/IP/UTC day) + Asks when OPERATOR_ANALYTICS_ENABLED=true;
+  view at /operator/analytics?key=... (volume on /app/data recommended).
 - Timing, sources, Score, and trace remain available in the UI.
 
 
@@ -195,7 +196,7 @@ VOICE:
 - Optional pip install -e ".[speech]".
 
 LAUNCHER:
-- start.bat / start.ps1: always npm install + build web, then uvicorn on 8000 locally.
+- start.bat: always npm install + build web, then uvicorn on 8000 locally.
 - scripts/start_api.sh: Railway uses PORT env, host 0.0.0.0.
 
 
@@ -215,7 +216,7 @@ RECOMMENDED RAILWAY VARIABLES (see railway.variables.example):
 - DEPLOYMENT_PROFILE=production
 - POE_PROVIDER_MODE=claude
 - ANTHROPIC_API_KEY, OPENAI_API_KEY (optional GPT-4 toggle)
-- INLINE_EVAL=false, OPERATOR_ANALYTICS_ENABLED=false
+- INLINE_EVAL=false, OPERATOR_ANALYTICS_ENABLED=true, OPERATOR_DASHBOARD_KEY=(secret)
 - RETRIEVAL_MODE=live, POE_DATA_DIR=/app/data
 - Remove if leftover: OLLAMA_*, DEV_UI_ENABLED, POE_API_HOST/PORT (local-only), custom PORT
 
@@ -348,7 +349,8 @@ history, or the transfer/ folder.
 
 .\scripts\verify_railway_deploy.ps1 -BaseUrl "https://www.poesiosa.net"
 
-Expect inline_eval=false and operator_analytics_active=false after correct Railway Variables.
+Expect inline_eval=false after correct Railway Variables. Analytics is optional via
+OPERATOR_ANALYTICS_ENABLED + OPERATOR_DASHBOARD_KEY (mount /app/data volume).
 
 
 ================================================================================

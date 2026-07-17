@@ -56,11 +56,12 @@ Keep these **off GitHub** (already gitignored):
 
 Before every push: `git status` — if `.env` or a SQLite file appears, stop.
 
-**Operator analytics page (local only):** set a long random `OPERATOR_DASHBOARD_KEY` in `.env`, run the app, then bookmark:
+**Operator analytics page:** set a long random `OPERATOR_DASHBOARD_KEY` in `.env` (and the same in Railway Variables for production). Bookmark:
 
-`http://127.0.0.1:8000/operator/analytics?key=YOUR_KEY`
+- Local: `http://127.0.0.1:8000/operator/analytics?key=YOUR_KEY`
+- Production: `https://www.poesiosa.net/operator/analytics?key=YOUR_KEY`
 
-Empty key = page disabled. Production profile forces analytics off (page 404s). Do not put this link on public docs.
+Empty key = page disabled. Local and production each keep their own SQLite file (no sync). On Railway, attach a volume at `/app/data` so data survives redeploys. Do not put these links on public visitor docs.
 
 ## 3. Transfer bundle (optional but recommended)
 
