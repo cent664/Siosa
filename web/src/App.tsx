@@ -197,24 +197,6 @@ export default function App() {
     }
   };
 
-  const handleNewConversation = () => {
-    try {
-      localStorage.removeItem(SESSION_KEY);
-    } catch {
-      /* ignore */
-    }
-    setSessionId(null);
-    setTurns([]);
-    setExpandedIds(new Set());
-    setQuestion("");
-    setQualityScores(undefined);
-    setPipelineTiming(undefined);
-    setScoringTiming(undefined);
-    setScoringTurnIndex(null);
-    setScoreError(null);
-    setQueryError(null);
-  };
-
   const handleAsk = async (e?: FormEvent) => {
     e?.preventDefault();
     const q = question.trim();
@@ -258,6 +240,42 @@ export default function App() {
   const currentMode = providerInfo?.mode ?? health?.provider_mode ?? "claude";
   const inlineEval = health?.inline_eval === true;
   const latestIndex = turns.length - 1;
+  const hasConversation = turns.length > 0;
+
+  const questionComposer = (
+    <section className={`question-section ${hasConversation ? "question-section-follow" : ""}`}>
+      <form className="question-form" onSubmit={(e) => void handleAsk(e)}>
+        {!hasConversation && (
+          <label htmlFor="question" className="question-prompt">
+            <span className="question-epigraph">May Reason preserve us.</span>
+            <span className="question-ask">What are you curious about today?</span>
+          </label>
+        )}
+        <div className="question-row">
+          <input
+            id="question"
+            type="text"
+            placeholder={
+              hasConversation ? "Ask a follow-up…" : "How does poison damage scale?"
+            }
+            maxLength={2000}
+            value={question}
+            onChange={(e) => setQuestion(e.target.value)}
+            disabled={loading}
+          />
+          <VoiceRecordButton
+            onTranscribed={setQuestion}
+            onError={setQueryError}
+            disabled={loading}
+          />
+          <button type="submit" className="btn btn-primary" disabled={loading}>
+            Ask
+          </button>
+        </div>
+      </form>
+      {queryError && <div className="error-banner">{queryError}</div>}
+    </section>
+  );
 
   const handleScore = async (turnIndex: number) => {
     const turn = turns[turnIndex];
@@ -368,47 +386,7 @@ export default function App() {
           <div className="error-banner">{health.deployment_hint}</div>
         )}
 
-        <section className="question-section">
-          <form className="question-form" onSubmit={(e) => void handleAsk(e)}>
-            <label htmlFor="question" className="question-prompt">
-              <span className="question-epigraph">May Reason preserve us.</span>
-              <span className="question-ask">What are you curious about today?</span>
-            </label>
-            <div className="question-row">
-              <input
-                id="question"
-                type="text"
-                placeholder="How does poison damage scale?"
-                maxLength={2000}
-                value={question}
-                onChange={(e) => setQuestion(e.target.value)}
-                disabled={loading}
-              />
-              <VoiceRecordButton
-                onTranscribed={setQuestion}
-                onError={setQueryError}
-                disabled={loading}
-              />
-              <button type="submit" className="btn btn-primary" disabled={loading}>
-                Ask
-              </button>
-            </div>
-          </form>
-          {(turns.length > 0 || sessionId) && (
-            <p className="session-actions">
-              <button
-                type="button"
-                className="btn"
-                onClick={handleNewConversation}
-                disabled={loading}
-              >
-                New conversation
-              </button>
-            </p>
-          )}
-
-          {queryError && <div className="error-banner">{queryError}</div>}
-        </section>
+        {!hasConversation && questionComposer}
 
         {turns.length > 0 && (
           <div className="conversation-thread" aria-label="Conversation">
@@ -433,6 +411,8 @@ export default function App() {
             })}
           </div>
         )}
+
+        {hasConversation && questionComposer}
         </main>
       </div>
 
@@ -440,6 +420,7 @@ export default function App() {
         <nav className="footer-docs" aria-label="Documentation">
           <a href={docsUrl("architecture.html")}>Architecture</a>
           <a href={docsUrl("planned.html")}>Planned</a>
+          <a href={docsUrl("planned-baseline.html")}>Baseline</a>
           <a href={docsUrl("changelog.html")}>Changelog</a>
         </nav>
         <p className="footer-disclaimer">

@@ -1,0 +1,167 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>Siosa's Library — Roadmap baseline</title>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link
+    href="https://fonts.googleapis.com/css2?family=Cinzel+Decorative:wght@700&family=Cinzel:wght@400;600&family=EB+Garamond:ital,wght@0,400;0,600;1,400&display=swap"
+    rel="stylesheet"
+  />
+  <style>
+
+    :root {
+      --font-display: "Cinzel Decorative", "Cinzel", Georgia, serif;
+      --font-heading: "Cinzel", Georgia, serif;
+      --font-body: "EB Garamond", Georgia, "Times New Roman", serif;
+      --font-bump: 0pt;
+      --poe-gold-light: #e8d48a;
+      --poe-panel-border: #4a4030;
+      --poe-text: #e8dcc4;
+      --poe-text-muted: #a89f8c;
+      --poe-link: #d4b86a;
+    }
+    body {
+      font-family: var(--font-body);
+      font-size: calc(1rem + var(--font-bump));
+      max-width: 960px;
+      margin: 2rem auto;
+      padding: 0 1rem 2rem;
+      line-height: 1.6;
+      color: var(--poe-text);
+      background: #0a0908;
+    }
+    h1, h2, h3, h4 { font-family: var(--font-heading); color: var(--poe-gold-light); font-weight: 600; }
+    h1 { font-family: var(--font-display); font-size: calc(1.75rem + var(--font-bump)); }
+    p, li { color: var(--poe-text); }
+    table { border-collapse: collapse; width: 100%; margin: 1rem 0; }
+    th, td { border: 1px solid var(--poe-panel-border); padding: 0.5rem 0.75rem; text-align: left; vertical-align: top; }
+    th { background: rgba(0, 0, 0, 0.4); color: var(--poe-gold-light); font-family: var(--font-heading); }
+    code { background: rgba(255, 255, 255, 0.08); color: var(--poe-gold-light); padding: 0.1em 0.3em; border-radius: 3px; }
+    pre { background: rgba(0, 0, 0, 0.45); color: var(--poe-text); padding: 1rem; overflow-x: auto; border: 1px solid var(--poe-panel-border); border-radius: 6px; }
+    nav.docs-nav {
+      display: flex;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 0.65rem 1rem;
+      margin-bottom: 1.5rem;
+      padding: 0.75rem 1rem;
+      background: rgba(10, 9, 8, 0.94);
+      border: 1px solid var(--poe-panel-border);
+      border-radius: 6px;
+    }
+    nav.docs-nav a:not(.nav-home-btn) {
+      font-family: var(--font-heading);
+      color: var(--poe-link);
+      text-decoration: none;
+    }
+    nav.docs-nav a:not(.nav-home-btn):hover {
+      color: var(--poe-gold-light);
+      text-decoration: underline;
+    }
+    a.nav-home-btn {
+      order: -1;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 2.35rem;
+      height: 2.35rem;
+      margin-right: 0.15rem;
+      border: 1px solid var(--poe-panel-border);
+      border-radius: 4px;
+      background: rgba(0, 0, 0, 0.4);
+      color: var(--poe-gold-light);
+      text-decoration: none;
+      flex-shrink: 0;
+    }
+    a.nav-home-btn:hover {
+      border-color: var(--poe-gold-light);
+      color: var(--poe-gold-light);
+      text-decoration: none;
+      background: rgba(92, 74, 32, 0.35);
+    }
+    a.nav-home-btn svg {
+      width: 1.15rem;
+      height: 1.15rem;
+      fill: currentColor;
+    }
+    a { color: var(--poe-link); }
+    a:hover { color: var(--poe-gold-light); }
+    article { border-left: 4px solid #8b7028; padding-left: 1rem; margin-bottom: 2rem; }
+    time { color: var(--poe-text-muted); font-size: calc(0.9rem + var(--font-bump)); display: block; margin-bottom: 0.25rem; font-family: var(--font-heading); }
+    article h3 { margin-top: 0.25rem; }
+    article ul { margin: 0.5rem 0 0 1.1rem; padding: 0; }
+    article li { margin: 0.35rem 0; }
+    .changelog-label { font-family: var(--font-heading); font-weight: 600; color: var(--poe-gold-light); }
+    pre.mermaid { background: transparent; border: none; padding: 0.5rem 0; overflow-x: auto; text-align: center; }
+    .mermaid { margin: 1.5rem 0; }
+    .pipeline-interactive { margin-top: 0.35rem; }
+    em { color: var(--poe-text-muted); }
+    details { background: rgba(0, 0, 0, 0.35); border: 1px solid var(--poe-panel-border); border-radius: 6px; padding: 0.5rem 0.75rem; }
+    details summary { font-family: var(--font-heading); color: var(--poe-gold-light); cursor: pointer; }
+    del, s { text-decoration: line-through; opacity: 0.8; }
+
+  </style>
+
+  <script type="module">
+    import mermaid from 'https://cdn.jsdelivr.net/npm/mermaid@10/dist/mermaid.esm.min.mjs';
+    mermaid.initialize({ startOnLoad: true, theme: 'dark' });
+  </script>
+</head>
+<body>
+  <nav class="docs-nav" aria-label="Documentation">
+    <a href="/" class="nav-home-btn" title="Back to Siosa's Library" aria-label="Back to app">
+      <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"/></svg>
+    </a>
+    <a href="/docs/architecture.html">Architecture</a>
+    <a href="/docs/planned.html">Planned</a>
+    <a href="/docs/planned-baseline.html">Baseline</a>
+    <a href="/docs/changelog.html">Changelog</a>
+  </nav>
+<h1>List 1 build-order baseline (frozen)</h1>
+<p>This is the <strong>starting roadmap</strong> we agreed for improving Siosa. Keep it as historical reference; do <strong>not</strong> strike through items here as they ship. Track live progress in <a href="PLANNED.md"><code>PLANNED.md</code></a> / <a href="planned.html">planned.html</a>.</p>
+<p><strong>Out of scope for Siosa (List 2):</strong> vLLM, quantization, SFT/DPO, multimodal — separate project.</p>
+<p>Edit this file only to correct the historical record. Run <code>python scripts/sync_docs.py</code> after edits.</p>
+<hr />
+<h2>Phase 0 — Safety net (1–2 days)</h2>
+<ul>
+<li><strong>Rate limits</strong> (daily Ask / tool caps) — Protects cost before tools and Revise. Small change; do first.</li>
+<li><strong>Gold regression + local MLflow</strong> — Run the existing gold set; log metrics. Baseline so later tool/memory/Revise work is measurable.</li>
+</ul>
+<h2>Phase 1 — Conversation shape</h2>
+<ul>
+<li><strong>Session memory (SQLite)</strong> — Persist turns; pass recent history into Ask. Changes API/UI once — better before tools explode.</li>
+<li><strong>Memory summarization</strong> — Only after memory works and you feel context pressure.</li>
+</ul>
+<h2>Phase 2 — Real agent surface (core of List 1)</h2>
+<ul>
+<li><strong>Tool registry + refactor wiki as tool #1</strong> — Same behavior, new interface. Required before Ninja/datamine/MCP.</li>
+<li><strong>PoE Ninja tool</strong> (one clear slice first: e.g. prices <em>or</em> character/build) — Proves multi-source without boiling the ocean.</li>
+<li><strong>LangGraph source routing</strong> — Planner chooses wiki vs Ninja (order + stop). Simple Q → one tool; hard Q → multi-tool then synthesize.</li>
+<li><strong>PoE DB / datamine tool</strong> — Second non-wiki source once routing works.</li>
+<li><strong>MCP wrapper</strong> — Same tools, protocol surface — after tools are stable so you don’t dual-maintain.</li>
+</ul>
+<h2>Phase 3 — Eval without expensive auto-loops</h2>
+<ul>
+<li><strong>Score + Revise</strong> (rate-limited revises per query) — Score already exists; Revise is the main new UX/API. Do after tools so Revise can optionally re-call tools.</li>
+<li><strong>Productize optional retrieval refine</strong> — Wire/document the off-by-default second wiki lookup; optionally tie later to weak scores from Score.</li>
+</ul>
+<h2>Phase 4 — Product polish (anytime, low dependency)</h2>
+<ul>
+<li><strong>Response format customization</strong></li>
+<li><strong>Booth vs full UI</strong> (if you still care for demos)</li>
+</ul>
+<h2>Phase 5 — Bonus (after Planned “B” feels solid)</h2>
+<ul>
+<li><strong>OOD / empty-retrieval “I don’t know”</strong> (cheap, high resume value)</li>
+<li><strong>Context budgeting</strong></li>
+<li><strong>Smarter Revise policies</strong></li>
+<li><strong>Non-retrieval compute tool</strong> (e.g. DPS) — nicest after multi-tool routing exists</li>
+</ul>
+<hr />
+<h2>Why this order (short)</h2>
+<p>Cap cost early → measure with gold → memory before tools → tools before MCP → user-gated Score/Revise after tools → polish/bonus last.</p>
+</body>
+</html>

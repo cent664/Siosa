@@ -101,6 +101,7 @@
     em { color: var(--poe-text-muted); }
     details { background: rgba(0, 0, 0, 0.35); border: 1px solid var(--poe-panel-border); border-radius: 6px; padding: 0.5rem 0.75rem; }
     details summary { font-family: var(--font-heading); color: var(--poe-gold-light); cursor: pointer; }
+    del, s { text-decoration: line-through; opacity: 0.8; }
 
   </style>
 
@@ -116,10 +117,12 @@
     </a>
     <a href="/docs/architecture.html">Architecture</a>
     <a href="/docs/planned.html">Planned</a>
+    <a href="/docs/planned-baseline.html">Baseline</a>
     <a href="/docs/changelog.html">Changelog</a>
   </nav>
 <h1>Planned changes</h1>
 <p>Siosa roadmap for a full <strong>agentic stack</strong> on a Path of Exile use case: tools, orchestration, MCP, memory, and user-gated evaluation — without expensive automatic multi-LLM loops. Self-hosted inference, quantization, and post-training live in a <strong>separate project</strong>, not here.</p>
+<p><strong>Frozen starting build order:</strong> <a href="planned-baseline.html">Roadmap baseline</a> (<a href="PLANNED_ROADMAP_BASELINE.md">source</a>) — do not strike items there; strike and update <strong>this</strong> page as work ships.</p>
 <p>Edit this file, then run <code>python scripts/sync_docs.py</code> for browser HTML.</p>
 <h2>Already in the app</h2>
 <ul>
@@ -130,18 +133,22 @@
 <li><strong>Deploy</strong> — FastAPI + React, Docker, GitHub Actions CI, Railway, OpenAI and Anthropic APIs.</li>
 <li><strong>Observability</strong> — traces, timing, retrieval debug (always on in the UI).</li>
 <li><strong>Optional retrieval refine</strong> — second wiki lookup when the first pass looks weak (<code>RETRIEVAL_REFINE_ENABLED</code>, <strong>off by default</strong>); heuristic gate today, not judge-driven.</li>
-<li><strong>Session memory</strong> — SQLite turns + UI thread / New conversation; expandable prior turns; history-aware wiki search; rolling summary for long chats (recent window verbatim).</li>
-<li><strong>Rate limits (scaffold)</strong> — optional UTC daily Ask cap per IP (<code>RATE_LIMIT_ENABLED</code>, default off; 20/day when on).</li>
-<li><strong>Operator analytics</strong> — visit (1/IP/UTC day) + Asks to SQLite; private <code>/operator/analytics</code> dashboard (local and Railway when enabled + dashboard key).</li>
 </ul>
 <h2>Planned</h2>
 <h3>Memory</h3>
 <ul>
-<li><strong>Memory summarization polish</strong> — tune summary length/triggers for very long sessions (knobs adjustable).</li>
+<li><del><strong>Memory summarization polish</strong> — tune summary length/triggers for very long sessions (knobs adjustable).</del></li>
 <li>Remember citations/tools used in summary — not full wiki page dumps.</li>
+</ul>
+<h3>Session, limits, and analytics</h3>
+<ul>
+<li><del><strong>Session memory</strong> — SQLite turns + UI thread; expandable prior turns; history-aware wiki search (prior topics + citation page titles); rolling summary for long chats (recent window verbatim).</del></li>
+<li><del><strong>Rate limits (scaffold)</strong> — optional UTC daily Ask cap per IP (<code>RATE_LIMIT_ENABLED</code>, default off; 20/day when on).</del></li>
+<li><del><strong>Operator analytics</strong> — visit (1/IP/UTC day) + Asks to SQLite; private <code>/operator/analytics</code> dashboard (local and Railway when enabled + dashboard key).</del></li>
 </ul>
 <h3>Tools and routing</h3>
 <ul>
+<li><del><strong>Ask composer under latest answer</strong> — after the first reply, keep the text box / voice / Ask controls below the newest response (refresh for a new chat).</del></li>
 <li><strong>Source routing</strong> — LangGraph chooses which tool(s), in what order, and when to stop. Simple mechanics Q&amp;A stays a single wiki lookup; harder intents may call multiple tools then synthesize.</li>
 <li><strong>Tool registry</strong> — treat live wiki fetch as the first tool; add <strong>PoE Ninja</strong> (prices, characters, builds, skill links) and <strong>PoE DB / datamine</strong> (numeric skill/item values the wiki may omit).</li>
 <li><strong>MCP</strong> — expose the same tools behind an MCP server (names, JSON schemas, call/response). MCP is the protocol surface; LangGraph remains the orchestrator.</li>
@@ -164,6 +171,13 @@
 <li><strong>Non-retrieval compute tool</strong> — e.g. a DPS calculator (structured stats in → number out) so the planner can combine retrieve + compute.</li>
 <li><strong>Smarter Revise policies</strong> — faithfulness-only rewrite vs re-retrieve-then-rewrite depending on which scores are weak.</li>
 <li><strong>OOD / empty-retrieval refusals</strong> — graceful “I don’t know” when the query is out of domain or retrieval returns nothing useful, without requiring a full judge pass.</li>
+</ul>
+<h2>Discovered changes</h2>
+<ul>
+<li><strong>Score/Revise product</strong> — beyond scoring any expanded turn; full Revise loop stays on the Planned roadmap above.</li>
+<li><strong>Full query-fusion rewrite</strong> — not planned; follow-ups use topic hints plus prior citation page titles / title probes.</li>
+<li><strong>Raw IPs / DIY geo / Railway→laptop analytics sync</strong> — out of scope; hashed IP + proxy country headers only; view analytics on the host that recorded them.</li>
+<li><strong>Session summarization</strong> — after each Ask, if turns exceed the recent verbatim window (<code>SESSION_MEMORY_RECENT_TURNS</code>, default 8), older turns are folded by an LLM into a rolling <code>sessions.summary</code>; the next prompt uses summary + recent turns + current question. This algorithm may need improvement / knobs adjustable later.</li>
 </ul>
 </body>
 </html>

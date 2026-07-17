@@ -1,5 +1,21 @@
 Newest first. Each entry uses the same format: a short title and a few bullets on what changed and why it mattered. Edit this file, then run `python scripts/sync_docs.py` for browser HTML.
 
+## 2026-07-17 — Frozen List 1 build-order baseline
+
+- Docs — Added `PLANNED_ROADMAP_BASELINE.md` → `planned-baseline.html`: original Phase 0–5 build order (no strike-throughs). Living progress stays on Planned.
+- Docs — Nav/footer Baseline link; Planned page points at the frozen roadmap.
+
+## 2026-07-17 — Planned Already-in-app restore; real strikethrough
+
+- Docs — Already in the app restored to pre-upgrade baseline; session memory, rate limits, and operator analytics struck under Planned.
+- Tooling — `sync_docs.py` renders `~~…~~` as HTML `<del>` with visible line-through on Planned/Architecture pages.
+
+## 2026-07-17 — Composer under answers; prior pages on follow-ups
+
+- Web — Ask box / voice / Ask sit under the latest reply; removed New conversation (refresh for a new chat).
+- Harness — Session turns store citation titles; follow-up retrieval re-probes those wiki pages so Sources stay continuous.
+- Docs — Planned: struck summarization polish + composer item; added Discovered changes (incl. summarization knobs note).
+
 ## 2026-07-17 — Follow-up retrieval, expandable turns, memory summary
 
 - Web — Prior conversation turns expand to show sources, timing, Score, and traces (latest stays open).

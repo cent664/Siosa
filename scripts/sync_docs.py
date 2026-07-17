@@ -110,6 +110,7 @@ SHARED_STYLES = """
     em { color: var(--poe-text-muted); }
     details { background: rgba(0, 0, 0, 0.35); border: 1px solid var(--poe-panel-border); border-radius: 6px; padding: 0.5rem 0.75rem; }
     details summary { font-family: var(--font-heading); color: var(--poe-gold-light); cursor: pointer; }
+    del, s { text-decoration: line-through; opacity: 0.8; }
 """
 
 ARCH_EXTRA_STYLES = """
@@ -145,6 +146,7 @@ HTML_HEAD_BASE = """<!DOCTYPE html>
     </a>
     <a href="/docs/architecture.html">Architecture</a>
     <a href="/docs/planned.html">Planned</a>
+    <a href="/docs/planned-baseline.html">Baseline</a>
     <a href="/docs/changelog.html">Changelog</a>
   </nav>
 """
@@ -182,11 +184,20 @@ SUMMARY_ANCHORS = {
 }
 
 
+_STRIKE_RE = re.compile(r"~~(.+?)~~", re.DOTALL)
+
+
+def _apply_strikethrough(text: str) -> str:
+    """Convert ~~text~~ to <del> (stdlib markdown has no strike). Prefer post-markdown so bold etc. already rendered."""
+    return _STRIKE_RE.sub(r"<del>\1</del>", text)
+
+
 def _md_fragment(inner: str) -> str:
-    return markdown.markdown(
+    html_body = markdown.markdown(
         inner.strip(),
         extensions=["tables", "fenced_code", "nl2br"],
     )
+    return _apply_strikethrough(html_body)
 
 
 def _preprocess_details_blocks(md_text: str) -> str:
@@ -212,6 +223,7 @@ def md_to_html_body(md_text: str) -> str:
         md_text,
         extensions=["tables", "fenced_code", "nl2br"],
     )
+    body = _apply_strikethrough(body)
     body = _fix_mermaid_blocks(body)
     return _add_heading_anchors(body)
 
@@ -395,6 +407,14 @@ def sync_planned_html() -> None:
     print("Wrote docs/planned.html")
 
 
+def sync_planned_baseline_html() -> None:
+    baseline = (DOCS / "PLANNED_ROADMAP_BASELINE.md").read_text(encoding="utf-8")
+    body = md_to_html_body(baseline)
+    page = _head("Siosa's Library — Roadmap baseline") + body + HTML_FOOT
+    (DOCS / "planned-baseline.html").write_text(page, encoding="utf-8")
+    print("Wrote docs/planned-baseline.html")
+
+
 def sync_changelog_html() -> None:
     cl = (DOCS / "CHANGELOG.md").read_text(encoding="utf-8")
     articles: list[str] = []
@@ -427,6 +447,7 @@ def main() -> None:
     sync_readme()
     sync_architecture_html()
     sync_planned_html()
+    sync_planned_baseline_html()
     sync_changelog_html()
     print("Done.")
 
