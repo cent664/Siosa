@@ -236,13 +236,26 @@ def test_diversify_chunks_by_page():
 
 
 def test_followup_rewrite_adds_prior_title():
-    from poe_agent.retriever.followup import rewrite_followup_question
+    from poe_agent.retriever.followup import (
+        is_topic_continuation,
+        rewrite_followup_question,
+    )
 
     out = rewrite_followup_question("list all of them", ["Pantheon"])
     assert "Pantheon" in out
     assert rewrite_followup_question("What are Pantheon powers?", ["Pantheon"]) == (
         "What are Pantheon powers?"
     )
+    # New topic must not bake in Pantheon
+    assert rewrite_followup_question("How does poison damage scale?", ["Pantheon"]) == (
+        "How does poison damage scale?"
+    )
+    assert is_topic_continuation("list all of them", ["Pantheon"]) is True
+    assert is_topic_continuation(
+        "How does poison damage scale?",
+        ["Pantheon"],
+        prior_questions=["What are Pantheon powers?"],
+    ) is False
 
 
 def test_structure_aware_tables_keep_cells():

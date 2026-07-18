@@ -1,5 +1,11 @@
 Newest first. Each entry uses the same format: a short title and a few bullets on what changed and why it mattered. Edit this file, then run `python scripts/sync_docs.py` for browser HTML.
 
+## 2026-07-17 — Topic-switch retrieval + clickable Library title
+
+- Harness — Prior pages / history hints only when the Ask continues the prior topic; new topics get a fresh live wiki search (fixes Pantheon sticking to later questions).
+- Web — Click **Siosa's Library** to clear the session and return to the home Ask state.
+- Docs — Planned Discovered + Architecture note the topic-switch gate.
+
 ## 2026-07-17 — Table-first link expand for follow-ups
 
 - Retriever — Link harvest strips nav/infobox, prefers content-table links, raises harvest cap; enumerate follow-ups expand more hops. Live cache `links_version` refreshes old front-biased lists.

@@ -444,8 +444,8 @@ def retrieve_live_for_query(
         subtask_query=query if query.strip().casefold() != raw_q.casefold() else user_q,
         extra_queries=extra_search_queries,
     )
-    # Heuristic: when continuing a topic, re-open prior pages / links first; keep searches lean.
-    if prefer_prior and len(search_queries) > 2:
+    # Only lean the search when we are continuing the same topic (priors already gated upstream).
+    if prefer_prior and prior_titles and len(search_queries) > 2:
         search_queries = search_queries[:2]
 
     probes = list(title_probe_candidates(user_q)) if settings.live_wiki_title_probe else []

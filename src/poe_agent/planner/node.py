@@ -41,10 +41,10 @@ def plan_subtasks(
     summary: str = "",
 ) -> list[dict]:
     """LLM JSON plan with heuristic fallback on parse/API failure."""
-    from poe_agent.harness.session_memory import format_generation_context, history_search_hints
+    from poe_agent.harness.session_memory import continuity_retrieval_context, format_generation_context
 
     context = format_generation_context(summary or "", history or [])
-    hints = history_search_hints(history or [])
+    _titles, hints = continuity_retrieval_context(question, history or [])
     hint_line = ""
     if hints:
         hint_line = "Known topics from prior turns (use as short retrieve queries if relevant): " + ", ".join(

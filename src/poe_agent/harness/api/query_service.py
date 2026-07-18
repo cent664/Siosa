@@ -162,7 +162,6 @@ def handle_query(question: str, session_id: str | None = None) -> QueryResponse:
     from poe_agent.harness.session_memory import (
         append_turn,
         ensure_session,
-        history_search_hints,
         load_prompt_history,
     )
 
@@ -280,13 +279,12 @@ def _linear_rag(
     session_id: str = "",
 ) -> QueryResponse:
     from poe_agent.generator.answer import generate_answer_with_meta
-    from poe_agent.harness.session_memory import history_page_titles, history_search_hints
+    from poe_agent.harness.session_memory import continuity_retrieval_context
 
     run.extra["retrieval_mode"] = get_settings().retrieval_mode.lower()
     run.extra["retrieval_config"] = _retrieval_config_snapshot()
 
-    hints = history_search_hints(history or [])
-    page_titles = history_page_titles(history or [])
+    page_titles, hints = continuity_retrieval_context(question, history or [])
     t0 = time.perf_counter()
     chunks, retrieval_source, debug = retrieve_for_query(
         question,

@@ -197,6 +197,24 @@ export default function App() {
     }
   };
 
+  const handleNewChat = () => {
+    try {
+      localStorage.removeItem(SESSION_KEY);
+    } catch {
+      /* ignore */
+    }
+    setSessionId(null);
+    setTurns([]);
+    setExpandedIds(new Set());
+    setQuestion("");
+    setQualityScores(undefined);
+    setPipelineTiming(undefined);
+    setScoringTiming(undefined);
+    setScoringTurnIndex(null);
+    setScoreError(null);
+    setQueryError(null);
+  };
+
   const handleAsk = async (e?: FormEvent) => {
     e?.preventDefault();
     const q = question.trim();
@@ -357,7 +375,17 @@ export default function App() {
         />
         <main className="main">
         <header className="app-header">
-          <h1 className="app-title">Siosa&apos;s Library</h1>
+          <h1 className="app-title">
+            <button
+              type="button"
+              className="app-title-btn"
+              onClick={handleNewChat}
+              title="Start a new conversation"
+              aria-label="Siosa's Library — start a new conversation"
+            >
+              Siosa&apos;s Library
+            </button>
+          </h1>
           <div className="provider-row">
             <label htmlFor="provider">Provider</label>
             <select

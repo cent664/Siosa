@@ -259,6 +259,35 @@ def history_page_titles(history: list[dict], *, max_titles: int = 6) -> list[str
     return titles
 
 
+def history_questions(history: list[dict], *, max_n: int = 4) -> list[str]:
+    out: list[str] = []
+    for turn in history[-max_n:]:
+        q = str(turn.get("question") or "").strip()
+        if q:
+            out.append(q)
+    return out
+
+
+def continuity_retrieval_context(
+    question: str,
+    history: list[dict] | None,
+) -> tuple[list[str], list[str]]:
+    """
+    Prior page titles + search hints for retrieval — only if this Ask continues the topic.
+    New topics return empty so live wiki search is not stuck on old citations (e.g. Pantheon).
+    """
+    from poe_agent.retriever.followup import is_topic_continuation
+
+    hist = history or []
+    if not hist:
+        return [], []
+    titles = history_page_titles(hist)
+    prior_qs = history_questions(hist)
+    if not is_topic_continuation(question, titles, prior_questions=prior_qs):
+        return [], []
+    return titles, history_search_hints(hist)
+
+
 def append_turn(
     session_id: str,
     question: str,

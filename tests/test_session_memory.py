@@ -69,7 +69,7 @@ def test_history_search_hints_includes_prior_topic():
 
 
 def test_history_page_titles_from_citations():
-    from poe_agent.harness.session_memory import history_page_titles
+    from poe_agent.harness.session_memory import continuity_retrieval_context, history_page_titles
 
     history = [
         {
@@ -86,6 +86,17 @@ def test_history_page_titles_from_citations():
     assert any("Brine" in t for t in titles)
     hints = history_search_hints(history)
     assert "Pantheon" in hints
+
+    # Same-topic follow-up keeps continuity; new topic clears prior probes/hints
+    cont_titles, cont_hints = continuity_retrieval_context("list all of them", history)
+    assert "Pantheon" in cont_titles
+    assert cont_hints
+    fresh_titles, fresh_hints = continuity_retrieval_context(
+        "How does poison damage scale?",
+        history,
+    )
+    assert fresh_titles == []
+    assert fresh_hints == []
 
 
 def test_append_turn_persists_citations(tmp_path: Path):

@@ -30,12 +30,11 @@ def _plan_node(state: AgentState) -> AgentState:
 
 
 def _execute_node(state: AgentState) -> AgentState:
-    from poe_agent.harness.session_memory import history_page_titles, history_search_hints
+    from poe_agent.harness.session_memory import continuity_retrieval_context
 
     t0 = time.perf_counter()
     history = state.get("history") or []
-    hints = history_search_hints(history)
-    page_titles = history_page_titles(history)
+    page_titles, hints = continuity_retrieval_context(state["query"], history)
     chunks, tool_log = execute_subtasks(
         state["query"],
         state.get("plan", []),

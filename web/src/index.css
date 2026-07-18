@@ -98,6 +98,29 @@ body {
     0 0 24px rgba(201, 162, 39, 0.35);
 }
 
+.app-title-btn {
+  font: inherit;
+  letter-spacing: inherit;
+  color: inherit;
+  text-shadow: inherit;
+  background: none;
+  border: none;
+  padding: 0;
+  margin: 0;
+  cursor: pointer;
+}
+
+.app-title-btn:hover {
+  color: var(--poe-gold);
+  text-decoration: underline;
+  text-underline-offset: 0.18em;
+}
+
+.app-title-btn:focus-visible {
+  outline: 2px solid var(--poe-gold-light);
+  outline-offset: 4px;
+}
+
 .provider-row {
   display: flex;
   align-items: center;

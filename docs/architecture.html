@@ -184,13 +184,18 @@
 </tr>
 <tr>
 <td>Prefer prior pages</td>
-<td>With session citations, keep wiki search leaner and reopen those pages first</td>
-<td>Index page from turn 1 often links to turn 2 answers</td>
+<td>With session citations, reopen those pages first when the Ask continues the topic</td>
+<td>New topics skip priors and search the wiki fresh</td>
 </tr>
 <tr>
 <td>Link expand</td>
 <td>After fetching an index page, follow outgoing wiki links (more hops on “list all” asks)</td>
 <td>Prefer <strong>content-table</strong> links after stripping nav/infobox; enumerate max ~10</td>
+</tr>
+<tr>
+<td>Topic-switch gate</td>
+<td>Deixis / keyword overlap decides continuity; otherwise no prior probes/hints</td>
+<td>Stops Pantheon from poisoning a later poison question</td>
 </tr>
 <tr>
 <td>Structure-aware text</td>
@@ -258,8 +263,8 @@
 <p>Private HTML dashboard (requires <code>OPERATOR_DASHBOARD_KEY</code>): <code>/operator/analytics?key=...</code> — summary of unique visitors, visits, and Asks. Local and production each have their <strong>own</strong> database; open the matching host. On Railway, mount a <strong>volume</strong> at <code>/app/data</code> so data survives redeploys.</p>
 <p>Rate limiting may still use IP in its own SQLite file when enabled.</p>
 <h3>Session memory</h3>
-<p>When <code>SESSION_MEMORY_ENABLED=true</code> (default), each Ask may include conversation context from the same browser session (<code>session_id</code> UUID). The UI keeps the id in local storage and shows the thread; after the first answer the Ask box sits under the latest reply (refresh the page for a new chat). Click a prior turn to expand sources, timing, Score, and traces.</p>
-<p>The server stores <strong>all</strong> turns in <code>data/session_memory.sqlite</code> (including citation titles). For the model prompt it keeps the last <code>SESSION_MEMORY_RECENT_TURNS</code> (default 8) verbatim and, when enabled, a rolling <strong>summary</strong> of older turns (<code>SESSION_MEMORY_SUMMARY_ENABLED</code>). Prior topics and citation page titles are fed into wiki search / title probes; follow-ups also reopen those pages and may expand a few links from them before relying on a fresh wiki search.</p>
+<p>When <code>SESSION_MEMORY_ENABLED=true</code> (default), each Ask may include conversation context from the same browser session (<code>session_id</code> UUID). The UI keeps the id in local storage and shows the thread; after the first answer the Ask box sits under the latest reply. Click <strong>Siosa's Library</strong> to clear the session and return to a fresh Ask (or refresh the page). Click a prior turn to expand sources, timing, Score, and traces.</p>
+<p>The server stores <strong>all</strong> turns in <code>data/session_memory.sqlite</code> (including citation titles). For the model prompt it keeps the last <code>SESSION_MEMORY_RECENT_TURNS</code> (default 8) verbatim and, when enabled, a rolling <strong>summary</strong> of older turns (<code>SESSION_MEMORY_SUMMARY_ENABLED</code>). When a follow-up continues the same topic, prior citation titles feed wiki probes and link expand; a <strong>new topic</strong> skips those priors so live search is not stuck on the previous subject.</p>
 <hr />
 <h2>Quality metrics</h2>
 <p>Scores are <strong>for demonstration</strong>—they run <strong>after</strong> Ask (click <strong>Score response</strong>) and do <strong>not</strong> re-run retrieval or change the answer.</p>

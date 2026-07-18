@@ -61,8 +61,9 @@ flowchart TB
 | Heuristic | What it does | Rule of thumb |
 |-----------|--------------|---------------|
 | Follow-up rewrite | “list all of them” → includes prior title (e.g. Pantheon) in the search string | Resolve pronouns with last Sources before searching from scratch |
-| Prefer prior pages | With session citations, keep wiki search leaner and reopen those pages first | Index page from turn 1 often links to turn 2 answers |
+| Prefer prior pages | With session citations, reopen those pages first when the Ask continues the topic | New topics skip priors and search the wiki fresh |
 | Link expand | After fetching an index page, follow outgoing wiki links (more hops on “list all” asks) | Prefer **content-table** links after stripping nav/infobox; enumerate max ~10 |
+| Topic-switch gate | Deixis / keyword overlap decides continuity; otherwise no prior probes/hints | Stops Pantheon from poisoning a later poison question |
 | Structure-aware text | Keep table rows as readable lines so lists of gods survive chunking | Tables matter for enumerate-style questions |
 | Chunk diversity | Cap how many top passages come from one page (default 2) | Stops near-duplicate chunks wasting the top-N budget |
 | Larger top-N | Default 8 passages (was 5) | Common RAG band is ~8–12; raise if lists are still incomplete |
@@ -112,9 +113,9 @@ Rate limiting may still use IP in its own SQLite file when enabled.
 
 ### Session memory
 
-When `SESSION_MEMORY_ENABLED=true` (default), each Ask may include conversation context from the same browser session (`session_id` UUID). The UI keeps the id in local storage and shows the thread; after the first answer the Ask box sits under the latest reply (refresh the page for a new chat). Click a prior turn to expand sources, timing, Score, and traces.
+When `SESSION_MEMORY_ENABLED=true` (default), each Ask may include conversation context from the same browser session (`session_id` UUID). The UI keeps the id in local storage and shows the thread; after the first answer the Ask box sits under the latest reply. Click **Siosa's Library** to clear the session and return to a fresh Ask (or refresh the page). Click a prior turn to expand sources, timing, Score, and traces.
 
-The server stores **all** turns in `data/session_memory.sqlite` (including citation titles). For the model prompt it keeps the last `SESSION_MEMORY_RECENT_TURNS` (default 8) verbatim and, when enabled, a rolling **summary** of older turns (`SESSION_MEMORY_SUMMARY_ENABLED`). Prior topics and citation page titles are fed into wiki search / title probes; follow-ups also reopen those pages and may expand a few links from them before relying on a fresh wiki search.
+The server stores **all** turns in `data/session_memory.sqlite` (including citation titles). For the model prompt it keeps the last `SESSION_MEMORY_RECENT_TURNS` (default 8) verbatim and, when enabled, a rolling **summary** of older turns (`SESSION_MEMORY_SUMMARY_ENABLED`). When a follow-up continues the same topic, prior citation titles feed wiki probes and link expand; a **new topic** skips those priors so live search is not stuck on the previous subject.
 
 ---
 
