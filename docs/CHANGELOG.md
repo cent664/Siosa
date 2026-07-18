@@ -1,5 +1,11 @@
 Newest first. Each entry uses the same format: a short title and a few bullets on what changed and why it mattered. Edit this file, then run `python scripts/sync_docs.py` for browser HTML.
 
+## 2026-07-18 — Wiki redirects + search-first fetch (cloud Pantheon fix)
+
+- Retriever — MediaWiki parse follows redirects (`Pantheon` → `The Pantheon`); reject redirect stubs; prefer search hits over speculative title probes; skip non-title probes like “Pantheon powers”.
+- Web — Agent trace shows search/fetch errors when wiki calls fail.
+- Docs — Discovered note: local cache could hide redirect stubs that broke cold cloud deploys.
+
 ## 2026-07-17 — Topic-switch retrieval + clickable Library title
 
 - Harness — Prior pages / history hints only when the Ask continues the prior topic; new topics get a fresh live wiki search (fixes Pantheon sticking to later questions).

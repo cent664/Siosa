@@ -138,7 +138,7 @@
 <p>The LLM only sees <strong>top reranked passages</strong> (default eight, with a per-page diversity cap), not whole articles. Answer style is fixed; there is no per-user tone control.</p>
 <hr />
 <h2>Live retrieval</h2>
-<p>Each Ask searches poewiki, fetches pages (in parallel), splits them into passages in memory, optionally expands a few links from index pages, and reranks to find the best matches for your question.</p>
+<p>Each Ask searches poewiki, fetches pages (in parallel, following wiki redirects), splits them into passages in memory, optionally expands a few links from index pages, and reranks to find the best matches for your question.</p>
 <pre class="mermaid">flowchart TB
   subgraph agentic["Multi-step planning — when needed"]
     PL[Planner adds 0–3 short extra search terms]

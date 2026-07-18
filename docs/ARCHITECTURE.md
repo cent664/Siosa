@@ -21,7 +21,7 @@ The LLM only sees **top reranked passages** (default eight, with a per-page dive
 
 ## Live retrieval
 
-Each Ask searches poewiki, fetches pages (in parallel), splits them into passages in memory, optionally expands a few links from index pages, and reranks to find the best matches for your question.
+Each Ask searches poewiki, fetches pages (in parallel, following wiki redirects), splits them into passages in memory, optionally expands a few links from index pages, and reranks to find the best matches for your question.
 
 ```mermaid
 flowchart TB

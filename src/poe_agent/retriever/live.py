@@ -41,7 +41,7 @@ def _cache_path(settings: Settings, path: str) -> Path:
     return settings.live_cache_dir / f"{safe}.json"
 
 
-LINKS_CACHE_VERSION = 2
+LINKS_CACHE_VERSION = 3  # redirects=1 + reject redirect stubs
 
 
 def _read_cache(
@@ -55,12 +55,15 @@ def _read_cache(
         fetched_at = float(row.get("fetched_at", 0))
         if (time.time() - fetched_at) > ttl_hours * 3600:
             return None
-        # Force re-fetch when link-harvest algorithm changes (nav strip + table-first).
+        # Force re-fetch when link-harvest / redirect handling changes.
         if int(row.get("links_version", 0)) < LINKS_CACHE_VERSION:
             return None
         text = row.get("text", "")
         url = row.get("wiki_url", "")
         links = [str(x) for x in (row.get("links") or []) if str(x).strip()]
+        # Stale redirect stubs / tiny test caches are not real wiki pages.
+        if not text or len(text) < 400 or text.lstrip().lower().startswith("redirect to"):
+            return None
         if text and url:
             return text, url, links
     except (json.JSONDecodeError, OSError, ValueError):
@@ -136,28 +139,31 @@ def fetch_page_chunks(
 def _merge_search_hits(
     search_queries: list[str],
     settings: Settings,
-) -> list[_PageHit]:
+) -> tuple[list[_PageHit], list[str]]:
     by_path: dict[str, _PageHit] = {}
     order: list[str] = []
+    errors: list[str] = []
 
-    def _one(sq: str) -> tuple[str, list[tuple[str, str]]]:
+    def _one(sq: str) -> tuple[str, list[tuple[str, str]], str | None]:
         try:
-            return sq, search_wiki_titles(sq, limit=settings.live_wiki_search_limit)
-        except Exception:
-            return sq, []
+            return sq, search_wiki_titles(sq, limit=settings.live_wiki_search_limit), None
+        except Exception as exc:
+            return sq, [], f"{sq}: {exc}"
 
     results = parallel_map(
         _one,
         search_queries,
         max_workers=settings.live_wiki_search_concurrency,
     )
-    for sq, hits in results:
+    for sq, hits, err in results:
+        if err:
+            errors.append(err)
         for title, path in hits:
             if path not in by_path:
                 by_path[path] = _PageHit(title, path, "search", sq)
                 order.append(path)
 
-    return [by_path[p] for p in order]
+    return [by_path[p] for p in order], errors
 
 
 def _title_relevance_score(page_title: str, focus_terms: list[str]) -> float:
@@ -204,7 +210,8 @@ def _rank_search_hits_by_title(
         key=lambda h: (_title_relevance_score(h.title, focus), h.title.lower()),
         reverse=True,
     )
-    return probes + ranked + other
+    # Search hits first so the page budget is not eaten by speculative probes.
+    return ranked + probes + other
 
 
 def _prepend_title_probes(
@@ -313,8 +320,13 @@ def diversify_chunks_by_page(
     return selected
 
 
-def _page_hit_to_debug_row(hit: _PageHit, fetch_ok: bool) -> dict:
-    return {
+def _page_hit_to_debug_row(
+    hit: _PageHit,
+    fetch_ok: bool,
+    *,
+    fetch_error: str = "",
+) -> dict:
+    row = {
         "title": hit.title,
         "path": hit.path,
         "wiki_url": f"{WIKI_BASE}/{hit.path}",
@@ -322,6 +334,9 @@ def _page_hit_to_debug_row(hit: _PageHit, fetch_ok: bool) -> dict:
         "search_query": hit.search_query,
         "fetch_ok": fetch_ok,
     }
+    if fetch_error:
+        row["fetch_error"] = fetch_error[:300]
+    return row
 
 
 def _collect_pages_from_hits(
@@ -334,7 +349,7 @@ def _collect_pages_from_hits(
     selected = pages[:limit]
     link_map: dict[str, list[str]] = {}
 
-    def _one(hit: _PageHit) -> tuple[_PageHit, list[ChunkRecord], list[str], bool]:
+    def _one(hit: _PageHit) -> tuple[_PageHit, list[ChunkRecord], list[str], bool, str]:
         try:
             chunks, links = fetch_page_chunks(
                 hit.title,
@@ -343,9 +358,11 @@ def _collect_pages_from_hits(
                 fetch_reason=hit.fetch_reason,
                 search_query=hit.search_query,
             )
-            return hit, chunks, links, bool(chunks)
-        except Exception:
-            return hit, [], [], False
+            if not chunks:
+                return hit, [], links, False, "empty page text"
+            return hit, chunks, links, True, ""
+        except Exception as exc:
+            return hit, [], [], False, str(exc)
 
     results = parallel_map(
         _one,
@@ -354,8 +371,8 @@ def _collect_pages_from_hits(
     )
     all_chunks: list[ChunkRecord] = []
     page_rows: list[dict] = []
-    for hit, chunks, links, ok in results:
-        page_rows.append(_page_hit_to_debug_row(hit, ok))
+    for hit, chunks, links, ok, err in results:
+        page_rows.append(_page_hit_to_debug_row(hit, ok, fetch_error=err))
         all_chunks.extend(chunks)
         if links:
             link_map[hit.path] = links
@@ -460,18 +477,23 @@ def retrieve_live_for_query(
         title_probe_candidates=probes,
     )
 
-    pages: list[_PageHit] = []
-    pages = _prepend_title_probes(
-        pages,
+    probe_pages = _prepend_title_probes(
+        [],
         user_q,
         settings,
         extra_titles=prior_titles or None,
     )
+    search_hits, search_errors = _merge_search_hits(search_queries, settings)
+    debug.search_errors = search_errors
 
-    search_hits = _merge_search_hits(search_queries, settings)
-    # Deduplicate while preferring prior/probe ordering
-    existing = {p.path for p in pages}
+    # Prefer wiki search hits for the fetch budget; probes fill gaps.
+    pages: list[_PageHit] = []
+    existing: set[str] = set()
     for hit in search_hits:
+        if hit.path not in existing:
+            pages.append(hit)
+            existing.add(hit.path)
+    for hit in probe_pages:
         if hit.path not in existing:
             pages.append(hit)
             existing.add(hit.path)

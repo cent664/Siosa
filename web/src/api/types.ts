@@ -31,6 +31,7 @@ export interface RetrievalDebug {
   fused_search_queries?: string[];
   title_probe_candidates?: string[];
   pages_fetched?: PageFetched[];
+  search_errors?: string[];
   chunks_returned?: number;
 }
 
@@ -41,6 +42,7 @@ export interface PageFetched {
   fetch_reason: string;
   search_query?: string;
   fetch_ok?: boolean;
+  fetch_error?: string;
 }
 
 export interface ToolCallTrace {

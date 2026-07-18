@@ -28,7 +28,9 @@ def test_extract_topic_terms_pantheon():
 
 def test_title_probe_candidates():
     probes = title_probe_candidates("What are Pantheon powers?")
-    assert any("Pantheon" in p for p in probes)
+    assert any(p == "Pantheon" for p in probes)
+    # Phrase is not a real wiki title — do not probe it directly
+    assert not any(p.casefold() == "pantheon powers" for p in probes)
 
 
 def test_ensure_verbatim_first_prepends():

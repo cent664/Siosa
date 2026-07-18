@@ -242,22 +242,37 @@ def build_search_queries(
     return ordered
 
 
+def _looks_like_wiki_title(term: str) -> bool:
+    """True for Pantheon / The Pantheon; false for 'Pantheon powers' (not a page title)."""
+    parts = [p for p in term.split() if p]
+    if not parts:
+        return False
+    small = frozenset({"of", "the", "and", "a", "an", "in", "to", "for"})
+    if len(parts) == 1:
+        return parts[0][0].isupper() and len(parts[0]) >= 3
+    return all((p[0].isupper() or p.lower() in small) and len(p) >= 1 for p in parts)
+
+
 def title_probe_candidates(user_question: str, max_candidates: int | None = None) -> list[str]:
     """Page titles to try via direct parse API (high precision)."""
     settings = get_settings()
     max_c = max_candidates if max_candidates is not None else settings.live_wiki_max_title_probes
 
     probes: list[str] = []
-    for ent in extract_mechanic_entities(user_question):
+    entities = extract_mechanic_entities(user_question)
+    entity_keys = {e.casefold() for e in entities}
+    for ent in entities:
         probes.append(ent)
 
     for term in extract_topic_terms(user_question):
         if " " in term:
-            probes.append(term)
+            # Skip non-title phrases like "Pantheon powers"; keep Title Case names.
+            if _looks_like_wiki_title(term) or term.casefold() in entity_keys:
+                probes.append(term)
             first = term.split()[0]
-            if first[0].isupper() and first.lower() not in _STOPWORDS:
+            if first[0].isupper() and len(first) >= 3 and first.lower() not in _STOPWORDS:
                 probes.append(first)
-        elif term[0].isupper() and len(term) >= 3:
+        elif term[0].isupper() and len(term) >= 3 and term.lower() not in _STOPWORDS:
             probes.append(term)
 
     seen: set[str] = set()
@@ -267,6 +282,9 @@ def title_probe_candidates(user_question: str, max_candidates: int | None = None
         if not p or not _is_reasonable_search_term(p):
             continue
         key = p.casefold()
+        # Block multi-word non-titles (e.g. "Pantheon powers"), keep mechanic entities
+        if " " in p and not _looks_like_wiki_title(p) and key not in entity_keys:
+            continue
         if key in seen:
             continue
         seen.add(key)

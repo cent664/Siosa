@@ -12,7 +12,7 @@ from bs4 import BeautifulSoup, Tag
 
 WIKI_API = "https://www.poewiki.net/w/api.php"
 WIKI_BASE = "https://www.poewiki.net/wiki"
-USER_AGENT = "PoEWikiAgent/0.1 (portfolio project)"
+USER_AGENT = "PoEWikiAgent/0.1 (https://www.poesiosa.net/; Path of Exile wiki Q&A portfolio)"
 REQUEST_DELAY_SEC = 0.15
 
 _SKIP_LINK_PREFIXES = (
@@ -232,6 +232,7 @@ def fetch_page_payload(
                 "explaintext": "1",
                 "exsectionformat": "plain",
                 "titles": page_name,
+                "redirects": "1",
                 "format": "json",
                 "formatversion": "2",
             }
@@ -240,18 +241,23 @@ def fetch_page_payload(
         if not pages or pages[0].get("missing"):
             raise RuntimeError(f"Wiki page missing: {page_name}")
         text = (pages[0].get("extract") or "").strip()
-        return text, _wiki_url(page_path), links
+        resolved = str(pages[0].get("title") or page_name).replace(" ", "_")
+        return text, _wiki_url(resolved), links
 
     data = _api_get(
         {
             "action": "parse",
             "page": page_name,
             "prop": "text",
+            "redirects": "1",
             "format": "json",
             "formatversion": "2",
         }
     )
     html = data["parse"]["text"]
+    # Follow redirects (e.g. Pantheon → The Pantheon); without this we only get a stub.
+    resolved_title = str(data["parse"].get("title") or page_name)
+    resolved_path = resolved_title.replace(" ", "_")
     max_links = link_harvest_max if link_harvest_max is not None else 120
     links = extract_wiki_link_titles(
         html,
@@ -259,7 +265,9 @@ def fetch_page_payload(
         prefer_table_links=prefer_table_links,
     )
     text = html_to_text(html, structure_aware=structure_aware)
-    return text, _wiki_url(page_path), links
+    if text.lstrip().lower().startswith("redirect to"):
+        raise RuntimeError(f"Wiki redirect stub for {page_name} (enable redirects)")
+    return text, _wiki_url(resolved_path), links
 
 
 def fetch_page_text(title: str, path: str | None = None) -> tuple[str, str]:

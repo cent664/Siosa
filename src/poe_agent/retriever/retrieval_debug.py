@@ -12,6 +12,7 @@ class RetrievalDebugInfo:
     fused_search_queries: list[str] = field(default_factory=list)
     title_probe_candidates: list[str] = field(default_factory=list)
     pages_fetched: list[dict] = field(default_factory=list)
+    search_errors: list[str] = field(default_factory=list)
     chunks_returned: int = 0
 
     def to_dict(self) -> dict:

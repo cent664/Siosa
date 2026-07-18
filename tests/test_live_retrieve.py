@@ -37,10 +37,10 @@ def test_fetch_page_chunks_uses_cache(tmp_path, monkeypatch):
             {
                 "title": "Poison",
                 "path": "Poison",
-                "text": "Poison is a damage over time ailment.",
+                "text": "Poison is a damage over time ailment. " * 20,
                 "wiki_url": "https://www.poewiki.net/wiki/Poison",
                 "links": [],
-                "links_version": 2,
+                "links_version": 3,
                 "fetched_at": 9_999_999_999.0,
             }
         ),
@@ -144,7 +144,7 @@ def test_multi_search_dedupes_titles(monkeypatch):
     with patch("poe_agent.retriever.live.search_wiki_titles", side_effect=_fake_search):
         from poe_agent.retriever.live import _merge_search_hits
 
-        hits = _merge_search_hits(
+        hits, errors = _merge_search_hits(
             ["What are Pantheon powers?", "Pantheon"],
             get_settings(),
         )
@@ -152,6 +152,7 @@ def test_multi_search_dedupes_titles(monkeypatch):
         assert "Ruthless_mode" in paths
         assert "Buff" in paths
         assert len(paths) >= 2
+        assert errors == []
 
     get_settings.cache_clear()
 
@@ -270,6 +271,47 @@ def test_structure_aware_tables_keep_cells():
     text = html_to_text(html, structure_aware=True)
     assert "Shakari" in text
     assert "Chaos" in text
+
+
+def test_fetch_payload_follows_redirects():
+    """Pantheon redirects to The Pantheon — parse must use redirects=1."""
+    redirect_html = (
+        '<div class="mw-parser-output"><div class="redirectMsg">'
+        '<p>Redirect to:</p><ul class="redirectText">'
+        '<li><a href="/wiki/The_Pantheon">The Pantheon</a></li></ul></div></div>'
+    )
+    real_html = (
+        "<div class='mw-parser-output'><p>"
+        + ("The Pantheon grants divine powers. " * 40)
+        + "</p>"
+        '<table class="wikitable"><tr><td><a href="/wiki/Shakari">Shakari</a></td></tr></table>'
+        "</div>"
+    )
+
+    def _api(params: dict):
+        if params.get("action") == "parse":
+            assert params.get("redirects") == "1"
+            return {"parse": {"title": "The Pantheon", "text": real_html}}
+        raise AssertionError(params)
+
+    with patch("poe_agent.retriever.wiki_client._api_get", side_effect=_api):
+        from poe_agent.retriever.wiki_client import fetch_page_payload
+
+        text, url, links = fetch_page_payload("Pantheon", "Pantheon", structure_aware=True)
+    assert "divine powers" in text
+    assert "The_Pantheon" in url or "The Pantheon" in url.replace("_", " ")
+    assert "Shakari" in links
+    assert not text.lstrip().lower().startswith("redirect to")
+    # Stub HTML alone must not be accepted as content
+    with patch(
+        "poe_agent.retriever.wiki_client._api_get",
+        return_value={"parse": {"title": "Pantheon", "text": redirect_html}},
+    ):
+        try:
+            fetch_page_payload("Pantheon", "Pantheon")
+            raise AssertionError("expected redirect stub to raise")
+        except RuntimeError as exc:
+            assert "redirect" in str(exc).lower()
 
 
 def test_extract_prefers_table_links_over_nav():

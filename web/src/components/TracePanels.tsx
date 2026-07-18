@@ -233,6 +233,20 @@ function RetrievalDebugBlock({ debug }: { debug: NonNullable<ToolCallTrace["retr
           </ul>
         </>
       )}
+      {debug.search_errors && debug.search_errors.length > 0 && (
+        <>
+          <p>
+            <strong>Search errors</strong>
+          </p>
+          <ul>
+            {debug.search_errors.map((e, i) => (
+              <li key={`se-${i}`} className="status-err">
+                {e}
+              </li>
+            ))}
+          </ul>
+        </>
+      )}
       {debug.pages_fetched && debug.pages_fetched.length > 0 && (
         <>
           <p>
@@ -258,6 +272,7 @@ function PagesTable({ pages }: { pages: PageFetched[] }) {
             <th>Reason</th>
             <th>Surfaced by</th>
             <th>OK</th>
+            <th>Error</th>
           </tr>
         </thead>
         <tbody>
@@ -273,6 +288,7 @@ function PagesTable({ pages }: { pages: PageFetched[] }) {
               </td>
               <td>{p.search_query || "—"}</td>
               <td>{p.fetch_ok === false ? "no" : "yes"}</td>
+              <td className="caption">{p.fetch_error || "—"}</td>
             </tr>
           ))}
         </tbody>
