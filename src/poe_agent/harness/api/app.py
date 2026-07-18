@@ -3,6 +3,7 @@
 from __future__ import annotations
 
 import secrets
+from contextlib import asynccontextmanager
 from pathlib import Path
 
 import uvicorn
@@ -48,10 +49,31 @@ from poe_agent.retriever.store import get_chunk_count, is_index_ready
 
 configure_logging()
 
+
+@asynccontextmanager
+async def lifespan(_app: FastAPI):
+    settings = get_settings()
+    if settings.rerank_warm_on_startup:
+        try:
+            from poe_agent.retriever.rerank import warm_reranker
+
+            warm_reranker()
+        except Exception:
+            pass
+    yield
+    try:
+        from poe_agent.retriever.wiki_client import close_http_client
+
+        close_http_client()
+    except Exception:
+        pass
+
+
 app = FastAPI(
     title="PoE Wiki Agent",
     description="Path of Exile 1 wiki-grounded Q&A API",
     version="0.1.0",
+    lifespan=lifespan,
 )
 
 app.add_middleware(

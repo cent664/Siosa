@@ -65,6 +65,7 @@ def execute_subtasks(
     question: str,
     subtasks: list[dict],
     extra_search_queries: list[str] | None = None,
+    extra_title_probes: list[str] | None = None,
 ) -> tuple[list[RetrievedChunk], list[dict]]:
     extras = _collect_plan_search_extras(question, subtasks)
     if extra_search_queries:
@@ -80,6 +81,7 @@ def execute_subtasks(
         question,
         user_question=question,
         extra_search_queries=extras or None,
+        extra_title_probes=extra_title_probes,
     )
     tool_log = [
         _tool_log_entry(

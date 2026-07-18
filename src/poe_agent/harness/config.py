@@ -31,15 +31,33 @@ class Settings(BaseSettings):
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     retrieval_top_k: int = 8
     hybrid_rrf_k: int = 60
-    rerank_top_n: int = 5
+    # Rule of thumb: 8–12 passages is a common RAG default; raise if answers miss list details.
+    rerank_top_n: int = 8
     retrieval_mode: str = "live"  # local | live | hybrid
-    live_wiki_max_pages: int = 5
+    live_wiki_max_pages: int = 6
     live_wiki_search_limit: int = 8
     live_wiki_max_search_queries: int = 4
     live_wiki_title_probe: bool = True
     live_wiki_max_title_probes: int = 4
     live_wiki_title_overlap_filter: bool = True
     live_wiki_cache_ttl_hours: float = 24.0
+    # Performance (toggle off to undo)
+    live_wiki_search_concurrency: int = 4
+    live_wiki_fetch_concurrency: int = 4
+    live_wiki_use_extracts: bool = False  # faster plain text; loses tables — keep off if structure_aware
+    live_wiki_structure_aware: bool = True
+    live_wiki_chunk_diversity: bool = True
+    live_wiki_max_chunks_per_page: int = 2
+    live_wiki_link_expand: bool = True
+    live_wiki_link_expand_max: int = 3
+    # Rule of thumb: enumerate follow-ups need more hops from the index table (gods, uniques, …).
+    live_wiki_link_expand_enumerate_max: int = 10
+    live_wiki_link_harvest_max: int = 120
+    live_wiki_prefer_table_links: bool = True
+    live_wiki_prefer_prior_pages: bool = True
+    live_wiki_followup_rewrite: bool = True
+    live_wiki_request_delay_sec: float = 0.15
+    rerank_warm_on_startup: bool = True
     live_fallback_min_score: float = 0.25
     planner_max_retrieve_subtasks: int = 4
     retrieval_refine_enabled: bool = False

@@ -132,8 +132,9 @@ body {
   text-align: center;
 }
 
-.session-actions {
-  margin: 0.65rem 0 0;
+.question-section-follow {
+  margin-top: 1rem;
+  text-align: center;
 }
 
 .conversation-thread {

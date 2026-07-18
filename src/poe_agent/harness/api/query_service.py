@@ -49,6 +49,18 @@ def _retrieval_config_snapshot() -> dict:
         "max_title_probes": s.live_wiki_max_title_probes,
         "title_overlap_filter": s.live_wiki_title_overlap_filter,
         "rerank_top_n": s.rerank_top_n,
+        "search_concurrency": s.live_wiki_search_concurrency,
+        "fetch_concurrency": s.live_wiki_fetch_concurrency,
+        "structure_aware": s.live_wiki_structure_aware,
+        "chunk_diversity": s.live_wiki_chunk_diversity,
+        "max_chunks_per_page": s.live_wiki_max_chunks_per_page,
+        "link_expand": s.live_wiki_link_expand,
+        "link_expand_max": s.live_wiki_link_expand_max,
+        "link_expand_enumerate_max": s.live_wiki_link_expand_enumerate_max,
+        "link_harvest_max": s.live_wiki_link_harvest_max,
+        "prefer_table_links": s.live_wiki_prefer_table_links,
+        "prefer_prior_pages": s.live_wiki_prefer_prior_pages,
+        "followup_rewrite": s.live_wiki_followup_rewrite,
     }
 
 
@@ -210,7 +222,18 @@ def handle_query(question: str, session_id: str | None = None) -> QueryResponse:
             )
 
         if settings.session_memory_enabled and active_session and resp.answer:
-            append_turn(active_session, question, resp.answer, settings=settings)
+            cites = [
+                {"title": c.title if hasattr(c, "title") else c.get("title", ""),
+                 "url": c.url if hasattr(c, "url") else c.get("url", "")}
+                for c in (resp.citations or [])
+            ]
+            append_turn(
+                active_session,
+                question,
+                resp.answer,
+                settings=settings,
+                citations=cites,
+            )
         return resp
 
 
@@ -257,17 +280,19 @@ def _linear_rag(
     session_id: str = "",
 ) -> QueryResponse:
     from poe_agent.generator.answer import generate_answer_with_meta
-    from poe_agent.harness.session_memory import history_search_hints
+    from poe_agent.harness.session_memory import history_page_titles, history_search_hints
 
     run.extra["retrieval_mode"] = get_settings().retrieval_mode.lower()
     run.extra["retrieval_config"] = _retrieval_config_snapshot()
 
     hints = history_search_hints(history or [])
+    page_titles = history_page_titles(history or [])
     t0 = time.perf_counter()
     chunks, retrieval_source, debug = retrieve_for_query(
         question,
         user_question=question,
         extra_search_queries=hints or None,
+        extra_title_probes=page_titles or None,
     )
     timing["retrieval"] = round((time.perf_counter() - t0) * 1000, 2)
 

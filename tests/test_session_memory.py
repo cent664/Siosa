@@ -68,6 +68,44 @@ def test_history_search_hints_includes_prior_topic():
     assert "pantheon" in joined
 
 
+def test_history_page_titles_from_citations():
+    from poe_agent.harness.session_memory import history_page_titles
+
+    history = [
+        {
+            "question": "What are Pantheon powers?",
+            "answer": "...",
+            "citations": [
+                {"title": "Pantheon", "url": "https://www.poewiki.net/wiki/Pantheon"},
+                {"title": "Soul of the Brine King", "url": "https://www.poewiki.net/wiki/Soul_of_the_Brine_King"},
+            ],
+        }
+    ]
+    titles = history_page_titles(history)
+    assert "Pantheon" in titles
+    assert any("Brine" in t for t in titles)
+    hints = history_search_hints(history)
+    assert "Pantheon" in hints
+
+
+def test_append_turn_persists_citations(tmp_path: Path):
+    settings = Settings(
+        session_memory_enabled=True,
+        session_memory_summary_enabled=False,
+        poe_data_dir=tmp_path,
+    )
+    sid = ensure_session(None, settings=settings)
+    append_turn(
+        sid,
+        "What are Pantheon powers?",
+        "Answer",
+        settings=settings,
+        citations=[{"title": "Pantheon", "url": "https://example.com/Pantheon"}],
+    )
+    recent = load_recent_turns(sid, settings=settings)
+    assert recent[0]["citations"][0]["title"] == "Pantheon"
+
+
 def test_disabled_memory_noop(tmp_path: Path):
     settings = Settings(session_memory_enabled=False, poe_data_dir=tmp_path)
     sid = ensure_session(None, settings=settings)

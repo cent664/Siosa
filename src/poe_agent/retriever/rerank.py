@@ -17,6 +17,12 @@ def _get_reranker():
     return _reranker
 
 
+def warm_reranker() -> None:
+    """Load the cross-encoder once at API startup so the first Ask is not cold."""
+    model = _get_reranker()
+    model.predict([["warmup", "Path of Exile wiki passage warmup"]])
+
+
 def rerank(query: str, chunks: list[RetrievedChunk], top_n: int | None = None) -> list[RetrievedChunk]:
     if not chunks:
         return []

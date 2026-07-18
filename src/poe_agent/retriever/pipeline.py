@@ -56,6 +56,7 @@ def retrieve_for_query(
     query: str,
     user_question: str | None = None,
     extra_search_queries: list[str] | None = None,
+    extra_title_probes: list[str] | None = None,
 ) -> tuple[list[RetrievedChunk], str, RetrievalDebugInfo | None]:
     """Return (chunks, retrieval_source, debug). debug is set for live/hybrid live leg."""
     settings = get_settings()
@@ -64,7 +65,10 @@ def retrieve_for_query(
 
     if mode == "live":
         chunks, debug = retrieve_live_for_query(
-            query, user_question=user_q, extra_search_queries=extra_search_queries
+            query,
+            user_question=user_q,
+            extra_search_queries=extra_search_queries,
+            extra_title_probes=extra_title_probes,
         )
         return chunks, "live", debug
 
@@ -72,7 +76,10 @@ def retrieve_for_query(
         local = _retrieve_local(query)
         if _needs_live_fallback(local):
             live_chunks, debug = retrieve_live_for_query(
-                query, user_question=user_q, extra_search_queries=extra_search_queries
+                query,
+                user_question=user_q,
+                extra_search_queries=extra_search_queries,
+                extra_title_probes=extra_title_probes,
             )
             if live_chunks:
                 for ch in local:

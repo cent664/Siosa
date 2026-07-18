@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import json
 import re
 import sqlite3
 import uuid
@@ -50,10 +51,16 @@ def _connect(db_path: Path) -> sqlite3.Connection:
             ts_utc TEXT NOT NULL,
             question TEXT NOT NULL,
             answer TEXT NOT NULL,
+            citations_json TEXT NOT NULL DEFAULT '[]',
             FOREIGN KEY (session_id) REFERENCES sessions(id)
         )
         """
     )
+    turn_cols = {r[1] for r in conn.execute("PRAGMA table_info(turns)").fetchall()}
+    if "citations_json" not in turn_cols:
+        conn.execute(
+            "ALTER TABLE turns ADD COLUMN citations_json TEXT NOT NULL DEFAULT '[]'"
+        )
     conn.execute(
         "CREATE INDEX IF NOT EXISTS idx_turns_session ON turns(session_id, id)"
     )
@@ -123,8 +130,8 @@ def load_recent_turns(
     *,
     limit: int | None = None,
     settings: Settings | None = None,
-) -> list[dict[str, str]]:
-    """Oldest-first recent verbatim turns (window for prompts)."""
+) -> list[dict]:
+    """Oldest-first recent verbatim turns (window for prompts), including citations."""
     s = settings or get_settings()
     if not s.session_memory_enabled:
         return []
@@ -136,7 +143,7 @@ def load_recent_turns(
     with _connect(s.session_memory_db_path) as conn:
         rows = conn.execute(
             """
-            SELECT question, answer FROM turns
+            SELECT question, answer, citations_json FROM turns
             WHERE session_id = ?
             ORDER BY id DESC
             LIMIT ?
@@ -144,7 +151,27 @@ def load_recent_turns(
             (sid, lim),
         ).fetchall()
     rows.reverse()
-    return [{"question": str(r[0]), "answer": str(r[1])} for r in rows]
+    out: list[dict] = []
+    for r in rows:
+        citations: list[dict] = []
+        try:
+            raw = json.loads(r[2] or "[]")
+            if isinstance(raw, list):
+                citations = [
+                    {"title": str(c.get("title", "")), "url": str(c.get("url", ""))}
+                    for c in raw
+                    if isinstance(c, dict)
+                ]
+        except json.JSONDecodeError:
+            citations = []
+        out.append(
+            {
+                "question": str(r[0]),
+                "answer": str(r[1]),
+                "citations": citations,
+            }
+        )
+    return out
 
 
 def get_session_summary(
@@ -179,11 +206,11 @@ def load_prompt_history(
 
 
 def history_search_hints(
-    history: list[dict[str, str]],
+    history: list[dict],
     *,
-    max_hints: int = 6,
+    max_hints: int = 8,
 ) -> list[str]:
-    """Topic/entity strings from prior user questions for wiki search extras."""
+    """Topic/entity strings and prior citation page titles for wiki search extras."""
     from poe_agent.retriever.query_fusion import (
         extract_mechanic_entities,
         extract_topic_terms,
@@ -191,17 +218,45 @@ def history_search_hints(
 
     hints: list[str] = []
     seen: set[str] = set()
+
+    def _add(term: str) -> bool:
+        key = term.casefold().strip()
+        if not key or len(key) < 2 or key in seen:
+            return False
+        seen.add(key)
+        hints.append(term.strip())
+        return len(hints) >= max_hints
+
+    # Prefer prior wiki page titles first (continuity of Sources)
+    for turn in history[-8:]:
+        for cite in turn.get("citations") or []:
+            title = str(cite.get("title") or "").strip()
+            if title and _add(title):
+                return hints
+
     for turn in history[-8:]:
         q = turn.get("question") or ""
         for term in extract_mechanic_entities(q) + extract_topic_terms(q):
-            key = term.casefold()
-            if key in seen or len(term) < 2:
-                continue
-            seen.add(key)
-            hints.append(term)
-            if len(hints) >= max_hints:
+            if _add(term):
                 return hints
     return hints
+
+
+def history_page_titles(history: list[dict], *, max_titles: int = 6) -> list[str]:
+    """Prior citation page titles for live title probes."""
+    titles: list[str] = []
+    seen: set[str] = set()
+    for turn in history[-8:]:
+        for cite in turn.get("citations") or []:
+            title = str(cite.get("title") or "").strip()
+            key = title.casefold()
+            if not title or key in seen:
+                continue
+            seen.add(key)
+            titles.append(title)
+            if len(titles) >= max_titles:
+                return titles
+    return titles
 
 
 def append_turn(
@@ -209,16 +264,27 @@ def append_turn(
     question: str,
     answer: str,
     settings: Settings | None = None,
+    citations: list[dict] | None = None,
 ) -> None:
     s = settings or get_settings()
     if not s.session_memory_enabled:
         return
     sid = ensure_session(session_id, settings=s)
     now = datetime.now(timezone.utc).strftime("%Y-%m-%dT%H:%M:%SZ")
+    cite_payload = []
+    for c in citations or []:
+        title = str(c.get("title") or "").strip()
+        url = str(c.get("url") or "").strip()
+        if title or url:
+            cite_payload.append({"title": title[:300], "url": url[:500]})
+    cite_json = json.dumps(cite_payload[:20])
     with _connect(s.session_memory_db_path) as conn:
         conn.execute(
-            "INSERT INTO turns (session_id, ts_utc, question, answer) VALUES (?, ?, ?, ?)",
-            (sid, now, (question or "")[:8000], (answer or "")[:32000]),
+            """
+            INSERT INTO turns (session_id, ts_utc, question, answer, citations_json)
+            VALUES (?, ?, ?, ?, ?)
+            """,
+            (sid, now, (question or "")[:8000], (answer or "")[:32000], cite_json),
         )
         conn.execute(
             "UPDATE sessions SET updated_utc = ? WHERE id = ?",

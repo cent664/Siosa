@@ -167,7 +167,7 @@
 </ul>
 <h2>Bonus</h2>
 <ul>
-<li><strong>Context budgeting</strong> — under a token budget, drop lowest-ranked chunks first; optional light compression of retrieved text before generate.</li>
+<li><del><strong>Context budgeting</strong> — under a token budget, drop lowest-ranked chunks first; optional light compression of retrieved text before generate.</del> <em>(shipped a simpler version: larger top-N + per-page diversity; true token budgeting still open)</em></li>
 <li><strong>Non-retrieval compute tool</strong> — e.g. a DPS calculator (structured stats in → number out) so the planner can combine retrieve + compute.</li>
 <li><strong>Smarter Revise policies</strong> — faithfulness-only rewrite vs re-retrieve-then-rewrite depending on which scores are weak.</li>
 <li><strong>OOD / empty-retrieval refusals</strong> — graceful “I don’t know” when the query is out of domain or retrieval returns nothing useful, without requiring a full judge pass.</li>
@@ -175,9 +175,15 @@
 <h2>Discovered changes</h2>
 <ul>
 <li><strong>Score/Revise product</strong> — beyond scoring any expanded turn; full Revise loop stays on the Planned roadmap above.</li>
-<li><strong>Full query-fusion rewrite</strong> — not planned; follow-ups use topic hints plus prior citation page titles / title probes.</li>
+<li><strong>Full query-fusion rewrite</strong> — not planned as a big rewrite; follow-ups use topic hints, prior citation titles, and a cheap pronoun→title rewrite (no extra LLM).</li>
 <li><strong>Raw IPs / DIY geo / Railway→laptop analytics sync</strong> — out of scope; hashed IP + proxy country headers only; view analytics on the host that recorded them.</li>
 <li><strong>Session summarization</strong> — after each Ask, if turns exceed the recent verbatim window (<code>SESSION_MEMORY_RECENT_TURNS</code>, default 8), older turns are folded by an LLM into a rolling <code>sessions.summary</code>; the next prompt uses summary + recent turns + current question. This algorithm may need improvement / knobs adjustable later.</li>
+<li><strong>Parallel wiki I/O</strong> — searches and page fetches run concurrently on a shared HTTP client (main fix for ~1 minute retrieval); reranker warms at API startup. Knobs: <code>LIVE_WIKI_*_CONCURRENCY</code>, <code>RERANK_WARM_ON_STARTUP</code>.</li>
+<li><strong>Prior-page-first follow-ups</strong> — if turn 1 cited Pantheon, turn 2 reopens that page and expands a few outgoing links (e.g. Shakari) before leaning on a fresh search. Flags: <code>LIVE_WIKI_PREFER_PRIOR_PAGES</code>, <code>LIVE_WIKI_LINK_EXPAND</code> (+ <code>_MAX</code>).</li>
+<li><strong>Table-first link harvest</strong> — strip nav/infobox chrome; prefer links inside content tables; raise harvest cap (<code>LIVE_WIKI_LINK_HARVEST_MAX=120</code>). Enumerate asks (“list all…”) expand more hops (<code>LIVE_WIKI_LINK_EXPAND_ENUMERATE_MAX</code>). Cache <code>links_version</code> bumps so old front-biased link lists are refreshed.</li>
+<li><strong>Chunk diversity</strong> — cap passages per wiki page in the final top-N (default 2) so near-duplicates do not waste slots. Experimental — turn off with <code>LIVE_WIKI_CHUNK_DIVERSITY=false</code> if answers get worse.</li>
+<li><strong>Structure-aware wiki text</strong> — tables become readable lines so lists survive chunking. Experimental — <code>LIVE_WIKI_STRUCTURE_AWARE</code> (keep extracts off when this is on).</li>
+<li><strong>Larger passage budget</strong> — default <code>RERANK_TOP_N=8</code> and <code>LIVE_WIKI_MAX_PAGES=6</code> (was 5/5). Common RAG rule of thumb: ~8–12 passages.</li>
 </ul>
 </body>
 </html>

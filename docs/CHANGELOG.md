@@ -1,5 +1,16 @@
 Newest first. Each entry uses the same format: a short title and a few bullets on what changed and why it mattered. Edit this file, then run `python scripts/sync_docs.py` for browser HTML.
 
+## 2026-07-17 — Table-first link expand for follow-ups
+
+- Retriever — Link harvest strips nav/infobox, prefers content-table links, raises harvest cap; enumerate follow-ups expand more hops. Live cache `links_version` refreshes old front-biased lists.
+- Docs — Architecture heuristic table + Planned Discovered note the table-first / enumerate rules.
+
+## 2026-07-17 — Faster live retrieval + cheap multi-hop heuristics
+
+- Retriever — Parallel wiki search/fetch on a shared HTTP client; warm cross-encoder at API startup (targets the old ~1 minute retrieval bottleneck).
+- Retriever — Follow-up rewrite, prior-page-first, link expand from index pages, table-aware text, per-page chunk diversity; larger default top-N (8) / max pages (6). All flagged in `.env` so experiments are easy to undo.
+- Docs — Architecture live-retrieval section + Planned Discovered changes list the heuristics and rules of thumb.
+
 ## 2026-07-17 — Frozen List 1 build-order baseline
 
 - Docs — Added `PLANNED_ROADMAP_BASELINE.md` → `planned-baseline.html`: original Phase 0–5 build order (no strike-throughs). Living progress stays on Planned.

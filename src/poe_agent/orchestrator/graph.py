@@ -30,14 +30,17 @@ def _plan_node(state: AgentState) -> AgentState:
 
 
 def _execute_node(state: AgentState) -> AgentState:
-    from poe_agent.harness.session_memory import history_search_hints
+    from poe_agent.harness.session_memory import history_page_titles, history_search_hints
 
     t0 = time.perf_counter()
-    hints = history_search_hints(state.get("history") or [])
+    history = state.get("history") or []
+    hints = history_search_hints(history)
+    page_titles = history_page_titles(history)
     chunks, tool_log = execute_subtasks(
         state["query"],
         state.get("plan", []),
         extra_search_queries=hints or None,
+        extra_title_probes=page_titles or None,
     )
     timing = dict(state.get("timing_ms", {}))
     timing["retrieval"] = round((time.perf_counter() - t0) * 1000, 2)
@@ -182,6 +185,18 @@ def run_agent_graph(
             "max_title_probes": settings.live_wiki_max_title_probes,
             "title_overlap_filter": settings.live_wiki_title_overlap_filter,
             "rerank_top_n": settings.rerank_top_n,
+            "search_concurrency": settings.live_wiki_search_concurrency,
+            "fetch_concurrency": settings.live_wiki_fetch_concurrency,
+            "structure_aware": settings.live_wiki_structure_aware,
+            "chunk_diversity": settings.live_wiki_chunk_diversity,
+            "max_chunks_per_page": settings.live_wiki_max_chunks_per_page,
+            "link_expand": settings.live_wiki_link_expand,
+            "link_expand_max": settings.live_wiki_link_expand_max,
+            "link_expand_enumerate_max": settings.live_wiki_link_expand_enumerate_max,
+            "link_harvest_max": settings.live_wiki_link_harvest_max,
+            "prefer_table_links": settings.live_wiki_prefer_table_links,
+            "prefer_prior_pages": settings.live_wiki_prefer_prior_pages,
+            "followup_rewrite": settings.live_wiki_followup_rewrite,
         }
         run.extra["retrieval_refined"] = result.get("retrieval_refined", False)
         run.extra["refine_queries"] = result.get("refine_queries", [])

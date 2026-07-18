@@ -7,8 +7,9 @@ from unittest.mock import patch
 
 from poe_agent.generator.answer import _chunks_to_citations
 from poe_agent.retriever.ingest import chunk_text
-from poe_agent.retriever.live import fetch_page_chunks, retrieve_live_for_query
-from poe_agent.retriever.wiki_client import search_wiki_titles
+from poe_agent.retriever.live import diversify_chunks_by_page, fetch_page_chunks, retrieve_live_for_query
+from poe_agent.retriever.models import RetrievedChunk
+from poe_agent.retriever.wiki_client import html_to_text, search_wiki_titles
 
 
 def test_search_wiki_titles_parses_hits():
@@ -21,9 +22,7 @@ def test_search_wiki_titles_parses_hits():
         }
     }
 
-    with patch("poe_agent.retriever.wiki_client.httpx.Client") as mock_client:
-        mock_client.return_value.__enter__.return_value.get.return_value.json.return_value = payload
-        mock_client.return_value.__enter__.return_value.get.return_value.raise_for_status = lambda: None
+    with patch("poe_agent.retriever.wiki_client._api_get", return_value=payload):
         hits = search_wiki_titles("poison damage", limit=5)
 
     assert hits == [("Poison", "Poison"), ("Ignite", "Ignite")]
@@ -40,6 +39,8 @@ def test_fetch_page_chunks_uses_cache(tmp_path, monkeypatch):
                 "path": "Poison",
                 "text": "Poison is a damage over time ailment.",
                 "wiki_url": "https://www.poewiki.net/wiki/Poison",
+                "links": [],
+                "links_version": 2,
                 "fetched_at": 9_999_999_999.0,
             }
         ),
@@ -53,19 +54,21 @@ def test_fetch_page_chunks_uses_cache(tmp_path, monkeypatch):
     get_settings.cache_clear()
     settings = get_settings()
 
-    with patch("poe_agent.retriever.live.fetch_page_text") as mock_fetch:
-        chunks = fetch_page_chunks("Poison", "Poison", settings)
+    with patch("poe_agent.retriever.live.fetch_page_payload") as mock_fetch:
+        chunks, links = fetch_page_chunks("Poison", "Poison", settings)
         mock_fetch.assert_not_called()
 
     assert len(chunks) >= 1
     assert chunks[0].metadata["wiki_url"] == "https://www.poewiki.net/wiki/Poison"
     assert chunks[0].metadata["source"] == "live"
+    assert links == []
     get_settings.cache_clear()
 
 
 def test_retrieve_live_for_query_end_to_end(monkeypatch):
     monkeypatch.setenv("RETRIEVAL_MODE", "live")
     monkeypatch.setenv("LIVE_WIKI_MAX_PAGES", "1")
+    monkeypatch.setenv("LIVE_WIKI_LINK_EXPAND", "false")
     from poe_agent.harness.config import get_settings
 
     get_settings.cache_clear()
@@ -75,13 +78,11 @@ def test_retrieve_live_for_query_end_to_end(monkeypatch):
     with (
         patch("poe_agent.retriever.live.search_wiki_titles", return_value=search_hits),
         patch(
-            "poe_agent.retriever.live.fetch_page_text",
-            return_value=("Poison deals chaos damage over time.", "https://www.poewiki.net/wiki/Poison"),
+            "poe_agent.retriever.live.fetch_page_payload",
+            return_value=("Poison deals chaos damage over time.", "https://www.poewiki.net/wiki/Poison", []),
         ),
         patch("poe_agent.retriever.live.rerank") as mock_rerank,
     ):
-        from poe_agent.retriever.models import RetrievedChunk
-
         def _fake_rerank(query, candidates, top_n=None):
             return [
                 RetrievedChunk(
@@ -161,6 +162,7 @@ def test_pantheon_title_probe_beats_ruthless(monkeypatch):
     monkeypatch.setenv("LIVE_WIKI_MAX_PAGES", "5")
     monkeypatch.setenv("LIVE_WIKI_TITLE_PROBE", "true")
     monkeypatch.setenv("LIVE_WIKI_TITLE_OVERLAP_FILTER", "true")
+    monkeypatch.setenv("LIVE_WIKI_LINK_EXPAND", "false")
     from poe_agent.harness.config import get_settings
 
     get_settings.cache_clear()
@@ -174,18 +176,16 @@ def test_pantheon_title_probe_beats_ruthless(monkeypatch):
     def _fake_search(query: str, limit: int = 8):
         return [("Ruthless mode", "Ruthless_mode"), ("Buff", "Buff")]
 
-    def _fake_fetch(title: str, path: str | None = None):
+    def _fake_fetch(title: str, path: str | None = None, **kwargs):
         if "Pantheon" in title and "Ruthless" not in title:
-            return pantheon_text, "https://www.poewiki.net/wiki/Pantheon"
-        return ruthless_text, f"https://www.poewiki.net/wiki/{path or title}"
+            return pantheon_text, "https://www.poewiki.net/wiki/Pantheon", []
+        return ruthless_text, f"https://www.poewiki.net/wiki/{path or title}", []
 
     with (
         patch("poe_agent.retriever.live.search_wiki_titles", side_effect=_fake_search),
-        patch("poe_agent.retriever.live.fetch_page_text", side_effect=_fake_fetch),
+        patch("poe_agent.retriever.live.fetch_page_payload", side_effect=_fake_fetch),
         patch("poe_agent.retriever.live.rerank") as mock_rerank,
     ):
-        from poe_agent.retriever.models import RetrievedChunk
-
         def _fake_rerank(query, candidates, top_n=None):
             return sorted(
                 [
@@ -211,7 +211,6 @@ def test_retrieval_gate_title_mismatch(monkeypatch):
     monkeypatch.setenv("RETRIEVAL_REFINE_ENABLED", "true")
     from poe_agent.harness.config import get_settings
     from poe_agent.retriever.gate import retrieval_needs_refine
-    from poe_agent.retriever.models import RetrievedChunk
 
     get_settings.cache_clear()
     chunks = [
@@ -220,4 +219,114 @@ def test_retrieval_gate_title_mismatch(monkeypatch):
     needs, reason = retrieval_needs_refine(chunks, "What are Pantheon powers?")
     assert needs is True
     assert reason == "title_mismatch"
+    get_settings.cache_clear()
+
+
+def test_diversify_chunks_by_page():
+    chunks = [
+        RetrievedChunk("a1", "t1", {"page_title": "Pantheon", "wiki_url": "u1"}, 0.9),
+        RetrievedChunk("a2", "t2", {"page_title": "Pantheon", "wiki_url": "u1"}, 0.8),
+        RetrievedChunk("a3", "t3", {"page_title": "Pantheon", "wiki_url": "u1"}, 0.7),
+        RetrievedChunk("b1", "t4", {"page_title": "Shakari", "wiki_url": "u2"}, 0.6),
+    ]
+    out = diversify_chunks_by_page(chunks, top_n=3, max_per_page=2)
+    assert len(out) == 3
+    assert sum(1 for c in out if c.metadata["wiki_url"] == "u1") == 2
+    assert any(c.metadata["wiki_url"] == "u2" for c in out)
+
+
+def test_followup_rewrite_adds_prior_title():
+    from poe_agent.retriever.followup import rewrite_followup_question
+
+    out = rewrite_followup_question("list all of them", ["Pantheon"])
+    assert "Pantheon" in out
+    assert rewrite_followup_question("What are Pantheon powers?", ["Pantheon"]) == (
+        "What are Pantheon powers?"
+    )
+
+
+def test_structure_aware_tables_keep_cells():
+    html = """
+    <div>
+      <table>
+        <tr><th>God</th><th>Power</th></tr>
+        <tr><td>Shakari</td><td>Chaos</td></tr>
+      </table>
+    </div>
+    """
+    text = html_to_text(html, structure_aware=True)
+    assert "Shakari" in text
+    assert "Chaos" in text
+
+
+def test_extract_prefers_table_links_over_nav():
+    from poe_agent.retriever.wiki_client import extract_wiki_link_titles
+
+    html = """
+    <div>
+      <table class="navbox"><tr><td><a href="/wiki/Useless_Nav">Useless Nav</a></td></tr></table>
+      <p><a href="/wiki/Early_Body">Early Body</a></p>
+      <table class="wikitable">
+        <tr><td><a href="/wiki/Shakari">Shakari</a></td>
+            <td><a href="/wiki/Brine_King">Brine King</a></td></tr>
+      </table>
+      <p><a href="/wiki/Later_Body">Later Body</a></p>
+    </div>
+    """
+    links = extract_wiki_link_titles(html, max_links=10, prefer_table_links=True)
+    assert "Useless Nav" not in links  # navbox stripped
+    assert links[0] in ("Shakari", "Brine King")
+    assert "Shakari" in links and "Brine King" in links
+    # Table links before remaining body links
+    assert links.index("Shakari") < links.index("Early Body") or links.index("Brine King") < links.index(
+        "Early Body"
+    )
+
+
+def test_enumerate_expands_more_table_links(tmp_path, monkeypatch):
+    monkeypatch.setenv("POE_DATA_DIR", str(tmp_path))
+    monkeypatch.setenv("LIVE_WIKI_MAX_PAGES", "1")
+    monkeypatch.setenv("LIVE_WIKI_LINK_EXPAND", "true")
+    monkeypatch.setenv("LIVE_WIKI_LINK_EXPAND_MAX", "1")
+    monkeypatch.setenv("LIVE_WIKI_LINK_EXPAND_ENUMERATE_MAX", "3")
+    monkeypatch.setenv("LIVE_WIKI_TITLE_PROBE", "false")
+    from poe_agent.harness.config import get_settings
+
+    get_settings.cache_clear()
+
+    def _fake_search(query: str, limit: int = 8):
+        return [("Pantheon", "Pantheon")]
+
+    def _fake_fetch(title: str, path: str | None = None, **kwargs):
+        if title == "Pantheon" or path == "Pantheon":
+            return (
+                "Pantheon index",
+                "https://www.poewiki.net/wiki/Pantheon",
+                ["Shakari", "Brine King", "Arakaali", "Noise Page"],
+            )
+        return (f"{title} page", f"https://www.poewiki.net/wiki/{path or title}", [])
+
+    with (
+        patch("poe_agent.retriever.live.search_wiki_titles", side_effect=_fake_search),
+        patch("poe_agent.retriever.live.fetch_page_payload", side_effect=_fake_fetch),
+        patch("poe_agent.retriever.live.rerank") as mock_rerank,
+    ):
+        def _fake_rerank(query, candidates, top_n=None):
+            return [
+                RetrievedChunk(c.chunk_id, c.text, c.metadata, float(i))
+                for i, c in enumerate(reversed(candidates))
+            ]
+
+        mock_rerank.side_effect = _fake_rerank
+        _results, debug = retrieve_live_for_query(
+            "list all of them",
+            user_question="list all of them",
+            extra_title_probes=["Pantheon"],
+        )
+
+    titles = {r.get("title") for r in debug.pages_fetched}
+    assert "Pantheon" in titles
+    # Enumerate max 3 extras (not capped at LINK_EXPAND_MAX=1)
+    assert len([t for t in titles if t != "Pantheon"]) == 3
+    assert "Shakari" in titles
     get_settings.cache_clear()
