@@ -25,3 +25,6 @@ transfer/
 # Local-only duplicates / stale handoff notes — do not commit
 /art assets/
 docs/HANDOFF.md
+
+# Personal roadmap (not deployed; update locally as work ships)
+/checklist.md

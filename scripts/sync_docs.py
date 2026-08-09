@@ -145,7 +145,6 @@ HTML_HEAD_BASE = """<!DOCTYPE html>
       <svg viewBox="0 0 24 24" aria-hidden="true"><path d="M10 20v-6h4v6h5v-8h3L12 3 2 12h3v8h5z"/></svg>
     </a>
     <a href="/docs/architecture.html">Architecture</a>
-    <a href="/docs/checklist.html">Checklist</a>
     <a href="/docs/changelog.html">Changelog</a>
   </nav>
 """
@@ -398,26 +397,6 @@ def sync_architecture_html() -> None:
     print("Wrote docs/architecture.html")
 
 
-def sync_checklist_html() -> None:
-    checklist = (DOCS / "CHECKLIST.md").read_text(encoding="utf-8")
-    body = md_to_html_body(checklist)
-    page = _head("Siosa's Library — Checklist") + body + HTML_FOOT
-    (DOCS / "checklist.html").write_text(page, encoding="utf-8")
-    print("Wrote docs/checklist.html")
-    # Old Planned URL → Checklist (bookmarks / external links)
-    (DOCS / "planned.html").write_text(
-        "<!DOCTYPE html>\n<html lang=\"en\"><head>"
-        '<meta charset="UTF-8" />'
-        '<meta http-equiv="refresh" content="0; url=checklist.html" />'
-        '<link rel="canonical" href="checklist.html" />'
-        "<title>Redirecting…</title>"
-        "<script>location.replace('checklist.html');</script>"
-        "</head><body><p><a href=\"checklist.html\">Checklist</a></p></body></html>\n",
-        encoding="utf-8",
-    )
-    print("Wrote docs/planned.html (redirect to checklist.html)")
-
-
 def sync_changelog_html() -> None:
     cl = (DOCS / "CHANGELOG.md").read_text(encoding="utf-8")
     articles: list[str] = []
@@ -449,7 +428,6 @@ def sync_changelog_html() -> None:
 def main() -> None:
     sync_readme()
     sync_architecture_html()
-    sync_checklist_html()
     sync_changelog_html()
     print("Done.")
 

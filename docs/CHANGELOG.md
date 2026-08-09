@@ -1,5 +1,10 @@
 Newest first. Each entry uses the same format: a short title and a few bullets on what changed and why it mattered. Edit this file, then run `python scripts/sync_docs.py` for browser HTML.
 
+## 2026-08-09 — Checklist off the app; docs nav in header
+
+- Docs — Removed deployed Checklist (`CHECKLIST.md` / `checklist.html`); roadmap lives in gitignored local `checklist.md` only.
+- Web — Architecture and Changelog links move from footer to a top header; Checklist link removed from the UI.
+
 ## 2026-08-08 — Checklist replaces Planned; baseline removed
 
 - Docs — Removed the frozen Baseline page. Renamed Planned → Checklist (`CHECKLIST.md` → `checklist.html`) with the updated Already / Planned / Bonus roadmap (multi-source tools, wiki cache freshness, Score+Revise, vLLM/DPO, safety).

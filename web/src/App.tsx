@@ -364,6 +364,12 @@ export default function App() {
 
   return (
     <div className="app-shell">
+      <header className="site-header">
+        <nav className="site-docs" aria-label="Documentation">
+          <a href={docsUrl("architecture.html")}>Architecture</a>
+          <a href={docsUrl("changelog.html")}>Changelog</a>
+        </nav>
+      </header>
       <div className="app-stage">
         <img
           className="siosa-portrait"
@@ -445,11 +451,6 @@ export default function App() {
       </div>
 
       <footer className="app-footer">
-        <nav className="footer-docs" aria-label="Documentation">
-          <a href={docsUrl("architecture.html")}>Architecture</a>
-          <a href={docsUrl("checklist.html")}>Checklist</a>
-          <a href={docsUrl("changelog.html")}>Changelog</a>
-        </nav>
         <p className="footer-disclaimer">
           Not affiliated with or endorsed by Grinding Gear Games. Path of Exile and related assets
           are © Grinding Gear Games. Wiki excerpts via{" "}
