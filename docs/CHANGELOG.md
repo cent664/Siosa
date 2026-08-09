@@ -1,5 +1,10 @@
 Newest first. Each entry uses the same format: a short title and a few bullets on what changed and why it mattered. Edit this file, then run `python scripts/sync_docs.py` for browser HTML.
 
+## 2026-08-08 — Checklist replaces Planned; baseline removed
+
+- Docs — Removed the frozen Baseline page. Renamed Planned → Checklist (`CHECKLIST.md` → `checklist.html`) with the updated Already / Planned / Bonus roadmap (multi-source tools, wiki cache freshness, Score+Revise, vLLM/DPO, safety).
+- Docs — App footer and docs nav link to Checklist; old `planned.html` redirects to Checklist.
+
 ## 2026-07-18 — Wiki redirects + search-first fetch (cloud Pantheon fix)
 
 - Retriever — MediaWiki parse follows redirects (`Pantheon` → `The Pantheon`); reject redirect stubs; prefer search hits over speculative title probes; skip non-title probes like “Pantheon powers”.
