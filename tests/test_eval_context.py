@@ -27,10 +27,11 @@ def test_format_evidence_context_includes_title_and_text():
 def test_judge_prompt_adherence_user_prompt_includes_wiki_excerpts(monkeypatch):
     from unittest.mock import patch
 
+    from poe_agent.harness.config import get_settings
     from poe_agent.harness.trace import LLMResult
 
-    from poe_agent.harness.config import get_settings
-
+    # CI has no .env; provider resolve runs before traced_generate is called.
+    monkeypatch.setenv("ANTHROPIC_API_KEY", "test-key")
     monkeypatch.setenv("JUDGE_PROVIDER", "claude")
     get_settings.cache_clear()
     evidence = "[1] Scion (https://www.poewiki.net/wiki/Scion)\nFreedom achievement unlocks Scion."
@@ -50,6 +51,7 @@ def test_judge_prompt_adherence_user_prompt_includes_wiki_excerpts(monkeypatch):
         user_prompt = mock_gen.call_args[0][3]
         assert "Wiki excerpts:" in user_prompt
         assert "Freedom achievement" in user_prompt
+    get_settings.cache_clear()
 
 
 def test_chunks_from_score_payload():

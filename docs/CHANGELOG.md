@@ -3,6 +3,7 @@ Newest first. Each entry uses the same format: a short title and a few bullets o
 ## 2026-08-20 — Pin Ruff lint rule set for CI
 
 - Tooling — Explicitly select classic Ruff rules (`E4`/`E7`/`E9`/`F`) so CI stays green under Ruff 0.16+ expanded defaults.
+- Tests — Judge prompt test sets a dummy `ANTHROPIC_API_KEY` so CI (no `.env`) can resolve the provider before the mocked LLM call.
 
 ## 2026-08-20 — Remove Bedrock/S3 scaffold; clarify live Ask path
 
