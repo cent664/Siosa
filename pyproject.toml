@@ -60,3 +60,8 @@ pythonpath = ["src"]
 [tool.ruff]
 line-length = 100
 target-version = "py311"
+
+[tool.ruff.lint]
+# Classic Ruff defaults (pre-0.16 expansion). Pin so CI does not fail when
+# newer Ruff enables I/BLE/S/B/UP/etc. without an explicit project opt-in.
+select = ["E4", "E7", "E9", "F"]

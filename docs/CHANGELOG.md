@@ -1,5 +1,9 @@
 Newest first. Each entry uses the same format: a short title and a few bullets on what changed and why it mattered. Edit this file, then run `python scripts/sync_docs.py` for browser HTML.
 
+## 2026-08-20 — Pin Ruff lint rule set for CI
+
+- Tooling — Explicitly select classic Ruff rules (`E4`/`E7`/`E9`/`F`) so CI stays green under Ruff 0.16+ expanded defaults.
+
 ## 2026-08-20 — Remove Bedrock/S3 scaffold; clarify live Ask path
 
 - Providers — Dropped unused Bedrock LLM/embedding adapters and S3 sync; answer/judge modes are Claude and GPT-4 only (`boto3` removed).
