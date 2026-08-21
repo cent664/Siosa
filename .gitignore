@@ -19,12 +19,8 @@ web/node_modules/
 web/dist/
 .DS_Store
 
-# Laptop handoff bundle (secrets + chat transcripts) — copy manually, never commit
+# Optional laptop handoff bundle (when recreated) — never commit
 transfer/
-
-# Local-only duplicates / stale handoff notes — do not commit
-/art assets/
-docs/HANDOFF.md
 
 # Personal roadmap (not deployed; update locally as work ships)
 /checklist.md
