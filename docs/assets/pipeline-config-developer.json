@@ -63,13 +63,7 @@
       "chosen": "UI provider",
       "summary": "LLM from excerpts only.",
       "detail": "<p>The selected provider writes using <strong>only</strong> reranked wiki excerpts (PoE 1, excerpts-only system prompt).</p><p>LangGraph records <code>timing_ms</code> for plan, retrieval, and generation.</p>",
-      "alternatives": [
-        {
-          "label": "Bedrock",
-          "opaque": true,
-          "detail": "<p>AWS Bedrock via <code>.env</code> — not in the UI provider dropdown.</p>"
-        }
-      ]
+      "alternatives": []
     },
     {
       "id": "0.5",

@@ -1,4 +1,7 @@
-# ROLE: harness — dispatches /query to orchestrator or linear RAG pipeline.
+# ROLE: harness — dispatches POST /query to the LangGraph Ask pipeline.
+#
+# Flow: validate provider key → optional session history → run_agent_graph
+# (plan → retrieve → optional refine → generate) → finalize + store turn.
 
 from __future__ import annotations
 
@@ -18,10 +21,6 @@ from poe_agent.harness.logging import RunLog, agent_run
 from poe_agent.harness.trace import get_llm_calls, reset_llm_calls
 from poe_agent.orchestrator.graph import run_agent_graph
 from poe_agent.retriever.models import RetrievedChunk
-from poe_agent.executor.node import merge_retrieved_chunks
-from poe_agent.planner.refine import refine_search_queries
-from poe_agent.retriever.gate import retrieval_needs_refine
-from poe_agent.retriever.pipeline import retrieve_for_query
 
 
 def _chunks_exist() -> bool:
@@ -29,17 +28,15 @@ def _chunks_exist() -> bool:
 
 
 def _retrieval_available() -> bool:
+    """Live/hybrid always OK; local mode needs a prior poe-ingest."""
     settings = get_settings()
     if settings.retrieval_mode.lower() in ("live", "hybrid"):
         return True
     return _chunks_exist()
 
 
-def _use_langgraph() -> bool:
-    return _retrieval_available()
-
-
 def _retrieval_config_snapshot() -> dict:
+    """Trace snapshot of live-retrieval knobs (mirrored in graph.run_agent_graph)."""
     s = get_settings()
     return {
         "max_pages": s.live_wiki_max_pages,
@@ -121,6 +118,7 @@ def _finalize_response(
     retrieval_source: str = "",
     session_id: str = "",
 ) -> QueryResponse:
+    """Attach optional inline scores + full trace for the UI."""
     run.retrieved_chunks = _chunk_dicts(chunks, include_text=True)
     quality = QualityScores()
     if should_run_inline_eval() and answer:
@@ -153,6 +151,7 @@ def _finalize_response(
 
 
 def handle_query(question: str, session_id: str | None = None) -> QueryResponse:
+    """Entry point for POST /query — one Ask from end to end."""
     reset_llm_calls()
     mode = get_effective_provider_mode()
     timing: dict[str, float] = {}
@@ -190,35 +189,25 @@ def handle_query(question: str, session_id: str | None = None) -> QueryResponse:
                 trace=QueryTrace(pipeline="none", timing_ms=timing),
             )
 
-        if _use_langgraph():
-            result = run_agent_graph(
-                question, run, history=history, summary=summary
-            )
-            graph_timing = dict(result.get("timing_ms", {}))
-            timing.update(graph_timing)
-            chunks = run.extra.get("raw_chunks", [])
-            resp = _finalize_response(
-                question,
-                result["answer"],
-                result["citations"],
-                run,
-                "langgraph",
-                "langgraph",
-                chunks,
-                timing,
-                plan=run.extra.get("plan"),
-                retrieval_source=run.extra.get("retrieval_source", ""),
-                session_id=active_session,
-            )
-        else:
-            resp = _linear_rag(
-                question,
-                run,
-                timing,
-                history=history,
-                summary=summary,
-                session_id=active_session,
-            )
+        result = run_agent_graph(
+            question, run, history=history, summary=summary
+        )
+        graph_timing = dict(result.get("timing_ms", {}))
+        timing.update(graph_timing)
+        chunks = run.extra.get("raw_chunks", [])
+        resp = _finalize_response(
+            question,
+            result["answer"],
+            result["citations"],
+            run,
+            "langgraph",
+            "langgraph",
+            chunks,
+            timing,
+            plan=run.extra.get("plan"),
+            retrieval_source=run.extra.get("retrieval_source", ""),
+            session_id=active_session,
+        )
 
         if settings.session_memory_enabled and active_session and resp.answer:
             cites = [
@@ -234,105 +223,3 @@ def handle_query(question: str, session_id: str | None = None) -> QueryResponse:
                 citations=cites,
             )
         return resp
-
-
-def _maybe_refine_retrieval(
-    question: str,
-    chunks: list[RetrievedChunk],
-    run: RunLog,
-) -> list[RetrievedChunk]:
-    settings = get_settings()
-    needs, reason = retrieval_needs_refine(chunks, question)
-    if not needs or not settings.retrieval_refine_enabled:
-        return chunks
-
-    t0 = time.perf_counter()
-    refine_q = refine_search_queries(question, chunks)
-    extra, _src, debug = retrieve_for_query(
-        question,
-        user_question=question,
-        extra_search_queries=refine_q,
-    )
-    merged = merge_retrieved_chunks(chunks, extra)
-    run.extra["retrieval_refined"] = True
-    run.extra["refine_queries"] = refine_q
-    run.extra["retrieval_gate_reason"] = reason
-    refine_entry: dict = {
-        "tool": "wiki_search",
-        "query": "refine",
-        "refine_queries": refine_q,
-        "result_count": len(extra),
-    }
-    if debug is not None:
-        refine_entry["retrieval_debug"] = debug.to_dict()
-    run.tool_calls.append(refine_entry)
-    run.extra["refine_timing_ms"] = round((time.perf_counter() - t0) * 1000, 2)
-    return merged
-
-
-def _linear_rag(
-    question: str,
-    run: RunLog,
-    timing: dict[str, float],
-    history: list[dict[str, str]] | None = None,
-    summary: str = "",
-    session_id: str = "",
-) -> QueryResponse:
-    from poe_agent.generator.answer import generate_answer_with_meta
-    from poe_agent.harness.session_memory import continuity_retrieval_context
-
-    run.extra["retrieval_mode"] = get_settings().retrieval_mode.lower()
-    run.extra["retrieval_config"] = _retrieval_config_snapshot()
-
-    page_titles, hints = continuity_retrieval_context(question, history or [])
-    t0 = time.perf_counter()
-    chunks, retrieval_source, debug = retrieve_for_query(
-        question,
-        user_question=question,
-        extra_search_queries=hints or None,
-        extra_title_probes=page_titles or None,
-    )
-    timing["retrieval"] = round((time.perf_counter() - t0) * 1000, 2)
-
-    t_ref = time.perf_counter()
-    chunks = _maybe_refine_retrieval(question, chunks, run)
-    if run.extra.get("retrieval_refined"):
-        timing["retrieval_refine"] = round((time.perf_counter() - t_ref) * 1000, 2)
-
-    if not run.extra.get("retrieval_refined"):
-        entry: dict = {
-            "tool": "wiki_search",
-            "query": question,
-            "result_count": len(chunks),
-            "retrieval_source": retrieval_source,
-        }
-        if hints:
-            entry["history_hints"] = hints
-        if debug is not None:
-            entry["retrieval_debug"] = debug.to_dict()
-        run.tool_calls.append(entry)
-    run.extra["raw_chunks"] = chunks
-    run.extra["retrieval_source"] = retrieval_source
-
-    t1 = time.perf_counter()
-    answer, citations, tokens = generate_answer_with_meta(
-        question, chunks, history=history or [], summary=summary
-    )
-    timing["generation"] = round((time.perf_counter() - t1) * 1000, 2)
-
-    run.output_answer = answer
-    run.citations = citations
-    run.token_counts = tokens
-    pipeline = "linear_rag"
-    return _finalize_response(
-        question,
-        answer,
-        citations,
-        run,
-        get_effective_provider_mode(),
-        pipeline,
-        chunks,
-        timing,
-        retrieval_source=retrieval_source,
-        session_id=session_id,
-    )

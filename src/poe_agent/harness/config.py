@@ -1,4 +1,7 @@
 # ROLE: harness — central configuration from environment variables.
+#
+# Live demo path: POE_PROVIDER_MODE=claude|gpt4, RETRIEVAL_MODE=live.
+# Many LIVE_WIKI_* / refine flags exist so experiments can be toggled without code edits.
 
 from functools import lru_cache
 from pathlib import Path
@@ -7,17 +10,19 @@ from typing import Self
 from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
+# Runtime overrides from the UI (POST /settings/provider); None = use .env.
 _runtime_provider_mode: str | None = None
 _runtime_judge_provider: str | None = None
 
-_VALID_ANSWER_MODES = frozenset({"claude", "gpt4", "bedrock"})
-_VALID_JUDGE_MODES = frozenset({"claude", "gpt4", "bedrock"})
+_VALID_ANSWER_MODES = frozenset({"claude", "gpt4"})
+_VALID_JUDGE_MODES = frozenset({"claude", "gpt4"})
 
 
 class Settings(BaseSettings):
     model_config = SettingsConfigDict(env_file=".env", env_file_encoding="utf-8", extra="ignore")
 
-    poe_provider_mode: str = "claude"  # claude | gpt4 | bedrock
+    # --- Answer / judge providers (Claude + GPT-4 only) ---
+    poe_provider_mode: str = "claude"  # claude | gpt4
     poe_api_host: str = "127.0.0.1"
     poe_api_port: int = 8000
     poe_api_base_url: str = "http://127.0.0.1:8000"
@@ -25,14 +30,18 @@ class Settings(BaseSettings):
     anthropic_model: str = "claude-sonnet-4-6"
     openai_api_key: str = ""
     openai_model: str = "gpt-4o"
-    judge_provider: str = "claude"  # claude | gpt4 | bedrock
-    inline_eval: bool = False
+    judge_provider: str = "claude"  # claude | gpt4
+    inline_eval: bool = False  # false = Score on demand; true = judges after every Ask
     deployment_profile: str = ""  # set DEPLOYMENT_PROFILE=production on Railway
+
+    # --- Local index embeddings (RETRIEVAL_MODE=local|hybrid only) ---
     embedding_model: str = "sentence-transformers/all-MiniLM-L6-v2"
     retrieval_top_k: int = 8
     hybrid_rrf_k: int = 60
     # Rule of thumb: 8–12 passages is a common RAG default; raise if answers miss list details.
     rerank_top_n: int = 8
+
+    # --- Live wiki retrieval (default path) ---
     retrieval_mode: str = "live"  # local | live | hybrid
     live_wiki_max_pages: int = 6
     live_wiki_search_limit: int = 8
@@ -60,9 +69,13 @@ class Settings(BaseSettings):
     rerank_warm_on_startup: bool = True
     live_fallback_min_score: float = 0.25
     planner_max_retrieve_subtasks: int = 4
+
+    # Optional second retrieval pass (off in prod); wired in LangGraph gate → refine.
     retrieval_refine_enabled: bool = False
     retrieval_refine_min_score: float = -1.0
     retrieval_max_refine_rounds: int = 1
+
+    # --- Product / ops ---
     rate_limit_enabled: bool = False
     rate_limit_asks_per_day: int = 20
     operator_analytics_enabled: bool = True
@@ -70,15 +83,9 @@ class Settings(BaseSettings):
     session_memory_enabled: bool = True
     session_memory_recent_turns: int = 8
     session_memory_summary_enabled: bool = True
-    # Deprecated alias — prefer session_memory_recent_turns
-    session_memory_max_turns: int = 8
+
     poe_data_dir: Path = Path("data")
     poe_chroma_dir: Path = Path("data/chroma")
-    aws_region: str = "us-east-1"
-    bedrock_model_id: str = "anthropic.claude-3-haiku-20240307-v1:0"
-    bedrock_embedding_model: str = "amazon.titan-embed-text-v2:0"
-    s3_bucket: str = ""
-    s3_prefix: str = "poe-wiki-agent/"
     log_level: str = "INFO"
     transcribe_provider: str = "openai"  # local | openai
     transcribe_model: str = ""  # default: base (local) or whisper-1 (openai)
@@ -117,7 +124,7 @@ class Settings(BaseSettings):
             return self
         if self.judge_provider.lower() not in ("claude", "gpt4"):
             object.__setattr__(self, "judge_provider", "claude")
-        if self.poe_provider_mode.lower() not in ("claude", "gpt4", "bedrock"):
+        if self.poe_provider_mode.lower() not in ("claude", "gpt4"):
             object.__setattr__(self, "poe_provider_mode", "claude")
         object.__setattr__(self, "inline_eval", False)
         # Docker image has no faster-whisper; voice uses OpenAI when keys are set.
@@ -226,8 +233,6 @@ def provider_missing_key_message(mode: str | None = None) -> str:
         return "ANTHROPIC_API_KEY not set. Add it to .env (console.anthropic.com)."
     if m == "gpt4" and not s.openai_api_key:
         return "OPENAI_API_KEY not set. Add it to .env (platform.openai.com)."
-    if m == "bedrock":
-        return ""
     return ""
 
 

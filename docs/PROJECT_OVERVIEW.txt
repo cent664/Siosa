@@ -32,7 +32,7 @@ codebase with timing, Score, and trace UI always available.
 - Phase 3: Claude / GPT-4 providers, LLM-as-judge metrics, trace UI.
 - Phase 4: LangGraph orchestrator for multi-step retrieval (compare questions).
 - Phase 5: Gold eval set (10 questions), POST /evaluate endpoint.
-- Phase 6: Docker, GitHub Actions CI, optional AWS Bedrock adapters (not primary path).
+- Phase 6: Docker, GitHub Actions CI (Bedrock/S3 scaffolds later removed; unused on demo path).
 - Live retrieval: Default RETRIEVAL_MODE=live — fetch poewiki per question (not only Chroma).
 - Live retrieval quality: Multi-query fusion, title probe, title overlap filter.
 - React UI replaced Streamlit; single process serves API + static web/dist.
@@ -128,7 +128,7 @@ WHAT WE DID NOT DO:
 PROVIDER MODES (UI + .env POE_PROVIDER_MODE):
 - claude: Anthropic API (default model claude-sonnet-4-6).
 - gpt4: OpenAI API (default gpt-4o).
-- bedrock: AWS Bedrock in .env only, not in UI dropdown.
+- claude / gpt4: Anthropic / OpenAI APIs (UI dropdown).
 Missing API keys return a clear error (no stub answer mode).
 
 WHAT WE DID:
@@ -147,7 +147,7 @@ WHAT WE DID NOT DO — MLOps platforms:
   for portfolio scope; production skips judges for latency/cost.
 
 EMBEDDINGS:
-- Local sentence-transformers (not OpenAI embeddings) except optional Bedrock path.
+- Local sentence-transformers for local/hybrid index embeddings (not OpenAI embeddings).
 - Rerank model pre-downloaded in Docker image for Railway cold start.
 
 
@@ -223,7 +223,7 @@ RECOMMENDED RAILWAY VARIABLES (see railway.variables.example):
 WHAT WE DID NOT DO:
 - Kubernetes / Terraform: Railway PaaS is enough for demo.
 - Separate frontend CDN host: Same container serves API + SPA.
-- AWS as primary inference: Bedrock adapters exist but demo uses Anthropic/OpenAI APIs directly.
+- AWS as primary inference: not used; demo uses Anthropic/OpenAI APIs directly.
 
 COST (ROUGH):
 - Railway: ~$5/mo Hobby + RAM/CPU while running.

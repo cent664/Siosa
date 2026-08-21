@@ -1,1 +1,1 @@
-# ROLE: retriever — ingest, embed, dense/sparse/hybrid search, rerank.
+# ROLE: retriever — live wiki fusion (default) plus optional local hybrid index.

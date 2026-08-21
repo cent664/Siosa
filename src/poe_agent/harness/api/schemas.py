@@ -71,7 +71,7 @@ class HealthResponse(BaseModel):
     provider_mode: str
     chroma_ready: bool
     chunk_count: int = 0
-    retrieval_mode: str = "local"
+    retrieval_mode: str = "live"
     live_retrieval_hint: str = ""
     inline_eval: bool = False
     deployment_profile: str = ""

@@ -12,9 +12,7 @@ def judge_provider_reachable(settings: Settings | None = None) -> bool:
         return bool(s.anthropic_api_key)
     if mode == "gpt4":
         return bool(s.openai_api_key)
-    if mode == "bedrock":
-        return True
-    return True
+    return False
 
 
 def judge_provider_hint(settings: Settings | None = None) -> str:

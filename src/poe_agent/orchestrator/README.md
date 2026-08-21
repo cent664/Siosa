@@ -1,7 +1,7 @@
 # Orchestrator (LangGraph)
 
-Phase 4 moves multi-step reasoning here. The graph is:
+Every Ask with retrieval available runs:
 
-`plan` → `execute` → `generate` → END
+`plan` → `execute` (one fused wiki lookup) → `gate` → optional `refine` / `refine_execute` → `generate` → END
 
-Linear RAG remains as a fallback path in `harness/api/query_service.py`; typical Claude/GPT-4 Asks use LangGraph.
+Refine only runs when `RETRIEVAL_REFINE_ENABLED=true`. Implementation: `graph.py`, invoked from `harness/api/query_service.py`.

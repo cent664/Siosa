@@ -58,13 +58,7 @@
       "chosen": "Your provider",
       "summary": "LLM from excerpts only.",
       "detail": "<p>Claude or GPT-4 writes using <strong>only</strong> reranked wiki excerpts (PoE 1, excerpts-only rules).</p>",
-      "alternatives": [
-        {
-          "label": "Bedrock",
-          "opaque": true,
-          "detail": "<p>AWS Bedrock — server-side configuration only; not in the UI provider dropdown.</p>"
-        }
-      ]
+      "alternatives": []
     },
     {
       "id": "0.5",

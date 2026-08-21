@@ -1,4 +1,8 @@
 # ROLE: retriever — live poewiki search, fetch, and in-memory retrieval.
+#
+# Main entry: retrieve_live_for_query (bottom of file).
+# Pipeline: fuse search queries → MediaWiki search + title probes → fetch/chunk
+# (disk cache) → optional link expand → diversify → cross-encoder rerank.
 
 from __future__ import annotations
 
@@ -42,6 +46,9 @@ def _cache_path(settings: Settings, path: str) -> Path:
 
 
 LINKS_CACHE_VERSION = 3  # redirects=1 + reject redirect stubs
+
+
+# --- Disk cache (TTL + links_version invalidate old entries) ---
 
 
 def _read_cache(
@@ -134,6 +141,9 @@ def fetch_page_chunks(
         if search_query:
             ch.metadata["search_query"] = search_query
     return chunks, links
+
+
+# --- Search hit merge, title scoring, probes, overlap penalty ---
 
 
 def _merge_search_hits(
@@ -281,6 +291,9 @@ def _apply_title_overlap_penalty(
             )
         )
     return sorted(adjusted, key=lambda c: c.score, reverse=True)
+
+
+# --- Chunk diversity + link expand from index pages ---
 
 
 def diversify_chunks_by_page(
@@ -440,12 +453,16 @@ def _records_to_retrieved(records: list[ChunkRecord], default_score: float = 0.5
     ]
 
 
+# --- Public entry: one fused live wiki lookup for this Ask ---
+
+
 def retrieve_live_for_query(
     query: str,
     user_question: str | None = None,
     extra_search_queries: list[str] | None = None,
     extra_title_probes: list[str] | None = None,
 ) -> tuple[list[RetrievedChunk], RetrievalDebugInfo]:
+    """Search/fetch/rerank wiki pages for one Ask (or one refine pass)."""
     settings = get_settings()
     prior_titles = [t.strip() for t in (extra_title_probes or []) if t and t.strip()]
     raw_q = (user_question or query).strip()

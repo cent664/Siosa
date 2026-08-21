@@ -48,6 +48,7 @@ def test_get_provider_endpoint():
 
 
 def test_set_provider_invalid_via_api():
+    """Unknown modes (e.g. removed bedrock) are rejected by the schema."""
     client = TestClient(app)
     resp = client.post("/settings/provider", json={"mode": "bedrock"})
     assert resp.status_code == 422

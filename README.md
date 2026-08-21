@@ -54,7 +54,7 @@ flowchart TB
 
 **Agentic vs one fetch.** Older LangGraph builds called `wiki_search` **once per planner subtask** (several full retrieval round-trips). We kept **planner flexibility** (multiple retrieve intents in the plan JSON) but changed the executor to fold those strings into **one** fused pass (figure). That is what the “merged into one fusion pass” row in the table below means—not “we removed the planner.”
 
-Optional **refine** (when enabled) is a second **agentic** LLM step that may trigger **one** extra `wiki_search`, not one fetch per subtask. A fallback `linear_rag` path remains in code for edge cases; typical Claude/GPT-4 Asks use LangGraph.
+Optional **refine** (when enabled) is a second **agentic** LLM step that may trigger **one** extra `wiki_search`, not one fetch per subtask. All Asks with retrieval available use LangGraph (there is no separate linear fallback).
 
 ### Algorithm (one `wiki_search` pass)
 
@@ -63,7 +63,7 @@ Optional **refine** (when enabled) is a second **agentic** LLM step that may tri
 3. **Title probes** — Up to `LIVE_WIKI_MAX_TITLE_PROBES` direct page-title fetches for high-precision hits (e.g. skill or mechanic names).
 4. **Title overlap rank** — Re-order search hits before download using overlap with question terms.
 5. **Fetch & chunk** — Download up to `LIVE_WIKI_MAX_PAGES` pages, split into overlapping chunks (~1800 chars, 200 overlap).
-6. **Rerank** — Cross-encoder scores chunks vs the user question; keep top `RERANK_TOP_N` (default 5).
+6. **Rerank** — Cross-encoder scores chunks vs the user question; keep top `RERANK_TOP_N` (default 8).
 7. **Optional overlap penalty** — `LIVE_WIKI_TITLE_OVERLAP_FILTER` down-weights tangential pages (figure: “down-rank tangential pages”).
 
 Planner sub-queries are **inputs to step 1** (fusion), not separate passes—see figure and **Agentic vs one fetch** above.
@@ -83,8 +83,7 @@ Planner sub-queries are **inputs to step 1** (fusion), not separate passes—see
 
 | Pipeline trace | When | What is agentic |
 |----------------|------|-----------------|
-| **`langgraph`** | Typical Claude / GPT-4 Ask | **Plan** (LLM JSON; heuristic fallback). Optional **refine** queries when enabled. Then **one** fused live retrieval (see [Live retrieval](#live-retrieval)). |
-| **`linear_rag`** | Fallback path | Single `wiki_search` then generate (no planner). |
+| **`langgraph`** | Every Ask with retrieval available | **Plan** (LLM JSON; heuristic fallback). Optional **refine** queries when enabled. Then **one** fused live retrieval (see [Live retrieval](#live-retrieval)). |
 
 Implementation: [`query_service.py`](src/poe_agent/harness/api/query_service.py), [`graph.py`](src/poe_agent/orchestrator/graph.py), [`executor/node.py`](src/poe_agent/executor/node.py) (`_collect_plan_search_extras` → `extra_search_queries` on one `wiki_search`).
 
@@ -111,7 +110,6 @@ Source: [`docs/assets/pipeline-config-developer.json`](docs/assets/pipeline-conf
 |------|------------|---------|---------|
 | **claude** | Anthropic API | `ANTHROPIC_API_KEY` | UI or `.env` |
 | **gpt4** | OpenAI API | `OPENAI_API_KEY` | UI or `.env` |
-| **bedrock** | AWS Bedrock | AWS credentials | `.env` only |
 
 Claude Pro / ChatGPT Plus subscriptions are **not** API access. Embeddings for local index mode use **sentence-transformers** locally. Voice input defaults to **OpenAI Whisper** (`TRANSCRIBE_PROVIDER=openai`); production forces OpenAI because the Docker image does not bundle faster-whisper. Missing keys return a clear error (no stub answer mode).
 
@@ -177,7 +175,7 @@ Five separate **LLM-as-judge** calls (RAGAS-inspired names; **not** the RAGAS li
 | `relevance` | Answer vs user question |
 | `prompt_adherence` | Rules + excerpts vs answer |
 
-`JUDGE_PROVIDER` selects **claude**, **gpt4**, or **bedrock** (default **claude**). The UI provider choice auto-aligns judges for the session. **`INLINE_EVAL=false`** (default, including production profile) keeps judges off the `/query` hot path. Timing, Score, and trace are always available in the UI.
+`JUDGE_PROVIDER` selects **claude** or **gpt4** (default **claude**). The UI provider choice auto-aligns judges for the session. **`INLINE_EVAL=false`** (default, including production profile) keeps judges off the `/query` hot path. Timing, Score, and trace are always available in the UI.
 
 Judges are **not** part of the agentic loop: they never change which pages are fetched or how the answer is drafted. Trace timing (`plan`, `retrieval`, `generation`, `evaluation`) is observability only.
 

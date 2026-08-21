@@ -5,7 +5,6 @@ from __future__ import annotations
 import re
 
 from poe_agent.evaluator.context import JUDGE_CONTEXT_MAX_CHARS, truncate_for_judge
-from poe_agent.harness.config import get_settings
 from poe_agent.harness.providers import get_judge_llm_provider, get_provider_model_id
 from poe_agent.harness.trace import traced_generate
 
@@ -54,8 +53,10 @@ def _parse_score(raw: str, default: float = 3.0) -> tuple[float, str]:
 
 
 def _judge(purpose: str, system: str, user: str) -> dict:
-    settings = get_settings()
-    judge_mode = settings.judge_provider.lower()
+    # Use runtime judge override (UI provider switch), not env alone.
+    from poe_agent.harness.config import get_effective_judge_provider
+
+    judge_mode = get_effective_judge_provider()
     llm = get_judge_llm_provider()
     result = traced_generate(
         purpose,

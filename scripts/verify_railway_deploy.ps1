@@ -46,7 +46,7 @@ if ($health.judge_provider -notin @("claude", "gpt4")) {
     Write-Host "WARN judge_provider is $($health.judge_provider) - set JUDGE_PROVIDER=claude or DEPLOYMENT_PROFILE=production"
     $exitCode = 2
 }
-if ($health.provider_mode -notin @("claude", "gpt4", "bedrock")) {
+if ($health.provider_mode -notin @("claude", "gpt4")) {
     Write-Host "WARN provider_mode is $($health.provider_mode) - set POE_PROVIDER_MODE=claude and ANTHROPIC_API_KEY in Railway"
     $exitCode = 2
 }
@@ -60,7 +60,7 @@ if (-not $claudeOk -and -not $gpt4Ok) {
     Write-Host "      See railway.variables.example in the repo."
     $exitCode = 2
 }
-if ($provider.mode -notin @("claude", "gpt4", "bedrock")) {
+if ($provider.mode -notin @("claude", "gpt4")) {
     Write-Host "WARN Active provider is $($provider.mode) - set POE_PROVIDER_MODE=claude (or pick Claude in the UI after keys are set)."
     $exitCode = 2
 }

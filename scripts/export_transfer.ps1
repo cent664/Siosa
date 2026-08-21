@@ -137,11 +137,10 @@ if (Test-Path $overviewSrc) {
     "- POE_PROVIDER_MODE=claude",
     "- ANTHROPIC_API_KEY=your key",
     "- INLINE_EVAL=false",
-    "- POE_ENABLE_OLLAMA=false",
     "- RETRIEVAL_MODE=live",
     "- POE_DATA_DIR=/app/data",
     "",
-    "Remove: JUDGE_PROVIDER=ollama, OLLAMA_*, POE_API_HOST, POE_API_PORT, custom PORT"
+    "Remove if leftover: OLLAMA_*, DEV_UI_ENABLED, POE_API_HOST, POE_API_PORT, custom PORT"
 ) | Set-Content "$TransferRoot\railway\production-variables.md" -Encoding UTF8
 
 # User rules placeholder (global rules are not stored in the repo)
@@ -179,7 +178,7 @@ Repo: https://github.com/cent664/Siosa
 
 - Public URL: https://www.poesiosa.net/
 - Hosting: Railway, deploy on push to main
-- Booth mode: DEPLOYMENT_PROFILE=production or INLINE_EVAL=false + POE_ENABLE_OLLAMA=false
+- Production profile: DEPLOYMENT_PROFILE=production (forces INLINE_EVAL=false, OpenAI transcribe)
 - API keys only in Railway Variables and local .env (never git)
 
 ## What this transfer folder contains

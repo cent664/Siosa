@@ -1,5 +1,12 @@
 Newest first. Each entry uses the same format: a short title and a few bullets on what changed and why it mattered. Edit this file, then run `python scripts/sync_docs.py` for browser HTML.
 
+## 2026-08-20 — Remove Bedrock/S3 scaffold; clarify live Ask path
+
+- Providers — Dropped unused Bedrock LLM/embedding adapters and S3 sync; answer/judge modes are Claude and GPT-4 only (`boto3` removed).
+- Harness — Removed dead `linear_rag` fallback (every Ask with retrieval uses LangGraph); Score traces use the effective judge provider after UI switches.
+- Config — Removed unused `session_memory_max_turns`, AWS/Bedrock/S3 settings; section comments on config, live retrieval, graph, session memory, and query dispatch.
+- Docs — Aligned Architecture/README/pipeline alts and env examples with Claude/GPT-4 and rerank default 8.
+
 ## 2026-08-09 — Checklist off the app; docs nav in header
 
 - Docs — Removed deployed Checklist (`CHECKLIST.md` / `checklist.html`); roadmap lives in gitignored local `checklist.md` only.

@@ -1,4 +1,8 @@
 # ROLE: harness — session conversation memory (SQLite + optional rolling summary).
+#
+# Each browser session_id stores turns (with citation titles for follow-up retrieval).
+# Prompt path: recent N turns verbatim + optional rolling summary of older turns.
+# continuity_retrieval_context() decides prior-page reuse vs topic switch.
 
 from __future__ import annotations
 
@@ -19,6 +23,9 @@ _UUID_RE = re.compile(
 _SUMMARY_SYSTEM = """You maintain a compact running summary of a Path of Exile 1 Q&A chat.
 Update the summary with new turns. Keep topics, mechanic names, and unresolved references.
 Max ~120 words. No wiki dump. Plain prose or short bullets."""
+
+
+# --- Schema / connection ---
 
 
 def _connect(db_path: Path) -> sqlite3.Connection:
@@ -203,6 +210,9 @@ def load_prompt_history(
     recent = load_recent_turns(sid, settings=s)
     summary = get_session_summary(sid, settings=s) if s.session_memory_summary_enabled else ""
     return summary, recent
+
+
+# --- Follow-up retrieval hints (topic gate lives in continuity_retrieval_context) ---
 
 
 def history_search_hints(

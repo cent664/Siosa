@@ -14,7 +14,7 @@ def test_query_response_includes_trace_and_scores():
         citations=[],
         run_id="abc",
         trace=QueryTrace(
-            pipeline="linear_rag",
+            pipeline="langgraph",
             timing_ms={"retrieval": 10.0, "total": 50.0},
             llm_calls=[
                 LLMCallTrace(
@@ -38,6 +38,6 @@ def test_query_response_includes_trace_and_scores():
         ),
     )
     d = resp.model_dump()
-    assert d["trace"]["pipeline"] == "linear_rag"
+    assert d["trace"]["pipeline"] == "langgraph"
     assert len(d["trace"]["llm_calls"]) == 1
     assert d["quality_scores"]["faithfulness"] == 4.0

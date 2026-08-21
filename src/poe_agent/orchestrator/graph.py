@@ -1,4 +1,8 @@
-# ROLE: orchestrator — LangGraph StateGraph wiring planner → executor → generator.
+# ROLE: orchestrator — LangGraph Ask pipeline.
+#
+# Nodes: plan → execute (one fused wiki lookup) → gate →
+#   [optional refine → refine_execute] → generate.
+# Refine is off unless RETRIEVAL_REFINE_ENABLED=true.
 
 from __future__ import annotations
 
@@ -114,6 +118,7 @@ def _generate_node(state: AgentState) -> AgentState:
 
 
 def build_graph():
+    """Compile plan → execute → gate → (refine?) → generate."""
     graph = StateGraph(AgentState)
     graph.add_node("plan", _plan_node)
     graph.add_node("execute", _execute_node)
