@@ -49,7 +49,8 @@ Keep these **off GitHub** (already gitignored):
 | Path / env | Why |
 |------------|-----|
 | `.env` | Real API keys and `OPERATOR_DASHBOARD_KEY` |
-| `transfer/` | Laptop handoff with secrets |
+| `checklist.md` | Personal Already / Planned / Bonus roadmap (local only) |
+| `transfer/` | Laptop handoff with secrets + transcripts |
 | `data/*.sqlite` | Rate-limit, analytics, and session-memory DBs |
 | `data/chroma/`, live cache | Runtime indexes/caches |
 | `.venv/`, `web/node_modules/`, `web/dist/` | Local install / build output |
@@ -73,7 +74,12 @@ On your **main PC**, regenerate the handoff folder:
 
 Copy the whole `transfer/` folder to the laptop (USB, OneDrive, etc.). It is **gitignored** — not on GitHub.
 
-On the laptop, place `transfer/` inside the cloned repo and read **`transfer/PROJECT_OVERVIEW.txt`** first (full technical overview and transfer steps), then `transfer/HANDOFF.md`.
+On the laptop, place `transfer/` inside the cloned repo and read in order:
+
+1. **`transfer/CONTINUATION.md`** — pick-up brief (next steps, vLLM status, recent ship list)
+2. **`transfer/checklist.md`** — copy to repo-root `checklist.md` (still gitignored)
+3. **`transfer/HANDOFF.md`** — paths and quick start
+4. **`transfer/PROJECT_OVERVIEW.txt`** — deeper technical overview if needed
 
 ## 4. Run locally
 
@@ -89,9 +95,10 @@ Optional wiki index: `poe-ingest` (not required if `RETRIEVAL_MODE=live` in `.en
 ## 5. Cursor on the laptop
 
 1. Open the `Siosa` folder in Cursor.
-2. Start a **new** chat (old chats are not synced automatically).
-3. Prompt example: *Read `transfer/HANDOFF.md` and `docs/ARCHITECTURE.md`; continue work on the PoE wiki agent.*
+2. Start a **new** chat (old chats are not synced automatically; transcripts are under `transfer/cursor/agent-transcripts/` for reference).
+3. Prompt example: *Read `transfer/CONTINUATION.md`, `transfer/checklist.md`, and `docs/ARCHITECTURE.md`; continue with the tool registry and Cargo/PoEDB.*
 4. Paste **User rules** from `transfer/cursor/user-rules.md` into Cursor **Settings → Rules** if you filled them in on the main PC.
+5. Ensure git author for this repo is `cent664` / `cent664@users.noreply.github.com` (not the unrelated `niv@users.noreply.github.com` noreply).
 
 ## 6. Production (unchanged)
 

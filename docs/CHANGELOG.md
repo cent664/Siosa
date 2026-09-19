@@ -1,5 +1,10 @@
 Newest first. Each entry uses the same format: a short title and a few bullets on what changed and why it mattered. Edit this file, then run `python scripts/sync_docs.py` for browser HTML.
 
+## 2026-09-19 — Laptop transfer export refresh
+
+- Tooling — `export_transfer.ps1` resolves the correct Cursor transcripts folder, copies local `checklist.md`, and writes `CONTINUATION.md` (next steps, vLLM status, recent ship list).
+- Docs — `LAPTOP_SETUP.md` points at CONTINUATION + checklist for second-machine handoff.
+
 ## 2026-08-20 — Pin Ruff lint rule set for CI
 
 - Tooling — Explicitly select classic Ruff rules (`E4`/`E7`/`E9`/`F`) so CI stays green under Ruff 0.16+ expanded defaults.

@@ -6,9 +6,9 @@ $ErrorActionPreference = "Stop"
 $ProjectRoot = Split-Path -Parent $PSScriptRoot
 $TransferRoot = Join-Path $ProjectRoot "transfer"
 $CursorHome = Join-Path $env:USERPROFILE ".cursor"
-$TranscriptsRoot = Join-Path $CursorHome "projects\c-Users-adg00-Desktop-Project\agent-transcripts"
 $PlansRoot = Join-Path $CursorHome "plans"
 $SkillsRoot = Join-Path $CursorHome "skills-cursor"
+$ProjectsRoot = Join-Path $CursorHome "projects"
 
 function Ensure-Dir($path) {
     if (-not (Test-Path $path)) { New-Item -ItemType Directory -Path $path -Force | Out-Null }
@@ -28,7 +28,30 @@ function Copy-Tree($src, $dst) {
     return $count
 }
 
+function Resolve-TranscriptsRoot {
+    # Prefer this machine's Desktop Project slug; fall back to any *Desktop-Project* folder.
+    $candidates = @(
+        (Join-Path $ProjectsRoot "c-Users-Niv-Desktop-Project\agent-transcripts"),
+        (Join-Path $ProjectsRoot "c-Users-adg00-Desktop-Project\agent-transcripts")
+    )
+    foreach ($c in $candidates) {
+        if (Test-Path $c) { return $c }
+    }
+    if (Test-Path $ProjectsRoot) {
+        $hit = Get-ChildItem -Path $ProjectsRoot -Directory -ErrorAction SilentlyContinue |
+            Where-Object { $_.Name -like "*Desktop-Project*" -or $_.Name -like "*Siosa*" } |
+            ForEach-Object { Join-Path $_.FullName "agent-transcripts" } |
+            Where-Object { Test-Path $_ } |
+            Select-Object -First 1
+        if ($hit) { return $hit }
+    }
+    return $candidates[0]
+}
+
+$TranscriptsRoot = Resolve-TranscriptsRoot
+
 Write-Host "Exporting laptop transfer bundle to $TransferRoot ..."
+Write-Host "  Transcripts source: $TranscriptsRoot"
 
 if (Test-Path $TransferRoot) {
     Remove-Item -Path $TransferRoot -Recurse -Force
@@ -63,7 +86,8 @@ $transcriptCount = Copy-Tree $TranscriptsRoot "$TransferRoot\cursor\agent-transc
 # Plans: Siosa / PoE wiki agent related filenames
 $planKeywords = @(
     "siosa", "poe", "wiki", "railway", "deploy", "prod", "retrieval", "architecture",
-    "streamlit", "react", "hosting", "cloud", "trace", "changelog", "laptop", "sync"
+    "streamlit", "react", "hosting", "cloud", "trace", "changelog", "laptop", "sync",
+    "checklist", "vllm", "cargo", "tool", "transfer", "list1", "planned", "handoff"
 )
 $planCount = 0
 if (Test-Path $PlansRoot) {
@@ -78,6 +102,15 @@ if (Test-Path $PlansRoot) {
             $planCount++
         }
     }
+}
+
+# Local checklist (gitignored roadmap)
+$checklistSrc = Join-Path $ProjectRoot "checklist.md"
+$checklistCopied = $false
+if (Test-Path $checklistSrc) {
+    Copy-Item $checklistSrc (Join-Path $TransferRoot "checklist.md") -Force
+    $checklistCopied = $true
+    Write-Host "  Copied checklist.md"
 }
 
 # Skills index
@@ -140,7 +173,7 @@ if (Test-Path $overviewSrc) {
     "- RETRIEVAL_MODE=live",
     "- POE_DATA_DIR=/app/data",
     "",
-    "Remove if leftover: OLLAMA_*, DEV_UI_ENABLED, POE_API_HOST, POE_API_PORT, custom PORT"
+    "Remove if leftover: OLLAMA_*, DEV_UI_ENABLED, BEDROCK_*, S3_*, AWS_*, POE_API_HOST, POE_API_PORT, custom PORT"
 ) | Set-Content "$TransferRoot\railway\production-variables.md" -Encoding UTF8
 
 # User rules placeholder (global rules are not stored in the repo)
@@ -159,11 +192,74 @@ $userRulesPath = "$TransferRoot\cursor\user-rules.md"
     ""
 ) | Set-Content -Path $userRulesPath -Encoding UTF8
 
+# CONTINUATION.md — pick-up brief for the other machine
+$continuation = @"
+# Continuation brief (pick up here)
+
+Exported: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
+Git: ${gitBranch} @ ${gitCommit}
+Repo: https://github.com/cent664/Siosa
+Demo: https://www.poesiosa.net/
+
+## Start the laptop Cursor chat with
+
+Read ``transfer/CONTINUATION.md``, ``transfer/checklist.md`` (copy to repo-root ``checklist.md`` if missing), and ``docs/ARCHITECTURE.md``. Continue with the tool registry wrapping live wiki as tool #1, then Cargo + PoEDB with finite routing.
+
+## Next product direction (agreed)
+
+1. **Tool registry** — wrap current live MediaWiki retrieval as tool #1 (same behavior, shared interface).
+2. **Add Cargo + PoEDB** first (not PoE Ninja yet) behind that interface.
+3. **Finite routing** — rules and/or planner choose tool(s) once (or parallel budgeted fetch), then synthesize. Not an open-ended dig loop yet.
+4. **Agentic Score+Revise later** — capped revises when the first pass is weak; not a prerequisite for adding tools.
+
+See ``checklist.md`` sections A/B/C for the full Already / Planned / Bonus roadmap.
+
+## vLLM / self-hosted inference
+
+**Status: discussed only — not implemented in code.**
+
+Intent from the Main Cursor chat (not shipped):
+
+- Keep Claude / GPT-4 as the default public providers.
+- Optional experimental provider: small open weights (e.g. Qwen2.5-7B-Instruct or Llama 3.1 8B) served with **vLLM** on scale-to-zero GPU (Modal / RunPod serverless).
+- Pull models from Hugging Face on the pod; do not upload weights from the laptop.
+- If exposed publicly: cold-start disclaimer; do not leave always-on GPUs on the demo budget.
+- DPO / RLAIF remain longer-term Planned items on the checklist, not started.
+
+``docs/PROJECT_OVERVIEW.txt`` still lists vLLM as a non-goal for the Railway demo path. That is consistent until an optional provider is wired.
+
+## Recently shipped (on GitHub)
+
+- Checklist removed from the deployed app; living roadmap is local gitignored ``checklist.md`` only.
+- Architecture + Changelog links moved to a top app header.
+- Bedrock / S3 scaffold removed; providers are Claude + GPT-4 only.
+- Dead ``linear_rag`` path removed; Asks with retrieval use LangGraph.
+- CI: pinned classic Ruff rule set; judge prompt test sets a dummy ``ANTHROPIC_API_KEY`` so CI without ``.env`` passes.
+- This repo's git author should be ``cent664`` / ``cent664@users.noreply.github.com`` (not ``niv@users.noreply.github.com``).
+
+## Finite pipeline reminder
+
+Live path today: plan search terms → one fused wiki lookup (capped pages/chunks) → generate → optional post-hoc Score. Adding Cargo/PoEDB expands sources inside that finite shape until a capped revise loop is added.
+
+## Related transcript ids (under cursor/agent-transcripts/)
+
+- Main: ``a94063ae-1ebe-40e6-9566-84b20dca0ba6``
+- Study: ``e8bfce32-b8b6-4af1-9a78-bf6c068e3ff2``
+"@
+$continuation | Set-Content "$TransferRoot\CONTINUATION.md" -Encoding UTF8
+Write-Host "  Wrote CONTINUATION.md"
+
 # HANDOFF.md
 $changelogPath = Join-Path $ProjectRoot "docs\CHANGELOG.md"
 $changelogSnippet = ""
 if (Test-Path $changelogPath) {
-    $changelogSnippet = (Get-Content $changelogPath -TotalCount 35) -join "`n"
+    $changelogSnippet = (Get-Content $changelogPath -TotalCount 40) -join "`n"
+}
+
+$checklistHandoffRow = if ($checklistCopied) {
+    "| checklist.md | Local Already / Planned / Bonus roadmap |"
+} else {
+    "| checklist.md | (missing on export machine - recreate from CONTINUATION + docs) |"
 }
 
 $handoff = @"
@@ -171,7 +267,7 @@ $handoff = @"
 
 Exported: $(Get-Date -Format "yyyy-MM-dd HH:mm:ss")
 Machine: $env:COMPUTERNAME
-Git: $gitBranch @ $gitCommit
+Git: ${gitBranch} @ ${gitCommit}
 Repo: https://github.com/cent664/Siosa
 
 ## Production
@@ -185,6 +281,8 @@ Repo: https://github.com/cent664/Siosa
 
 | Path | Purpose |
 |------|---------|
+| CONTINUATION.md | Pick-up brief (next steps, vLLM status, recent ship list) |
+$checklistHandoffRow
 | env/.env.local.backup | Your local secrets (if .env existed) |
 | cursor/agent-transcripts/ | Past Cursor agent chats for this project |
 | cursor/plans/ | Saved plan files ($planCount copied) |
@@ -196,12 +294,13 @@ Repo: https://github.com/cent664/Siosa
 
 ## Laptop quick start
 
-1. git clone https://github.com/cent664/Siosa.git
+1. git clone https://github.com/cent664/Siosa.git  (or git pull if already cloned)
 2. Copy this entire transfer/ folder into the cloned repo root.
-3. Read PROJECT_OVERVIEW.txt (technical overview + transfer steps)
+3. Read **CONTINUATION.md** first, then checklist.md, then PROJECT_OVERVIEW.txt if needed.
 4. copy transfer\env\.env.local.backup .env (or use .env.example and add keys)
-5. Follow docs/LAPTOP_SETUP.md in the repo.
-6. New Cursor chat: Read transfer/PROJECT_OVERVIEW.txt and docs/ARCHITECTURE.md
+5. copy transfer\checklist.md checklist.md  (keeps local roadmap; still gitignored)
+6. Follow docs/LAPTOP_SETUP.md in the repo.
+7. New Cursor chat: Read transfer/CONTINUATION.md, transfer/checklist.md, and docs/ARCHITECTURE.md
 
 ## Recent changelog (excerpt)
 
@@ -219,7 +318,7 @@ $handoff | Set-Content "$TransferRoot\HANDOFF.md" -Encoding UTF8
     "",
     "Do **not** commit or upload to public GitHub (may contain API keys in env backup and chats).",
     "",
-    "Start on laptop: read PROJECT_OVERVIEW.txt then HANDOFF.md."
+    "Start on laptop: read CONTINUATION.md, then checklist.md, then HANDOFF.md."
 ) | Set-Content "$TransferRoot\README.md" -Encoding UTF8
 
 $manifest = @{
@@ -231,6 +330,7 @@ $manifest = @{
         project_rules     = $rulesCount
         agent_transcripts = $transcriptCount
         plans             = $planCount
+        checklist         = [int]$checklistCopied
     }
     paths       = @{
         transcripts_source = $TranscriptsRoot
@@ -240,6 +340,6 @@ $manifest = @{
 $manifest | Set-Content "$TransferRoot\manifest.json" -Encoding UTF8
 
 Write-Host "Done."
-Write-Host "  Rules: $rulesCount | Transcripts: $transcriptCount | Plans: $planCount"
+Write-Host "  Rules: $rulesCount | Transcripts: $transcriptCount | Plans: $planCount | Checklist: $checklistCopied"
 Write-Host "  Output: $TransferRoot"
 Write-Host "Copy transfer/ to your laptop (not via git push)."
